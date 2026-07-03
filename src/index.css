@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+
+  /* Paleta Mundo Mascotix (coolors) */
+  --color-brand-50: #f2f8f9;
+  --color-brand-100: #dcecef;
+  --color-brand-200: #b7d9df;
+  --color-brand-300: #60abb8;
+  --color-brand-400: #479aab;
+  --color-brand-500: #2f8198;
+  --color-brand-600: #016581;
+  --color-brand-700: #015068;
+  --color-brand-800: #013a4c;
+  --color-brand-900: #002028;
+
+  --color-sev-leve: #f2c94c;
+  --color-sev-moderado: #f2994a;
+  --color-sev-urgente: #eb5757;
+}
+
+body {
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-900);
+}
