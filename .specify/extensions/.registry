@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "branch-convention": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:7efe1bfce264c25a4eddce6d65aa74ebc63a532b82e2d82264155e82c39d3859",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.branch-convention.configure",
+          "speckit.branch-convention.validate",
+          "speckit.branch-convention.rename"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-04T18:21:16.828677+00:00"
+    },
+    "arch": {
+      "version": "1.2.2",
+      "source": "local",
+      "manifest_hash": "sha256:835eeb5f800d404c4cfdb74e0b7026226682cb145cd4cd5bd2918cb6462c14e2",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.arch.scenario-generate",
+          "speckit.arch.logical-generate",
+          "speckit.arch.process-generate",
+          "speckit.arch.development-generate",
+          "speckit.arch.physical-generate",
+          "speckit.arch.full-generate",
+          "speckit.arch.full-reverse",
+          "speckit.arch.scenario-reverse",
+          "speckit.arch.logical-reverse",
+          "speckit.arch.process-reverse",
+          "speckit.arch.development-reverse",
+          "speckit.arch.physical-reverse"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-04T18:25:54.698903+00:00"
+    }
+  }
+}
