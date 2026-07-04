@@ -3,13 +3,22 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "postinstall": "npm run build",
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "db:migrate": "node server/db/migrate.js"
   },
   "dependencies": {
+    "@azure/identity": "^4.4.0",
+    "express": "^4.21.0",
     "jspdf": "^3.0.1",
+    "mssql": "^11.0.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

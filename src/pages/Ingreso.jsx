@@ -84,7 +84,7 @@ export default function Ingreso() {
         setAvisoRechazo(true);
       } else {
         const visita = { ...visitaBase, estado: 'ingresada' };
-        const id = guardarVisita(visita);
+        const id = await guardarVisita(visita);
         await pdfVisita({
           cliente: sel.cliente,
           mascota: sel.mascota,

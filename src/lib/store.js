@@ -1,123 +1,134 @@
-// Persistencia ligera en localStorage con suscripción para React.
-// Colecciones: clientes, mascotas, consentimientos, visitas.
+// Persistencia contra la API del servidor (Azure SQL detrás), con la misma forma
+// pública que antes tenía la versión basada en localStorage: useDB() sigue
+// devolviendo { clientes, mascotas, consentimientos, visitas } de forma síncrona
+// para que las páginas no cambien su lógica de lectura; las funciones de mutación
+// ahora son async (hay que hacerles await desde las páginas).
 
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, useEffect } from 'react';
 
-const KEY = 'dermospa-db-v1';
+const EMPTY = { clientes: [], mascotas: [], consentimientos: [], visitas: [] };
 
-const EMPTY = {
-  clientes: [],
-  mascotas: [],
-  consentimientos: [],
-  visitas: [],
-};
-
-let cache = null;
+let cache = { ...EMPTY };
+let loadPromise = null;
 const listeners = new Set();
 
-function load() {
-  if (cache) return cache;
-  try {
-    const raw = localStorage.getItem(KEY);
-    cache = raw ? { ...EMPTY, ...JSON.parse(raw) } : { ...EMPTY };
-  } catch {
-    cache = { ...EMPTY };
-  }
-  return cache;
-}
-
-function persist() {
-  localStorage.setItem(KEY, JSON.stringify(cache));
+function notify() {
   listeners.forEach((l) => l());
 }
 
+async function fetchJSON(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Error ${res.status} en ${url}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function fetchAll() {
+  const [clientes, mascotas, consentimientos, visitas] = await Promise.all([
+    fetchJSON('/api/clientes'),
+    fetchJSON('/api/mascotas'),
+    fetchJSON('/api/consentimientos'),
+    fetchJSON('/api/visitas'),
+  ]);
+  cache = { clientes, mascotas, consentimientos, visitas };
+  notify();
+}
+
+function ensureLoaded() {
+  if (!loadPromise) {
+    loadPromise = fetchAll().catch((err) => {
+      loadPromise = null;
+      throw err;
+    });
+  }
+  return loadPromise;
+}
+
+async function refetch() {
+  loadPromise = null;
+  await ensureLoaded();
+}
+
 export function getDB() {
-  return load();
+  return cache;
 }
 
 export function useDB() {
+  useEffect(() => {
+    ensureLoaded();
+  }, []);
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => load(),
+    () => cache,
   );
-}
-
-export function uid(prefix = 'id') {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function mutate(fn) {
-  cache = { ...load() };
-  fn(cache);
-  persist();
-  return cache;
 }
 
 // ---- Clientes / Mascotas ----
 
-export function upsertCliente(cliente) {
-  const id = cliente.id || uid('cli');
-  mutate((db) => {
-    const rest = db.clientes.filter((c) => c.id !== id);
-    db.clientes = [...rest, { ...cliente, id }];
-  });
+export async function upsertCliente(cliente) {
+  const id = cliente.id
+    ? (await fetchJSON(`/api/clientes/${cliente.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cliente),
+      })).id
+    : (await fetchJSON('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cliente),
+      })).id;
+  await refetch();
   return id;
 }
 
-export function upsertMascota(mascota) {
-  const id = mascota.id || uid('mas');
-  mutate((db) => {
-    const rest = db.mascotas.filter((m) => m.id !== id);
-    db.mascotas = [...rest, { ...mascota, id }];
-  });
+export async function upsertMascota(mascota) {
+  const id = mascota.id
+    ? (await fetchJSON(`/api/mascotas/${mascota.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mascota),
+      })).id
+    : (await fetchJSON('/api/mascotas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mascota),
+      })).id;
+  await refetch();
   return id;
 }
 
 // Derechos ARCO+: eliminación completa de un cliente y todo lo asociado.
-export function eliminarCliente(clienteId) {
-  mutate((db) => {
-    const mascotaIds = db.mascotas.filter((m) => m.cliente_id === clienteId).map((m) => m.id);
-    db.clientes = db.clientes.filter((c) => c.id !== clienteId);
-    db.mascotas = db.mascotas.filter((m) => m.cliente_id !== clienteId);
-    db.consentimientos = db.consentimientos.filter((c) => c.cliente_id !== clienteId);
-    db.visitas = db.visitas.filter((v) => !mascotaIds.includes(v.mascota_id));
-  });
+export async function eliminarCliente(clienteId) {
+  await fetchJSON(`/api/clientes/${clienteId}`, { method: 'DELETE' });
+  await refetch();
 }
 
 // Derechos ARCO+: portabilidad — exporta todos los datos de un cliente.
-export function exportarCliente(clienteId) {
-  const db = load();
-  const cliente = db.clientes.find((c) => c.id === clienteId);
-  const mascotas = db.mascotas.filter((m) => m.cliente_id === clienteId);
-  const mascotaIds = mascotas.map((m) => m.id);
-  return {
-    exportado: new Date().toISOString(),
-    cliente,
-    mascotas,
-    consentimientos: db.consentimientos.filter((c) => c.cliente_id === clienteId),
-    visitas: db.visitas.filter((v) => mascotaIds.includes(v.mascota_id)),
-  };
+export async function exportarCliente(clienteId) {
+  return fetchJSON(`/api/clientes/${clienteId}/export`);
 }
 
 // ---- Consentimientos (Formulario 1) ----
 
-export function guardarConsentimiento(consentimiento) {
-  const id = consentimiento.id || uid('con');
-  mutate((db) => {
-    db.consentimientos = [...db.consentimientos, { ...consentimiento, id }];
+export async function guardarConsentimiento(consentimiento) {
+  const { id } = await fetchJSON('/api/consentimientos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(consentimiento),
   });
+  await refetch();
   return id;
 }
 
-export function revocarConsentimiento(consentimientoId) {
-  mutate((db) => {
-    db.consentimientos = db.consentimientos.map((c) =>
-      c.id === consentimientoId ? { ...c, revocado: new Date().toISOString() } : c,
-    );
-  });
+export async function revocarConsentimiento(consentimientoId) {
+  await fetchJSON(`/api/consentimientos/${consentimientoId}/revocar`, { method: 'POST' });
+  await refetch();
 }
 
 export function consentimientoVigente(db, mascotaId) {
@@ -139,11 +150,18 @@ export function ultimoConsentimiento(db, mascotaId) {
 
 // ---- Visitas (Formularios 2 y 3) ----
 
-export function guardarVisita(visita) {
-  const id = visita.id || uid('vis');
-  mutate((db) => {
-    const rest = db.visitas.filter((v) => v.id !== id);
-    db.visitas = [...rest, { ...visita, id }];
-  });
+export async function guardarVisita(visita) {
+  const id = visita.id
+    ? (await fetchJSON(`/api/visitas/${visita.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(visita),
+      })).id
+    : (await fetchJSON('/api/visitas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(visita),
+      })).id;
+  await refetch();
   return id;
 }

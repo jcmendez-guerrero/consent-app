@@ -75,7 +75,7 @@ export default function Entrega() {
         comportamiento_notas: comportamientoNotas,
         firma_entrega: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaEntrega },
       };
-      guardarVisita(visita);
+      await guardarVisita(visita);
       await pdfVisita({
         cliente: actual.cliente,
         mascota: actual.mascota,

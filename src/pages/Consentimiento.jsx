@@ -57,8 +57,8 @@ export default function Consentimiento() {
     setError('');
     setAvisoRechazo(false);
     try {
-      const clienteId = upsertCliente(cliente);
-      const mascotaId = upsertMascota({ ...mascota, cliente_id: clienteId });
+      const clienteId = await upsertCliente(cliente);
+      const mascotaId = await upsertMascota({ ...mascota, cliente_id: clienteId });
       const textoAceptado = textoLegalCompleto([
         ...CLAUSULAS_CONSENTIMIENTO,
         CLAUSULA_IMAGENES,
@@ -80,7 +80,7 @@ export default function Consentimiento() {
         legal_version: LEGAL_VERSION,
         legal_hash: await hashTexto(textoAceptado),
       };
-      guardarConsentimiento(consentimiento);
+      await guardarConsentimiento(consentimiento);
       await pdfConsentimiento({
         cliente: { ...cliente, id: clienteId },
         mascota: { ...mascota, id: mascotaId },

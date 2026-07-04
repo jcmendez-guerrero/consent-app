@@ -99,9 +99,9 @@ export default function Clientes() {
                           </button>
                           <button
                             className="rounded-lg border border-red-200 px-3 py-1.5 font-semibold text-red-600 hover:bg-red-50"
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`¿Revocar el consentimiento de ${mascota.nombre}? Habrá que firmar uno nuevo antes de la próxima visita.`))
-                                revocarConsentimiento(consent.id);
+                                await revocarConsentimiento(consent.id);
                             }}
                           >
                             Revocar consentimiento
@@ -124,7 +124,7 @@ export default function Clientes() {
             <div className="mt-4 flex flex-wrap gap-2 border-t border-brand-100 pt-3 text-sm">
               <button
                 className="rounded-lg border border-brand-300 px-3 py-1.5 font-semibold text-brand-600 hover:bg-brand-100"
-                onClick={() => descargarJSON(exportarCliente(cliente.id), `datos_${cliente.dni_nie}.json`)}
+                onClick={async () => descargarJSON(await exportarCliente(cliente.id), `datos_${cliente.dni_nie}.json`)}
               >
                 Exportar datos (portabilidad)
               </button>
@@ -133,7 +133,7 @@ export default function Clientes() {
                   <span className="font-semibold text-red-700">¿Eliminar TODOS los datos de este cliente?</span>
                   <button
                     className="rounded-lg bg-red-600 px-3 py-1.5 font-bold text-white hover:bg-red-700"
-                    onClick={() => eliminarCliente(cliente.id)}
+                    onClick={async () => eliminarCliente(cliente.id)}
                   >
                     Sí, eliminar
                   </button>
