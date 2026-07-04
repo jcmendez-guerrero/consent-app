@@ -4,9 +4,10 @@ import { useDB, consentimientoVigente, guardarVisita } from '../lib/store';
 import { SERVICIOS, CLAUSULAS_INGRESO } from '../lib/legal';
 import { hoyISO, horaAhora } from '../lib/utils';
 import { pdfVisita } from '../lib/pdf';
-import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, inputCls } from '../components/ui';
+import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
 import MascotaPicker from '../components/MascotaPicker';
 import DogSchematic from '../components/DogSchematic';
+import SignatureBox from '../components/SignatureBox';
 
 export default function Ingreso() {
   const db = useDB();
@@ -30,26 +31,37 @@ export default function Ingreso() {
   const [hallazgos, setHallazgos] = useState([]);
   const [notas, setNotas] = useState('');
   const [horaIngreso, setHoraIngreso] = useState(horaAhora());
-  const [aceptaCondiciones, setAceptaCondiciones] = useState(false);
+  const [respuestaCondiciones, setRespuestaCondiciones] = useState(null); // 'acepta' | 'rechaza' | null
+  const [modoPapel, setModoPapel] = useState(false);
+  const [firmaIngreso, setFirmaIngreso] = useState(null);
+  const [confirmPapel, setConfirmPapel] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const [avisoRechazo, setAvisoRechazo] = useState(false);
 
   const visitaAbierta = sel && db.visitas.find((v) => v.mascota_id === sel.mascota.id && v.estado === 'ingresada');
-  const puedeGuardar = sel?.consentimiento && servicios.length > 0 && aceptaCondiciones && !visitaAbierta;
+  const condicionesOk = modoPapel || !!respuestaCondiciones;
+  const hayRechazo = !modoPapel && respuestaCondiciones === 'rechaza';
+  const puedeGuardar =
+    sel?.consentimiento &&
+    servicios.length > 0 &&
+    !visitaAbierta &&
+    condicionesOk &&
+    (modoPapel ? confirmPapel : !!firmaIngreso);
 
   function toggleServicio(s) {
-    setServicios(servicios.includes(s) ? servicios.filter((x) => x !== s) : [...servicios, s]);
+    setServicios((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   }
 
   async function guardar() {
     if (!puedeGuardar || guardando) return;
     setGuardando(true);
     setError('');
+    setAvisoRechazo(false);
     try {
-      const visita = {
+      const visitaBase = {
         mascota_id: sel.mascota.id,
         fecha: hoyISO(),
-        estado: 'ingresada',
         servicios,
         tratamiento,
         precio,
@@ -57,17 +69,30 @@ export default function Ingreso() {
         hallazgos_entrega: [],
         notas_ingreso: notas,
         hora_ingreso: horaIngreso,
-        condiciones_aceptadas: true,
+        clausulas_respuesta_condiciones: modoPapel ? null : respuestaCondiciones,
+        firma_ingreso: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaIngreso },
         autoriza_fotos_redes: !!sel.consentimiento.autoriza_fotos,
       };
-      const id = guardarVisita(visita);
-      await pdfVisita({
-        cliente: sel.cliente,
-        mascota: sel.mascota,
-        visita: { ...visita, id },
-        clausulasIngreso: CLAUSULAS_INGRESO,
-      });
-      navigate('/');
+
+      if (hayRechazo) {
+        await pdfVisita({
+          cliente: sel.cliente,
+          mascota: sel.mascota,
+          visita: { ...visitaBase, id: 'rechazo_tmp', estado: 'ingresada' },
+          clausulasIngreso: CLAUSULAS_INGRESO,
+        });
+        setAvisoRechazo(true);
+      } else {
+        const visita = { ...visitaBase, estado: 'ingresada' };
+        const id = guardarVisita(visita);
+        await pdfVisita({
+          cliente: sel.cliente,
+          mascota: sel.mascota,
+          visita: { ...visita, id },
+          clausulasIngreso: CLAUSULAS_INGRESO,
+        });
+        navigate('/');
+      }
     } catch (e) {
       console.error(e);
       setError('No se pudo guardar el ingreso. Inténtalo de nuevo.');
@@ -115,6 +140,13 @@ export default function Ingreso() {
           </div>
         )}
       </Card>
+
+      {avisoRechazo && (
+        <Aviso tipo="error">
+          El tutor no ha aceptado las condiciones del servicio. Se ha generado el PDF como constancia, pero{' '}
+          <strong>no se ha registrado el ingreso</strong> de la mascota.
+        </Aviso>
+      )}
 
       {sel?.consentimiento && !visitaAbierta && (
         <>
@@ -175,21 +207,78 @@ export default function Ingreso() {
                 </li>
               ))}
             </ul>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
-              <input
-                type="checkbox"
-                checked={aceptaCondiciones}
-                onChange={(e) => setAceptaCondiciones(e.target.checked)}
-                className="h-6 w-6 accent-[#016581]"
-              />
-              El tutor conoce y acepta las condiciones del servicio
-            </label>
+
+            <ModoFirmaToggle modoPapel={modoPapel} onChange={setModoPapel} />
+
+            {modoPapel ? (
+              <Aviso tipo="info">
+                Se generará la ficha con la aceptación y la firma en blanco para completar a mano. Al guardar, el
+                ingreso quedará registrado.
+              </Aviso>
+            ) : (
+              <div className="rounded-xl border border-brand-200 bg-white p-4">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRespuestaCondiciones(respuestaCondiciones === 'acepta' ? null : 'acepta')}
+                    className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+                      respuestaCondiciones === 'acepta'
+                        ? 'border-emerald-600 bg-emerald-600 text-white'
+                        : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-100'
+                    }`}
+                  >
+                    El tutor acepta las condiciones
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRespuestaCondiciones(respuestaCondiciones === 'rechaza' ? null : 'rechaza')}
+                    className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+                      respuestaCondiciones === 'rechaza'
+                        ? 'border-red-600 bg-red-600 text-white'
+                        : 'border-brand-200 bg-white text-brand-700 hover:bg-red-50'
+                    }`}
+                  >
+                    El tutor NO acepta las condiciones
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4">
+              {modoPapel ? (
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
+                  <input
+                    type="checkbox"
+                    checked={confirmPapel}
+                    onChange={(e) => setConfirmPapel(e.target.checked)}
+                    className="h-6 w-6 accent-[#016581]"
+                  />
+                  Confirmo que el tutor firmará la ficha impresa de forma manual.
+                </label>
+              ) : (
+                <SignatureBox onChange={setFirmaIngreso} label="Firma del tutor (ingreso)" />
+              )}
+            </div>
+
             {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
             <div className="mt-4 flex items-center gap-3">
               <PrimaryButton onClick={guardar} disabled={!puedeGuardar || guardando}>
-                {guardando ? 'Guardando…' : 'Registrar ingreso y generar PDF'}
+                {guardando
+                  ? 'Guardando…'
+                  : modoPapel
+                    ? 'Generar ficha en blanco para firma manual'
+                    : 'Registrar ingreso y generar PDF'}
               </PrimaryButton>
               {servicios.length === 0 && <span className="text-sm text-brand-500">Selecciona al menos un servicio.</span>}
+              {servicios.length > 0 && !condicionesOk && (
+                <span className="text-sm text-brand-500">Indica si el tutor acepta las condiciones.</span>
+              )}
+              {servicios.length > 0 && condicionesOk && !modoPapel && !firmaIngreso && (
+                <span className="text-sm text-brand-500">Falta la firma.</span>
+              )}
+              {servicios.length > 0 && condicionesOk && modoPapel && !confirmPapel && (
+                <span className="text-sm text-brand-500">Confirma la firma en papel.</span>
+              )}
             </div>
           </Card>
         </>

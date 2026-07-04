@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   useDB,
   consentimientoVigente,
+  ultimoConsentimiento,
   revocarConsentimiento,
   eliminarCliente,
   exportarCliente,
@@ -59,6 +60,7 @@ export default function Clientes() {
             <ul className="space-y-3">
               {mascotas.map((mascota) => {
                 const consent = consentimientoVigente(db, mascota.id);
+                const ultimo = ultimoConsentimiento(db, mascota.id);
                 const visitas = db.visitas
                   .filter((v) => v.mascota_id === mascota.id)
                   .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
@@ -72,7 +74,12 @@ export default function Clientes() {
                       {consent ? (
                         <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
                           Consentimiento del {fmtFecha(consent.fecha)}
+                          {consent.firma_tipo === 'papel' ? ' · firmado en papel' : ''}
                           {consent.autoriza_fotos ? ' · fotos SÍ' : ' · fotos NO'}
+                        </span>
+                      ) : ultimo && ultimo.estado === 'rechazado' && !ultimo.revocado ? (
+                        <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                          Rechazado por el tutor el {fmtFecha(ultimo.fecha)}
                         </span>
                       ) : (
                         <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">

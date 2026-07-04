@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import QRCode from 'qrcode';
 import { useDB, guardarVisita } from '../lib/store';
-import { CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST } from '../lib/legal';
+import { CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST, COMPORTAMIENTO_OPCIONES, URL_RESENA } from '../lib/legal';
 import { horaAhora, calcularRecargo, fmtFecha } from '../lib/utils';
 import { pdfVisita } from '../lib/pdf';
-import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, inputCls } from '../components/ui';
+import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
 import DogSchematic from '../components/DogSchematic';
 import SignatureBox from '../components/SignatureBox';
 
@@ -33,18 +34,31 @@ export default function Entrega() {
   const [notasCuidado, setNotasCuidado] = useState('');
   const [horaAviso, setHoraAviso] = useState('');
   const [horaRecogida, setHoraRecogida] = useState('');
+  const [comportamientoChips, setComportamientoChips] = useState([]);
+  const [comportamientoNotas, setComportamientoNotas] = useState('');
+  const [modoPapel, setModoPapel] = useState(false);
   const [firmaEntrega, setFirmaEntrega] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+
+  useEffect(() => {
+    QRCode.toDataURL(URL_RESENA, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
+  }, []);
 
   const { minutosExtra, recargo } = calcularRecargo(horaAviso, horaRecogida);
+  const puedeGuardar = modoPapel || !!firmaEntrega;
 
   function toggleCuidado(c) {
-    setCuidados(cuidados.includes(c) ? cuidados.filter((x) => x !== c) : [...cuidados, c]);
+    setCuidados((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }
+
+  function toggleComportamiento(c) {
+    setComportamientoChips((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
   async function guardar() {
-    if (guardando) return;
+    if (!puedeGuardar || guardando) return;
     setGuardando(true);
     setError('');
     try {
@@ -57,7 +71,9 @@ export default function Entrega() {
         hora_aviso_listo: horaAviso,
         hora_recogida: horaRecogida,
         recargo_por_demora: recargo,
-        firma_entrega: firmaEntrega,
+        comportamiento_chips: comportamientoChips,
+        comportamiento_notas: comportamientoNotas,
+        firma_entrega: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaEntrega },
       };
       guardarVisita(visita);
       await pdfVisita({
@@ -162,6 +178,27 @@ export default function Entrega() {
         </div>
       </Card>
 
+      <Card title="Evaluación del comportamiento (personal)" subtitle="Valoración de la peluquera durante el servicio.">
+        <div className="flex flex-wrap gap-2">
+          {COMPORTAMIENTO_OPCIONES.map((c) => (
+            <Chip key={c} active={comportamientoChips.includes(c)} onClick={() => toggleComportamiento(c)}>
+              {c}
+            </Chip>
+          ))}
+        </div>
+        <div className="mt-4">
+          <Field label="Notas del personal">
+            <textarea
+              className={inputCls}
+              rows={2}
+              value={comportamientoNotas}
+              onChange={(e) => setComportamientoNotas(e.target.value)}
+              placeholder="Observaciones sobre el comportamiento durante el servicio…"
+            />
+          </Field>
+        </div>
+      </Card>
+
       <Card title="Horarios y recargo por demora" subtitle="Margen de cortesía: 60 minutos desde el aviso. Después, 15 € por hora o fracción.">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label='Hora de aviso "mascota lista"'>
@@ -202,14 +239,34 @@ export default function Entrega() {
         </div>
       </Card>
 
-      <Card title="Recibí conforme (opcional)" subtitle="Firma corta del tutor al recoger la mascota, solo como constancia de la entrega. No añade condiciones.">
-        <SignatureBox onChange={setFirmaEntrega} label="Firma de recogida" />
+      <Card title="Recibí conforme" subtitle="Firma del tutor al recoger la mascota, como constancia de la entrega y de haber recibido las indicaciones de cuidado.">
+        <ModoFirmaToggle modoPapel={modoPapel} onChange={setModoPapel} />
+        {modoPapel ? (
+          <Aviso tipo="info">
+            Se generará el documento con la línea de firma en blanco para completar a mano. Al guardar, la visita
+            quedará cerrada.
+          </Aviso>
+        ) : (
+          <SignatureBox onChange={setFirmaEntrega} label="Firma de recogida" />
+        )}
         {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
         <div className="mt-4">
-          <PrimaryButton onClick={guardar} disabled={guardando}>
-            {guardando ? 'Guardando…' : 'Cerrar visita y generar PDF completo'}
+          <PrimaryButton onClick={guardar} disabled={!puedeGuardar || guardando}>
+            {guardando ? 'Guardando…' : modoPapel ? 'Generar documento en blanco y cerrar visita' : 'Cerrar visita y generar PDF completo'}
           </PrimaryButton>
+          {!modoPapel && !firmaEntrega && <span className="ml-3 text-sm text-brand-500">Falta la firma.</span>}
         </div>
+      </Card>
+
+      <Card title="Pide una reseña" subtitle="Muestra este código al tutor para que pueda dejar una reseña.">
+        {qrDataUrl ? (
+          <div className="flex flex-col items-center gap-2">
+            <img src={qrDataUrl} alt="Código QR para dejar una reseña" className="h-40 w-40" />
+            <p className="text-sm text-brand-500">Escanéalo con la cámara del móvil</p>
+          </div>
+        ) : (
+          <p className="text-sm text-brand-400">Generando código QR…</p>
+        )}
       </Card>
     </div>
   );

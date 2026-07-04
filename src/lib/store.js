@@ -123,7 +123,16 @@ export function revocarConsentimiento(consentimientoId) {
 export function consentimientoVigente(db, mascotaId) {
   return (
     db.consentimientos
-      .filter((c) => c.mascota_id === mascotaId && !c.revocado)
+      .filter((c) => c.mascota_id === mascotaId && !c.revocado && c.estado === 'aceptado')
+      .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0] || null
+  );
+}
+
+// Último consentimiento (aceptado o rechazado), para mostrar estado en la pestaña Clientes.
+export function ultimoConsentimiento(db, mascotaId) {
+  return (
+    db.consentimientos
+      .filter((c) => c.mascota_id === mascotaId)
       .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0] || null
   );
 }

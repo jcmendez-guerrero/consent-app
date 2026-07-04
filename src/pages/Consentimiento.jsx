@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useDB, upsertCliente, upsertMascota, guardarConsentimiento } from '../lib/store';
 import {
   CLAUSULAS_CONSENTIMIENTO,
   CLAUSULA_IMAGENES,
   CLAUSULA_COMUNICACIONES,
+  CONDICIONES_PREEXISTENTES_OPCIONES,
   RESPONSABLE,
   LEGAL_VERSION,
   textoLegalCompleto,
@@ -12,7 +13,7 @@ import {
 } from '../lib/legal';
 import { fechaLarga } from '../lib/utils';
 import { pdfConsentimiento } from '../lib/pdf';
-import { Card, Field, TextInput, CheckBlock, PrimaryButton, Aviso } from '../components/ui';
+import { Card, Field, TextInput, CheckBlock, ClauseBlock, ModoFirmaToggle, PrimaryButton, Chip, Aviso } from '../components/ui';
 import SignatureBox from '../components/SignatureBox';
 
 const CLIENTE_VACIO = { nombre_apellidos: '', dni_nie: '', telefono: '', email: '' };
@@ -26,24 +27,35 @@ export default function Consentimiento() {
 
   const [cliente, setCliente] = useState(clientePrevio ? { ...clientePrevio } : { ...CLIENTE_VACIO });
   const [mascota, setMascota] = useState({ ...MASCOTA_VACIA });
-  const [aceptadas, setAceptadas] = useState({});
+  const [respuestas, setRespuestas] = useState({});
+  const [condicionesPreexistentes, setCondicionesPreexistentes] = useState([]);
+  const [condicionesOtras, setCondicionesOtras] = useState('');
   const [autorizaFotos, setAutorizaFotos] = useState(false);
   const [autorizaComunicaciones, setAutorizaComunicaciones] = useState(false);
+  const [modoPapel, setModoPapel] = useState(false);
   const [firma, setFirma] = useState(null);
+  const [confirmPapel, setConfirmPapel] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const [avisoRechazo, setAvisoRechazo] = useState(false);
 
   const setC = (k) => (e) => setCliente({ ...cliente, [k]: e.target.value });
   const setM = (k) => (e) => setMascota({ ...mascota, [k]: e.target.value });
 
-  const obligatoriasOk = CLAUSULAS_CONSENTIMIENTO.every((c) => aceptadas[c.id]);
+  function toggleCondicion(c) {
+    setCondicionesPreexistentes((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }
+
   const datosOk = cliente.nombre_apellidos.trim() && cliente.dni_nie.trim() && cliente.telefono.trim() && mascota.nombre.trim();
-  const puedeFirmar = obligatoriasOk && datosOk && firma;
+  const todasRespondidas = modoPapel || CLAUSULAS_CONSENTIMIENTO.every((c) => respuestas[c.id]);
+  const hayRechazo = !modoPapel && CLAUSULAS_CONSENTIMIENTO.some((c) => respuestas[c.id] === 'rechaza');
+  const puedeGuardar = datosOk && todasRespondidas && (modoPapel ? confirmPapel : !!firma);
 
   async function guardar() {
-    if (!puedeFirmar || guardando) return;
+    if (!puedeGuardar || guardando) return;
     setGuardando(true);
     setError('');
+    setAvisoRechazo(false);
     try {
       const clienteId = upsertCliente(cliente);
       const mascotaId = upsertMascota({ ...mascota, cliente_id: clienteId });
@@ -52,13 +64,19 @@ export default function Consentimiento() {
         CLAUSULA_IMAGENES,
         CLAUSULA_COMUNICACIONES,
       ]);
+      const estado = modoPapel ? 'aceptado' : hayRechazo ? 'rechazado' : 'aceptado';
       const consentimiento = {
         cliente_id: clienteId,
         mascota_id: mascotaId,
         fecha: new Date().toISOString(),
+        firma_tipo: modoPapel ? 'papel' : 'digital',
+        firma: modoPapel ? null : firma,
+        clausulas_respuestas: modoPapel ? {} : respuestas,
+        estado,
+        condiciones_preexistentes: condicionesPreexistentes,
+        condiciones_preexistentes_otras: condicionesOtras,
         autoriza_fotos: autorizaFotos,
         autoriza_comunicaciones: autorizaComunicaciones,
-        firma,
         legal_version: LEGAL_VERSION,
         legal_hash: await hashTexto(textoAceptado),
       };
@@ -71,7 +89,11 @@ export default function Consentimiento() {
         clausulaImagenes: CLAUSULA_IMAGENES,
         clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
       });
-      navigate('/ingreso?mascota=' + mascotaId);
+      if (estado === 'aceptado') {
+        navigate('/ingreso?mascota=' + mascotaId);
+      } else {
+        setAvisoRechazo(true);
+      }
     } catch (e) {
       console.error(e);
       setError('No se pudo guardar el consentimiento. Revisa los datos e inténtalo de nuevo.');
@@ -88,6 +110,25 @@ export default function Consentimiento() {
           Se firma una vez por mascota. Vigencia indefinida hasta revocación expresa por escrito.
         </p>
       </div>
+
+      <ModoFirmaToggle modoPapel={modoPapel} onChange={setModoPapel} />
+      {modoPapel && (
+        <Aviso tipo="info">
+          Se generará el documento con la aceptación de cada cláusula y la firma en blanco, para que el tutor lo
+          complete a mano. En cuanto lo guardes, el consentimiento quedará registrado como vigente.
+        </Aviso>
+      )}
+
+      {avisoRechazo && (
+        <Aviso tipo="error">
+          El tutor ha rechazado una o más cláusulas imprescindibles para prestar el servicio. Se ha generado el PDF
+          como constancia, pero <strong>el consentimiento no queda vigente</strong> y no se puede registrar el
+          ingreso de la mascota hasta resolverlo.{' '}
+          <Link to="/clientes" className="font-bold underline">
+            Ir a Clientes →
+          </Link>
+        </Aviso>
+      )}
 
       <Card title="1 · Datos del tutor">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -133,18 +174,47 @@ export default function Consentimiento() {
         title="3 · Declaraciones y aceptación de condiciones"
         subtitle="Yo, el/la abajo firmante, en calidad de propietario/a o tutor legal del animal arriba identificado, declaro y acepto lo siguiente:"
       >
-        <div className="space-y-3">
-          {CLAUSULAS_CONSENTIMIENTO.map((c) => (
-            <CheckBlock
-              key={c.id}
-              titulo={c.titulo}
-              texto={c.texto}
-              obligatoria
-              checked={!!aceptadas[c.id]}
-              onChange={(v) => setAceptadas({ ...aceptadas, [c.id]: v })}
+        <div className="mb-4 rounded-xl border border-brand-200 bg-brand-50 p-4">
+          <h4 className="mb-2 font-semibold text-brand-700">Condiciones preexistentes conocidas de la mascota</h4>
+          <div className="flex flex-wrap gap-2">
+            {CONDICIONES_PREEXISTENTES_OPCIONES.map((c) => (
+              <Chip key={c} active={condicionesPreexistentes.includes(c)} onClick={() => toggleCondicion(c)}>
+                {c}
+              </Chip>
+            ))}
+          </div>
+          <div className="mt-3">
+            <TextInput
+              value={condicionesOtras}
+              onChange={(e) => setCondicionesOtras(e.target.value)}
+              placeholder="Otras condiciones o detalles (opcional)"
             />
-          ))}
+          </div>
         </div>
+
+        {modoPapel ? (
+          <div className="space-y-2.5">
+            {CLAUSULAS_CONSENTIMIENTO.map((c) => (
+              <div key={c.id} className="rounded-xl border border-dashed border-brand-300 bg-white p-4">
+                <h4 className="mb-1 font-semibold text-brand-700">{c.titulo}</h4>
+                <p className="text-sm leading-relaxed text-brand-900/80">{c.texto}</p>
+                <p className="mt-2 text-sm font-bold text-brand-400">☐ Acepto&nbsp;&nbsp;&nbsp;☐ No acepto (a marcar en papel)</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {CLAUSULAS_CONSENTIMIENTO.map((c) => (
+              <ClauseBlock
+                key={c.id}
+                titulo={c.titulo}
+                texto={c.texto}
+                value={respuestas[c.id] || null}
+                onChange={(v) => setRespuestas((prev) => ({ ...prev, [c.id]: v }))}
+              />
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card title="4 · Autorizaciones opcionales" subtitle="Estas dos autorizaciones son independientes: el servicio se presta igual aunque no se marquen.">
@@ -176,15 +246,29 @@ export default function Consentimiento() {
           En {RESPONSABLE.localidad}, a {fechaLarga()}. Mediante la firma del presente documento, acepto todas las
           cláusulas arriba expuestas.
         </p>
-        <SignatureBox onChange={setFirma} />
+        {modoPapel ? (
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
+            <input
+              type="checkbox"
+              checked={confirmPapel}
+              onChange={(e) => setConfirmPapel(e.target.checked)}
+              className="h-6 w-6 accent-[#016581]"
+            />
+            Confirmo que el tutor firmará el documento impreso, incluyendo la aceptación o rechazo de cada cláusula,
+            de forma manual.
+          </label>
+        ) : (
+          <SignatureBox onChange={setFirma} />
+        )}
         {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
         <div className="mt-4 flex items-center gap-3">
-          <PrimaryButton onClick={guardar} disabled={!puedeFirmar || guardando}>
-            {guardando ? 'Guardando…' : 'Guardar y generar PDF'}
+          <PrimaryButton onClick={guardar} disabled={!puedeGuardar || guardando}>
+            {guardando ? 'Guardando…' : modoPapel ? 'Generar documento en blanco para firma manual' : 'Guardar y generar PDF'}
           </PrimaryButton>
           {!datosOk && <span className="text-sm text-brand-500">Faltan datos obligatorios del tutor o la mascota.</span>}
-          {datosOk && !obligatoriasOk && <span className="text-sm text-brand-500">Acepta todas las cláusulas obligatorias.</span>}
-          {datosOk && obligatoriasOk && !firma && <span className="text-sm text-brand-500">Falta la firma.</span>}
+          {datosOk && !todasRespondidas && <span className="text-sm text-brand-500">Responde Acepto / No acepto en todas las cláusulas.</span>}
+          {datosOk && todasRespondidas && !modoPapel && !firma && <span className="text-sm text-brand-500">Falta la firma.</span>}
+          {datosOk && todasRespondidas && modoPapel && !confirmPapel && <span className="text-sm text-brand-500">Confirma la firma en papel.</span>}
         </div>
       </Card>
     </div>

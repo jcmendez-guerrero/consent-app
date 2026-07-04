@@ -3,7 +3,9 @@
 // guarda la versión y el hash SHA-256 del texto aceptado (requisito RGPD de
 // poder demostrar qué texto exacto se aceptó).
 
-export const LEGAL_VERSION = '2026-07-03.1';
+export const LEGAL_VERSION = '2026-07-04.1';
+
+export const URL_RESENA = 'https://g.page/r/CXhutFfZILZTEBM/review';
 
 export const RESPONSABLE = {
   nombre: 'DANIELA CECILIA ANTEZANA CUEVAS (MUNDO MASCOTIX)',
@@ -26,7 +28,7 @@ export const CLAUSULAS_CONSENTIMIENTO = [
     id: 'veracidad',
     titulo: '2. Veracidad de la información proporcionada',
     texto:
-      'Declaro que el animal se encuentra en buen estado de salud físico y mental, y he comunicado previamente cualquier condición médica, comportamiento agresivo, fobia o alergia que pueda afectar al desarrollo del servicio. Me comprometo a actualizar esta información en futuras visitas si se producen cambios.',
+      'Declaro que el animal se encuentra en buen estado de salud físico y mental, y he comunicado previamente cualquier condición médica, comportamiento agresivo, fobia o alergia que pueda afectar al desarrollo del servicio. Me comprometo a actualizar esta información en futuras visitas si se producen cambios. Entiendo y acepto que existen factores de riesgo cardiovascular (edad, cardiopatías de base, sobrepeso, hipertensión, hipotiroidismo, coagulopatías, entre otros) que pueden derivar en un paro cardiorrespiratorio a causa del nerviosismo o de enfermedades previas del animal durante el servicio, y que Mundo Mascotix no se hace responsable de un desenlace fatal derivado de dichos factores, salvo negligencia grave o dolo.',
     obligatoria: true,
   },
   {
@@ -59,6 +61,17 @@ export const CLAUSULAS_CONSENTIMIENTO = [
   },
 ];
 
+// Condiciones preexistentes declaradas por el tutor, ligadas al momento de la firma.
+export const CONDICIONES_PREEXISTENTES_OPCIONES = [
+  'Cardiopatía',
+  'Hipertensión',
+  'Hipotiroidismo',
+  'Sobrepeso',
+  'Coagulopatías',
+  'Alergias conocidas',
+  'Ninguna conocida',
+];
+
 // Autorización de imágenes: checkbox independiente, puede quedarse sin marcar.
 export const CLAUSULA_IMAGENES = {
   id: 'imagenes',
@@ -87,6 +100,12 @@ export const CLAUSULAS_INGRESO = [
     titulo: 'Demora en la recogida',
     texto:
       'Una vez notificado el tutor de que la mascota está lista, dispone de 60 minutos para recogerla. Superado ese plazo, se aplicará un recargo de 15 € por hora o fracción de permanencia adicional en concepto de cuidado.',
+  },
+  {
+    id: 'abandono',
+    titulo: 'Abandono de la mascota',
+    texto:
+      'Si el tutor no recoge a la mascota antes del cierre del establecimiento el mismo día del servicio, esta se considerará abandonada. Mundo Mascotix podrá ponerla a disposición de las autoridades locales competentes (protectora o servicio municipal de recogida de animales), sin perjuicio de reclamar los gastos de custodia y cuidado generados.',
   },
   {
     id: 'rechazo',
@@ -124,6 +143,16 @@ export const SERVICIOS = [
   'Limpieza de oídos',
   'Corte de uñas',
   'Otro',
+];
+
+export const COMPORTAMIENTO_OPCIONES = [
+  'Tranquilo',
+  'Nervioso',
+  'Agresivo',
+  'Juguetón',
+  'Dócil',
+  'Miedoso',
+  'Cooperativo',
 ];
 
 export const CUIDADOS_CHECKLIST = [

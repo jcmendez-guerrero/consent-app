@@ -1,11 +1,13 @@
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 import { DOG_VIEWS, VISTAS, colorSeveridad, labelZona } from '../components/dogViews';
-import { RESPONSABLE } from './legal';
+import { RESPONSABLE, URL_RESENA } from './legal';
 import { fechaLarga, fmtFecha, calcularRecargo } from './utils';
 
 const TEAL = '#016581';
 const DARK = '#002028';
 const MID = '#2f8198';
+const RED = '#c0392b';
 const M = 18; // margen mm
 const W = 210 - M * 2;
 
@@ -119,6 +121,19 @@ async function cabecera(doc, titulo, subtitulo) {
   return y + 6;
 }
 
+function bannerRechazo(doc, y, texto) {
+  y = nuevaPaginaSi(doc, y, 10);
+  doc.setFillColor('#fdecea');
+  const lines = doc.splitTextToSize(texto, W - 4);
+  const h = lines.length * 4.2 + 4;
+  doc.rect(M, y - 4, W, h, 'F');
+  doc.setTextColor(RED);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text(lines, M + 2, y);
+  return y + h + 2;
+}
+
 function bloqueTexto(doc, y, texto, { size = 9, color = DARK, bold = false } = {}) {
   doc.setFont('helvetica', bold ? 'bold' : 'normal');
   doc.setFontSize(size);
@@ -214,19 +229,43 @@ async function hallazgosEnPDF(doc, y, titulo, hallazgos, referencia = []) {
   return y + 2;
 }
 
-function firmaEnPDF(doc, y, firmaDataUrl, texto) {
+// Casillas de aceptación de una cláusula: digital (marcada) o en blanco (papel).
+function lineaAceptacion(doc, y, { tipoFirma, respuesta, textoAcepta, textoRechaza }) {
+  if (tipoFirma === 'papel') {
+    return bloqueTexto(doc, y, `[ ] ${textoAcepta}     [ ] ${textoRechaza}   (a completar a mano)`, {
+      bold: true,
+      size: 8.5,
+      color: DARK,
+    });
+  }
+  if (respuesta === 'rechaza') {
+    return bloqueTexto(doc, y, `[ ] ${textoAcepta}     [X] ${textoRechaza}`, { bold: true, size: 8.5, color: RED });
+  }
+  return bloqueTexto(doc, y, `[X] ${textoAcepta}     [ ] ${textoRechaza}`, { bold: true, size: 8.5, color: MID });
+}
+
+// Firma: imagen digital, o recuadro en blanco si se completa en papel.
+function firmaEnPDF(doc, y, tipoFirma, dataUrl, texto) {
   y = nuevaPaginaSi(doc, y, 45);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(DARK);
-  doc.text(texto, M, y);
-  y += 4;
-  if (firmaDataUrl) {
-    doc.setDrawColor('#b7d9df');
+  const lines = doc.splitTextToSize(texto, W);
+  doc.text(lines, M, y);
+  y += lines.length * 4 + 2;
+  doc.setDrawColor('#b7d9df');
+  if (tipoFirma === 'digital' && dataUrl) {
     doc.roundedRect(M, y, 70, 30, 2, 2);
-    doc.addImage(firmaDataUrl, 'PNG', M + 5, y + 2, 60, 26);
-    y += 34;
+    doc.addImage(dataUrl, 'PNG', M + 5, y + 2, 60, 26);
+  } else {
+    doc.setLineDashPattern([1.2, 1.2], 0);
+    doc.roundedRect(M, y, 70, 30, 2, 2);
+    doc.setLineDashPattern([], 0);
+    doc.setFontSize(8);
+    doc.setTextColor(MID);
+    doc.text('Firma manuscrita', M + 35, y + 16, { align: 'center' });
   }
+  y += 34;
   return y;
 }
 
@@ -239,6 +278,14 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
     'AUTORIZACIÓN Y EXONERACIÓN DE RESPONSABILIDAD PARA SERVICIOS DE PELUQUERÍA CANINA',
     `${RESPONSABLE.establecimiento} · Vigencia indefinida`,
   );
+
+  if (consentimiento.estado === 'rechazado') {
+    y = bannerRechazo(
+      doc,
+      y,
+      'EL TUTOR HA RECHAZADO UNA O MÁS CLÁUSULAS IMPRESCINDIBLES — ESTE DOCUMENTO NO ES VÁLIDO PARA PRESTAR EL SERVICIO.',
+    );
+  }
 
   y = tituloSeccion(doc, y, '1. Datos del tutor del animal');
   y = filaDato(doc, y, 'Nombre y apellidos', cliente.nombre_apellidos);
@@ -254,6 +301,15 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
   y = filaDato(doc, y, 'Microchip', mascota.microchip || '—');
   y = filaDato(doc, y, 'Observaciones', mascota.observaciones_generales || '—');
 
+  const condiciones = consentimiento.condiciones_preexistentes || [];
+  if (condiciones.length || consentimiento.condiciones_preexistentes_otras) {
+    y = tituloSeccion(doc, y + 2, 'Condiciones preexistentes declaradas');
+    y = filaDato(doc, y, 'Condiciones', condiciones.length ? condiciones.join(', ') : 'Ninguna marcada');
+    if (consentimiento.condiciones_preexistentes_otras) {
+      y = filaDato(doc, y, 'Otras / detalles', consentimiento.condiciones_preexistentes_otras);
+    }
+  }
+
   y = tituloSeccion(doc, y + 2, '3. Declaraciones y aceptación de condiciones');
   y = bloqueTexto(
     doc,
@@ -263,7 +319,12 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
   for (const c of clausulas) {
     y = bloqueTexto(doc, y + 1, c.titulo, { bold: true, size: 9.5 });
     y = bloqueTexto(doc, y, c.texto);
-    y = bloqueTexto(doc, y, '[X] Acepto', { bold: true, size: 8.5, color: MID });
+    y = lineaAceptacion(doc, y, {
+      tipoFirma: consentimiento.firma_tipo,
+      respuesta: consentimiento.clausulas_respuestas?.[c.id],
+      textoAcepta: 'Acepto',
+      textoRechaza: 'No acepto',
+    });
   }
 
   y = bloqueTexto(doc, y + 2, clausulaImagenes.titulo, { bold: true, size: 9.5 });
@@ -274,7 +335,7 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
     consentimiento.autoriza_fotos
       ? '[X] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.'
       : '[X] NO autorizo el uso de imágenes de mi mascota.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : '#eb5757' },
+    { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : RED },
   );
 
   y = bloqueTexto(doc, y + 2, clausulaComunicaciones.titulo, { bold: true, size: 9.5 });
@@ -285,19 +346,28 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
     consentimiento.autoriza_comunicaciones
       ? '[X] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.'
       : '[ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : '#eb5757' },
+    { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
   );
 
+  const fechaTexto =
+    consentimiento.firma_tipo === 'papel'
+      ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
+      : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
   y = firmaEnPDF(
     doc,
     y + 6,
+    consentimiento.firma_tipo,
     consentimiento.firma,
-    `Mediante la firma del presente documento, acepto todas las cláusulas arriba expuestas. En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`,
+    `Mediante la firma del presente documento, acepto todas las cláusulas arriba expuestas. ${fechaTexto}`,
   );
-  y = bloqueTexto(doc, y + 2, `Firmado digitalmente el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`, {
-    size: 7.5,
-    color: MID,
-  });
+  y = bloqueTexto(
+    doc,
+    y + 2,
+    consentimiento.firma_tipo === 'papel'
+      ? `Documento generado en blanco para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
+      : `Firmado digitalmente el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`,
+    { size: 7.5, color: MID },
+  );
   y = bloqueTexto(doc, y, `Versión del texto legal: ${consentimiento.legal_version} · SHA-256: ${consentimiento.legal_hash}`, {
     size: 6.5,
     color: '#60abb8',
@@ -318,6 +388,14 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
     `${RESPONSABLE.establecimiento} · Visita del ${fmtFecha(visita.fecha)}`,
   );
 
+  if (visita.clausulas_respuesta_condiciones === 'rechaza') {
+    y = bannerRechazo(
+      doc,
+      y,
+      'EL TUTOR NO HA ACEPTADO LAS CONDICIONES DEL SERVICIO — NO SE HA REGISTRADO EL INGRESO DE LA MASCOTA.',
+    );
+  }
+
   y = tituloSeccion(doc, y, 'Cliente y mascota');
   y = filaDato(doc, y, 'Tutor', `${cliente.nombre_apellidos} (${cliente.dni_nie})`);
   y = filaDato(doc, y, 'Teléfono', cliente.telefono);
@@ -335,10 +413,17 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
     y = bloqueTexto(doc, y, visita.notas_ingreso);
   }
 
-  y = tituloSeccion(doc, y + 2, 'Condiciones del servicio aceptadas al ingreso');
+  y = tituloSeccion(doc, y + 2, 'Condiciones del servicio');
   for (const c of clausulasIngreso) {
     y = bloqueTexto(doc, y, `• ${c.titulo}: ${c.texto}`, { size: 8 });
   }
+  y = lineaAceptacion(doc, y, {
+    tipoFirma: visita.firma_ingreso?.tipo,
+    respuesta: visita.clausulas_respuesta_condiciones,
+    textoAcepta: 'El tutor acepta las condiciones anteriores',
+    textoRechaza: 'El tutor NO acepta las condiciones anteriores',
+  });
+  y = firmaEnPDF(doc, y + 4, visita.firma_ingreso?.tipo, visita.firma_ingreso?.data, 'Firma del tutor (ingreso):');
 
   if (esCompleta) {
     y = nuevaPaginaSi(doc, y + 4, 60);
@@ -368,6 +453,14 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
       if (visita.notas_cuidado_entrega) y = bloqueTexto(doc, y, visita.notas_cuidado_entrega);
     }
 
+    if (visita.comportamiento_chips?.length || visita.comportamiento_notas) {
+      y = tituloSeccion(doc, y + 2, 'Evaluación del comportamiento (personal)');
+      if (visita.comportamiento_chips?.length) {
+        y = filaDato(doc, y, 'Comportamiento', visita.comportamiento_chips.join(', '));
+      }
+      if (visita.comportamiento_notas) y = bloqueTexto(doc, y, visita.comportamiento_notas);
+    }
+
     y = tituloSeccion(doc, y + 2, 'Horarios y recargo');
     y = filaDato(doc, y, 'Aviso de "mascota lista"', visita.hora_aviso_listo || '—');
     y = filaDato(doc, y, 'Recogida', visita.hora_recogida || '—');
@@ -381,8 +474,23 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
         : 'No aplica (dentro del margen de 60 minutos)',
     );
 
-    if (visita.firma_entrega) {
-      y = firmaEnPDF(doc, y + 4, visita.firma_entrega, 'Recibí conforme — el tutor recoge a la mascota y recibe las indicaciones de cuidado.');
+    y = firmaEnPDF(
+      doc,
+      y + 4,
+      visita.firma_entrega?.tipo,
+      visita.firma_entrega?.data,
+      'Recibí conforme — el tutor recoge a la mascota y recibe las indicaciones de cuidado.',
+    );
+
+    y = nuevaPaginaSi(doc, y + 4, 45);
+    y = tituloSeccion(doc, y, '¡Gracias por confiar en nosotros!');
+    y = bloqueTexto(doc, y, 'Escanea este código para dejarnos una reseña:');
+    try {
+      const qrDataUrl = await QRCode.toDataURL(URL_RESENA, { margin: 1, width: 240 });
+      doc.addImage(qrDataUrl, 'PNG', M, y, 30, 30);
+      y += 34;
+    } catch {
+      // si falla la generación del QR, se omite sin bloquear el resto del PDF
     }
   }
 

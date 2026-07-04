@@ -53,6 +53,74 @@ export function CheckBlock({ titulo, texto, checked, onChange, obligatoria, labe
   );
 }
 
+// Cláusula obligatoria con respuesta explícita: null (sin responder), 'acepta' o 'rechaza'.
+export function ClauseBlock({ titulo, texto, value, onChange }) {
+  return (
+    <div
+      className={`rounded-xl border p-4 transition ${
+        value === 'acepta'
+          ? 'border-brand-400 bg-brand-50'
+          : value === 'rechaza'
+            ? 'border-red-300 bg-red-50'
+            : 'border-brand-200 bg-white'
+      }`}
+    >
+      <h4 className="mb-1 font-semibold text-brand-700">{titulo}</h4>
+      <p className="mb-3 text-sm leading-relaxed text-brand-900/80">{texto}</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(value === 'acepta' ? null : 'acepta')}
+          className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+            value === 'acepta'
+              ? 'border-emerald-600 bg-emerald-600 text-white'
+              : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-100'
+          }`}
+        >
+          Acepto
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(value === 'rechaza' ? null : 'rechaza')}
+          className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+            value === 'rechaza'
+              ? 'border-red-600 bg-red-600 text-white'
+              : 'border-brand-200 bg-white text-brand-700 hover:bg-red-50'
+          }`}
+        >
+          No acepto
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Selector de modo de firma compartido por los 3 formularios.
+export function ModoFirmaToggle({ modoPapel, onChange }) {
+  return (
+    <div className="mb-4 inline-flex gap-1 rounded-xl bg-brand-100 p-1">
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+          !modoPapel ? 'bg-white text-brand-700 shadow' : 'text-brand-500'
+        }`}
+      >
+        🖥️ Firma en pantalla
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
+          modoPapel ? 'bg-white text-brand-700 shadow' : 'text-brand-500'
+        }`}
+      >
+        🖊️ Firma en papel
+      </button>
+    </div>
+  );
+}
+
 export function PrimaryButton({ children, ...props }) {
   return (
     <button
