@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDirty } from '../contexts/DirtyContext';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { useDB, guardarVisita } from '../lib/store';
@@ -13,6 +14,7 @@ export default function Entrega() {
   const db = useDB();
   const navigate = useNavigate();
   const { visitaId } = useParams();
+  const { setDirty } = useDirty();
 
   const abiertas = useMemo(
     () =>
@@ -50,11 +52,58 @@ export default function Entrega() {
   const puedeGuardar = modoPapel || !!firmaEntrega;
 
   function toggleCuidado(c) {
+    setDirty(true);
     setCuidados((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
   function toggleComportamiento(c) {
+    setDirty(true);
     setComportamientoChips((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }
+
+  function handleHallazgosChange(val) {
+    setDirty(true);
+    setHallazgos(val);
+  }
+
+  function handleNotasCuidadoChange(e) {
+    setDirty(true);
+    setNotasCuidado(e.target.value);
+  }
+
+  function handleHoraAvisoChange(e) {
+    setDirty(true);
+    setHoraAviso(e.target.value);
+  }
+
+  function handleHoraRecogidaChange(e) {
+    setDirty(true);
+    setHoraRecogida(e.target.value);
+  }
+
+  function handleComportamientoNotasChange(e) {
+    setDirty(true);
+    setComportamientoNotas(e.target.value);
+  }
+
+  function handleModoPapelChange(val) {
+    setDirty(true);
+    setModoPapel(val);
+  }
+
+  function handleFirmaEntregaChange(val) {
+    setDirty(true);
+    setFirmaEntrega(val);
+  }
+
+  function handleSetHoraAvisoNow() {
+    setDirty(true);
+    setHoraAviso(horaAhora());
+  }
+
+  function handleSetHoraRecogidaNow() {
+    setDirty(true);
+    setHoraRecogida(horaAhora());
   }
 
   async function guardar() {
@@ -82,6 +131,7 @@ export default function Entrega() {
         visita,
         clausulasIngreso: CLAUSULAS_INGRESO,
       });
+      setDirty(false);
       navigate('/');
     } catch (e) {
       console.error(e);
@@ -151,7 +201,7 @@ export default function Entrega() {
       >
         <DogSchematic
           hallazgos={hallazgos}
-          onChange={setHallazgos}
+          onChange={handleHallazgosChange}
           referencia={actual.visita.hallazgos_ingreso || []}
           svgIdPrefix="entrega"
         />
@@ -171,7 +221,7 @@ export default function Entrega() {
               className={inputCls}
               rows={2}
               value={notasCuidado}
-              onChange={(e) => setNotasCuidado(e.target.value)}
+              onChange={handleNotasCuidadoChange}
               placeholder="p. ej. aplicar loción calmante en la zona marcada durante 3 días…"
             />
           </Field>
@@ -192,7 +242,7 @@ export default function Entrega() {
               className={inputCls}
               rows={2}
               value={comportamientoNotas}
-              onChange={(e) => setComportamientoNotas(e.target.value)}
+              onChange={handleComportamientoNotasChange}
               placeholder="Observaciones sobre el comportamiento durante el servicio…"
             />
           </Field>
@@ -203,10 +253,10 @@ export default function Entrega() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label='Hora de aviso "mascota lista"'>
             <div className="flex gap-2">
-              <TextInput type="time" value={horaAviso} onChange={(e) => setHoraAviso(e.target.value)} />
+              <TextInput type="time" value={horaAviso} onChange={handleHoraAvisoChange} />
               <button
                 type="button"
-                onClick={() => setHoraAviso(horaAhora())}
+                onClick={handleSetHoraAvisoNow}
                 className="shrink-0 rounded-xl border border-brand-300 px-3 text-sm font-semibold text-brand-600 hover:bg-brand-100"
               >
                 Ahora
@@ -215,10 +265,10 @@ export default function Entrega() {
           </Field>
           <Field label="Hora de recogida real">
             <div className="flex gap-2">
-              <TextInput type="time" value={horaRecogida} onChange={(e) => setHoraRecogida(e.target.value)} />
+              <TextInput type="time" value={horaRecogida} onChange={handleHoraRecogidaChange} />
               <button
                 type="button"
-                onClick={() => setHoraRecogida(horaAhora())}
+                onClick={handleSetHoraRecogidaNow}
                 className="shrink-0 rounded-xl border border-brand-300 px-3 text-sm font-semibold text-brand-600 hover:bg-brand-100"
               >
                 Ahora
@@ -240,14 +290,14 @@ export default function Entrega() {
       </Card>
 
       <Card title="Recibí conforme" subtitle="Firma del tutor al recoger la mascota, como constancia de la entrega y de haber recibido las indicaciones de cuidado.">
-        <ModoFirmaToggle modoPapel={modoPapel} onChange={setModoPapel} />
+        <ModoFirmaToggle modoPapel={modoPapel} onChange={handleModoPapelChange} />
         {modoPapel ? (
           <Aviso tipo="info">
             Se generará el documento con la línea de firma en blanco para completar a mano. Al guardar, la visita
             quedará cerrada.
           </Aviso>
         ) : (
-          <SignatureBox onChange={setFirmaEntrega} label="Firma de recogida" />
+          <SignatureBox onChange={handleFirmaEntregaChange} label="Firma de recogida" />
         )}
         {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
         <div className="mt-4">

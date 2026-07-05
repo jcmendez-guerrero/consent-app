@@ -4,6 +4,9 @@ import Consentimiento from './pages/Consentimiento.jsx';
 import Ingreso from './pages/Ingreso.jsx';
 import Entrega from './pages/Entrega.jsx';
 import Clientes from './pages/Clientes.jsx';
+import Login from './pages/Login.jsx';
+import LogoutButton from './components/LogoutButton.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 const tabs = [
   { to: '/', label: 'Inicio', end: true },
@@ -39,16 +42,20 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
+          <div className="ml-auto">
+            <LogoutButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/consentimiento" element={<Consentimiento />} />
-          <Route path="/ingreso" element={<Ingreso />} />
-          <Route path="/entrega" element={<Entrega />} />
-          <Route path="/entrega/:visitaId" element={<Entrega />} />
-          <Route path="/clientes" element={<Clientes />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/consentimiento" element={<ProtectedRoute><Consentimiento /></ProtectedRoute>} />
+          <Route path="/ingreso" element={<ProtectedRoute><Ingreso /></ProtectedRoute>} />
+          <Route path="/entrega" element={<ProtectedRoute><Entrega /></ProtectedRoute>} />
+          <Route path="/entrega/:visitaId" element={<ProtectedRoute><Entrega /></ProtectedRoute>} />
+          <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
