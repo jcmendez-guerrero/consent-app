@@ -1,18 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Aviso } from '../components/ui';
 
 export default function Login() {
   const { user, loading } = useAuth();
-  const [loggedOut, setLoggedOut] = useState(false);
-
-  useEffect(() => {
-    if (sessionStorage.getItem('logout_success') === '1') {
-      setLoggedOut(true);
-      sessionStorage.removeItem('logout_success');
-    }
-  }, []);
+  const [searchParams] = useSearchParams();
+  const loggedOut = searchParams.get('logout') === '1';
 
   if (loading) {
     return <div className="p-6 text-brand-400">Cargando…</div>;

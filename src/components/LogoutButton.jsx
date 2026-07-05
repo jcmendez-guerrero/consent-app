@@ -3,8 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDirty } from '../contexts/DirtyContext';
 
 function doLogout() {
-  sessionStorage.setItem('logout_success', '1');
-  window.location.href = '/.auth/logout?post_logout_redirect_uri=/';
+  window.location.href = `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent('/#/login?logout=1')}`;
 }
 
 export default function LogoutButton() {

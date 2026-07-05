@@ -56,6 +56,56 @@ export default function Ingreso() {
     setServicios((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   }
 
+  function handleSelChange(mascota) {
+    setDirty(true);
+    setSel(mascota);
+  }
+
+  function handleTratamientoChange(e) {
+    setDirty(true);
+    setTratamiento(e.target.value);
+  }
+
+  function handlePrecioChange(e) {
+    setDirty(true);
+    setPrecio(e.target.value);
+  }
+
+  function handleHoraIngresoChange(e) {
+    setDirty(true);
+    setHoraIngreso(e.target.value);
+  }
+
+  function handleHallazgosChange(val) {
+    setDirty(true);
+    setHallazgos(val);
+  }
+
+  function handleNotasChange(e) {
+    setDirty(true);
+    setNotas(e.target.value);
+  }
+
+  function handleRespuestaCondicionesChange(value) {
+    setDirty(true);
+    setRespuestaCondiciones(value);
+  }
+
+  function handleModoPapelChange(val) {
+    setDirty(true);
+    setModoPapel(val);
+  }
+
+  function handleFirmaIngresoChange(val) {
+    setDirty(true);
+    setFirmaIngreso(val);
+  }
+
+  function handleConfirmPapelChange(e) {
+    setDirty(true);
+    setConfirmPapel(e.target.checked);
+  }
+
   async function guardar() {
     if (!puedeGuardar || guardando) return;
     setGuardando(true);
@@ -113,7 +163,7 @@ export default function Ingreso() {
       </div>
 
       <Card title="Cliente y mascota">
-        <MascotaPicker onSelect={setSel} seleccionada={sel?.mascota.id} />
+        <MascotaPicker onSelect={handleSelChange} seleccionada={sel?.mascota.id} />
         {sel && !sel.consentimiento && (
           <div className="mt-3">
             <Aviso tipo="error">
@@ -169,18 +219,18 @@ export default function Ingreso() {
                 <Field label="Tratamiento a aplicar">
                   <TextInput
                     value={tratamiento}
-                    onChange={(e) => setTratamiento(e.target.value)}
+                    onChange={handleTratamientoChange}
                     placeholder="p. ej. champú dermatológico, acondicionador…"
                   />
                 </Field>
               </div>
               <Field label="Precio acordado (€)">
-                <TextInput type="number" min="0" step="0.5" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+                <TextInput type="number" min="0" step="0.5" value={precio} onChange={handlePrecioChange} />
               </Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <Field label="Hora de ingreso">
-                <TextInput type="time" value={horaIngreso} onChange={(e) => setHoraIngreso(e.target.value)} />
+                <TextInput type="time" value={horaIngreso} onChange={handleHoraIngresoChange} />
               </Field>
             </div>
           </Card>
@@ -189,14 +239,14 @@ export default function Ingreso() {
             title="Estado de la mascota al ingreso"
             subtitle="Marca sobre el esquema los hallazgos: nudos, heridas, parásitos, bultos, irritaciones…"
           >
-            <DogSchematic hallazgos={hallazgos} onChange={setHallazgos} svgIdPrefix="ingreso" />
+            <DogSchematic hallazgos={hallazgos} onChange={handleHallazgosChange} svgIdPrefix="ingreso" />
             <div className="mt-4">
               <Field label="Notas adicionales de ingreso">
                 <textarea
                   className={inputCls}
                   rows={2}
                   value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
+                  onChange={handleNotasChange}
                   placeholder="Comportamiento, indicaciones del tutor…"
                 />
               </Field>
@@ -212,7 +262,7 @@ export default function Ingreso() {
               ))}
             </ul>
 
-            <ModoFirmaToggle modoPapel={modoPapel} onChange={setModoPapel} />
+            <ModoFirmaToggle modoPapel={modoPapel} onChange={handleModoPapelChange} />
 
             {modoPapel ? (
               <Aviso tipo="info">
@@ -224,7 +274,7 @@ export default function Ingreso() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setRespuestaCondiciones(respuestaCondiciones === 'acepta' ? null : 'acepta')}
+                    onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'acepta' ? null : 'acepta')}
                     className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
                       respuestaCondiciones === 'acepta'
                         ? 'border-emerald-600 bg-emerald-600 text-white'
@@ -235,7 +285,7 @@ export default function Ingreso() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRespuestaCondiciones(respuestaCondiciones === 'rechaza' ? null : 'rechaza')}
+                    onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'rechaza' ? null : 'rechaza')}
                     className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
                       respuestaCondiciones === 'rechaza'
                         ? 'border-red-600 bg-red-600 text-white'
@@ -254,13 +304,13 @@ export default function Ingreso() {
                   <input
                     type="checkbox"
                     checked={confirmPapel}
-                    onChange={(e) => setConfirmPapel(e.target.checked)}
+                    onChange={handleConfirmPapelChange}
                     className="h-6 w-6 accent-[#016581]"
                   />
                   Confirmo que el tutor firmará la ficha impresa de forma manual.
                 </label>
               ) : (
-                <SignatureBox onChange={setFirmaIngreso} label="Firma del tutor (ingreso)" />
+                <SignatureBox onChange={handleFirmaIngresoChange} label="Firma del tutor (ingreso)" />
               )}
             </div>
 

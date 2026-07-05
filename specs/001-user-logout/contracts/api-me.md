@@ -68,12 +68,12 @@ No request body or query parameters.
 The logout action is not an Express endpoint — it is handled entirely by Azure Easy Auth:
 
 ```
-GET /.auth/logout?post_logout_redirect_uri=/login?logout=1
+GET /.auth/logout?post_logout_redirect_uri=%2F%23%2Flogin%3Flogout%3D1
 ```
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| `post_logout_redirect_uri` | `/login?logout=1` | Where to redirect after session termination. The `?logout=1` flag triggers the confirmation message on the Login page. |
+| `post_logout_redirect_uri` | `/%23/login%3Flogout%3D1` | Where to redirect after session termination. The value is the URL-encoded form of `/#/login?logout=1`, which with `HashRouter` places the `?logout=1` flag inside the hash fragment so React Router can read it via `useSearchParams`. |
 
 **Side effects**:
 1. Azure Easy Auth session cookie is cleared

@@ -33,13 +33,13 @@ node server/index.js
 **Goal**: Verify that a logged-in user can log out via the navigation menu and receives confirmation.
 
 **Steps**:
-1. Open the app. Confirm you are authenticated (Dashboard loads, navigation shows "Cerrar sesión" button and the current user's name).
+1. Open the app. Confirm you are authenticated (Dashboard loads, navigation shows "Cerrar sesión" button and the current user's display name).
 2. Click "Cerrar sesión" in the navigation header.
-3. Observe the redirect to `/login?logout=1`.
+3. Observe the redirect to `/#/login?logout=1`.
 
 **Expected outcomes**:
-- "Cerrar sesión" button is visible in the navigation header on every page.
-- After clicking, the browser navigates to `/.auth/logout` and then to `/login?logout=1`.
+- "Cerrar sesión" button is visible in the navigation header on every page, alongside the authenticated user's display name.
+- After clicking, the browser navigates to `/.auth/logout` and then to `/#/login?logout=1`.
 - The Login page displays "Has cerrado sesión correctamente" in a green success banner.
 - The Login page shows an "Iniciar sesión" button.
 - Total elapsed time from click to Login page: under 5 seconds.
@@ -76,7 +76,7 @@ node server/index.js
 - Two buttons visible: "Cancelar" and "Cerrar sesión de todas formas".
 - Both buttons meet the 44 × 44 px touch target requirement (verify by inspection or browser DevTools).
 - Pressing "Cancelar" dismisses the dialog and returns to the in-progress form with all entered data intact.
-- Pressing "Cerrar sesión de todas formas" logs out and redirects to `/login?logout=1` with the success message.
+- Pressing "Cerrar sesión de todas formas" logs out and redirects to `/#/login?logout=1` with the success message.
 
 ---
 
@@ -102,11 +102,11 @@ node server/index.js
 
 **Steps**:
 1. Log out normally (Scenario 1).
-2. Directly navigate to `/.auth/logout?post_logout_redirect_uri=/login?logout=1` in the browser.
+2. Directly navigate to `/.auth/logout?post_logout_redirect_uri=%2F%23%2Flogin%3Flogout%3D1` in the browser.
 
 **Expected outcomes**:
 - Azure Easy Auth handles the request gracefully (no 500 error).
-- Browser lands on `/login?logout=1` with the success message (or `/login` without it).
+- Browser lands on `/#/login?logout=1` with the success message (or `/#/login` without it).
 - No unhandled error page.
 
 ---
