@@ -96,6 +96,16 @@ export default function Entrega() {
     setFirmaEntrega(val);
   }
 
+  function handleSetHoraAvisoNow() {
+    setDirty(true);
+    setHoraAviso(horaAhora());
+  }
+
+  function handleSetHoraRecogidaNow() {
+    setDirty(true);
+    setHoraRecogida(horaAhora());
+  }
+
   async function guardar() {
     if (!puedeGuardar || guardando) return;
     setGuardando(true);
@@ -246,7 +256,7 @@ export default function Entrega() {
               <TextInput type="time" value={horaAviso} onChange={handleHoraAvisoChange} />
               <button
                 type="button"
-                onClick={() => { setDirty(true); setHoraAviso(horaAhora()); }}
+                onClick={handleSetHoraAvisoNow}
                 className="shrink-0 rounded-xl border border-brand-300 px-3 text-sm font-semibold text-brand-600 hover:bg-brand-100"
               >
                 Ahora
@@ -258,7 +268,7 @@ export default function Entrega() {
               <TextInput type="time" value={horaRecogida} onChange={handleHoraRecogidaChange} />
               <button
                 type="button"
-                onClick={() => { setDirty(true); setHoraRecogida(horaAhora()); }}
+                onClick={handleSetHoraRecogidaNow}
                 className="shrink-0 rounded-xl border border-brand-300 px-3 text-sm font-semibold text-brand-600 hover:bg-brand-100"
               >
                 Ahora
