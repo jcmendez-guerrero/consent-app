@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useDirty } from '../contexts/DirtyContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDB, consentimientoVigente, guardarVisita } from '../lib/store';
 import { SERVICIOS, CLAUSULAS_INGRESO } from '../lib/legal';
@@ -13,6 +14,7 @@ export default function Ingreso() {
   const db = useDB();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { setDirty } = useDirty();
 
   const preseleccion = useMemo(() => {
     const m = db.mascotas.find((x) => x.id === params.get('mascota'));
@@ -50,6 +52,7 @@ export default function Ingreso() {
     (modoPapel ? confirmPapel : !!firmaIngreso);
 
   function toggleServicio(s) {
+    setDirty(true);
     setServicios((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   }
 
@@ -91,6 +94,7 @@ export default function Ingreso() {
           visita: { ...visita, id },
           clausulasIngreso: CLAUSULAS_INGRESO,
         });
+        setDirty(false);
         navigate('/');
       }
     } catch (e) {

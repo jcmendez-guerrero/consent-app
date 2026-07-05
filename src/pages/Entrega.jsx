@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDirty } from '../contexts/DirtyContext';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { useDB, guardarVisita } from '../lib/store';
@@ -13,6 +14,7 @@ export default function Entrega() {
   const db = useDB();
   const navigate = useNavigate();
   const { visitaId } = useParams();
+  const { setDirty } = useDirty();
 
   const abiertas = useMemo(
     () =>
@@ -50,10 +52,12 @@ export default function Entrega() {
   const puedeGuardar = modoPapel || !!firmaEntrega;
 
   function toggleCuidado(c) {
+    setDirty(true);
     setCuidados((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
   function toggleComportamiento(c) {
+    setDirty(true);
     setComportamientoChips((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
@@ -82,6 +86,7 @@ export default function Entrega() {
         visita,
         clausulasIngreso: CLAUSULAS_INGRESO,
       });
+      setDirty(false);
       navigate('/');
     } catch (e) {
       console.error(e);

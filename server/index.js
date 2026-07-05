@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import authRouter from './routes/auth.js';
 import clientesRouter from './routes/clientes.js';
 import mascotasRouter from './routes/mascotas.js';
 import consentimientosRouter from './routes/consentimientos.js';
@@ -14,6 +15,7 @@ const app = express();
 // Express (100kb) se queda corto.
 app.use(express.json({ limit: '5mb' }));
 
+app.use('/api/me', authRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/mascotas', mascotasRouter);
 app.use('/api/consentimientos', consentimientosRouter);

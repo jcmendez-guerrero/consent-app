@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDirty } from '../contexts/DirtyContext';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useDB, upsertCliente, upsertMascota, guardarConsentimiento } from '../lib/store';
 import {
@@ -24,6 +25,7 @@ export default function Consentimiento() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const clientePrevio = db.clientes.find((c) => c.id === params.get('cliente'));
+  const { setDirty } = useDirty();
 
   const [cliente, setCliente] = useState(clientePrevio ? { ...clientePrevio } : { ...CLIENTE_VACIO });
   const [mascota, setMascota] = useState({ ...MASCOTA_VACIA });
@@ -39,8 +41,8 @@ export default function Consentimiento() {
   const [error, setError] = useState('');
   const [avisoRechazo, setAvisoRechazo] = useState(false);
 
-  const setC = (k) => (e) => setCliente({ ...cliente, [k]: e.target.value });
-  const setM = (k) => (e) => setMascota({ ...mascota, [k]: e.target.value });
+  const setC = (k) => (e) => { setDirty(true); setCliente({ ...cliente, [k]: e.target.value }); };
+  const setM = (k) => (e) => { setDirty(true); setMascota({ ...mascota, [k]: e.target.value }); };
 
   function toggleCondicion(c) {
     setCondicionesPreexistentes((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -89,6 +91,7 @@ export default function Consentimiento() {
         clausulaImagenes: CLAUSULA_IMAGENES,
         clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
       });
+      setDirty(false);
       if (estado === 'aceptado') {
         navigate('/ingreso?mascota=' + mascotaId);
       } else {
