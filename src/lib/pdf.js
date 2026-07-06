@@ -1,8 +1,8 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { DOG_VIEWS, VISTAS, colorSeveridad, labelZona } from '../components/dogViews';
-import { RESPONSABLE, URL_RESENA } from './legal';
-import { fechaLarga, fmtFecha, calcularRecargo } from './utils';
+import { RESPONSABLE, URL_RESENA, SERVICIOS, CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST } from './legal';
+import { fechaLarga, fmtFecha, calcularRecargo, MARGEN_RECOGIDA_MIN, RECARGO_EUR_HORA } from './utils';
 
 const TEAL = '#016581';
 const DARK = '#002028';
@@ -164,6 +164,20 @@ function filaDato(doc, y, etiqueta, valor) {
   doc.setFont('helvetica', 'normal');
   doc.text(String(valor ?? '—'), M + wEtiqueta, y, { maxWidth: W - wEtiqueta });
   return y + 5.5;
+}
+
+// Etiqueta seguida de una línea en blanco hasta el margen, para rellenar a mano.
+function filaBlanco(doc, y, etiqueta) {
+  y = nuevaPaginaSi(doc, y, 8);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(DARK);
+  doc.text(`${etiqueta}:`, M, y);
+  const wEtiqueta = doc.getTextWidth(`${etiqueta}:`);
+  doc.setDrawColor('#b7d9df');
+  doc.setLineWidth(0.3);
+  doc.line(M + wEtiqueta + 2, y, 210 - M, y);
+  return y + 7;
 }
 
 function pieResponsable(doc) {
@@ -349,10 +363,12 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
     { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
   );
 
-  const fechaTexto =
-    consentimiento.firma_tipo === 'papel'
-      ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
-      : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
+  // 'papel' = plantilla en blanco; 'papel-firmado' = datos rellenados en la app pero
+  // firma manuscrita pendiente. Ambos llevan la línea de fecha en blanco.
+  const esPapel = consentimiento.firma_tipo === 'papel' || consentimiento.firma_tipo === 'papel-firmado';
+  const fechaTexto = esPapel
+    ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
+    : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
   y = firmaEnPDF(
     doc,
     y + 6,
@@ -360,14 +376,13 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
     consentimiento.firma,
     `Mediante la firma del presente documento, acepto todas las cláusulas arriba expuestas. ${fechaTexto}`,
   );
-  y = bloqueTexto(
-    doc,
-    y + 2,
+  const pieFirma =
     consentimiento.firma_tipo === 'papel'
       ? `Documento generado en blanco para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
-      : `Firmado digitalmente el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`,
-    { size: 7.5, color: MID },
-  );
+      : consentimiento.firma_tipo === 'papel-firmado'
+        ? `Documento generado para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
+        : `Firmado digitalmente el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`;
+  y = bloqueTexto(doc, y + 2, pieFirma, { size: 7.5, color: MID });
   y = bloqueTexto(doc, y, `Versión del texto legal: ${consentimiento.legal_version} · SHA-256: ${consentimiento.legal_hash}`, {
     size: 6.5,
     color: '#60abb8',
@@ -497,4 +512,86 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
   pieResponsable(doc);
   const sufijo = esCompleta ? 'visita_completa' : 'ingreso';
   doc.save(`${(mascota.nombre || 'mascota').replace(/\s+/g, '_')}_${visita.fecha}_${sufijo}.pdf`);
+}
+
+// ---------- Plantilla en blanco: ficha de ingreso (uso sin conexión) ----------
+
+export async function pdfBlankIngreso() {
+  const doc = new jsPDF();
+  let y = await cabecera(
+    doc,
+    'FICHA DE INGRESO — PLANTILLA EN BLANCO',
+    `${RESPONSABLE.establecimiento} · Para rellenar a mano`,
+  );
+
+  y = tituloSeccion(doc, y, 'Datos del tutor');
+  y = filaBlanco(doc, y, 'Nombre y apellidos');
+  y = filaBlanco(doc, y, 'DNI/NIE');
+  y = filaBlanco(doc, y, 'Teléfono');
+
+  y = tituloSeccion(doc, y + 2, 'Datos de la mascota');
+  y = filaBlanco(doc, y, 'Nombre');
+  y = filaBlanco(doc, y, 'Raza');
+
+  y = tituloSeccion(doc, y + 2, 'Servicio');
+  y = bloqueTexto(doc, y, `Servicios contratados: ${SERVICIOS.map((s) => `[ ] ${s}`).join('    ')}`, { size: 9 });
+  y = filaBlanco(doc, y, 'Tratamiento a aplicar');
+  y = filaBlanco(doc, y, 'Precio acordado (€)');
+  y = filaBlanco(doc, y, 'Hora de ingreso');
+
+  y = tituloSeccion(doc, y + 2, 'Condiciones preexistentes declaradas');
+  y = filaBlanco(doc, y, 'Condiciones / detalles');
+
+  y = tituloSeccion(doc, y + 2, 'Condiciones del servicio');
+  for (const c of CLAUSULAS_INGRESO) {
+    y = bloqueTexto(doc, y, `• ${c.titulo}: ${c.texto}`, { size: 8 });
+  }
+  y = lineaAceptacion(doc, y, {
+    tipoFirma: 'papel',
+    textoAcepta: 'El tutor acepta las condiciones anteriores',
+    textoRechaza: 'El tutor NO acepta las condiciones anteriores',
+  });
+  y = firmaEnPDF(doc, y + 4, 'papel', null, 'Firma del tutor (ingreso):');
+
+  pieResponsable(doc);
+  doc.save('Ficha_Ingreso_Plantilla.pdf');
+}
+
+// ---------- Plantilla en blanco: ficha de entrega (uso sin conexión) ----------
+
+export async function pdfBlankEntrega() {
+  const doc = new jsPDF();
+  let y = await cabecera(
+    doc,
+    'FICHA DE ENTREGA — PLANTILLA EN BLANCO',
+    `${RESPONSABLE.establecimiento} · Para rellenar a mano`,
+  );
+
+  y = tituloSeccion(doc, y, 'Datos del tutor y mascota');
+  y = filaBlanco(doc, y, 'Nombre del tutor');
+  y = filaBlanco(doc, y, 'DNI/NIE');
+  y = filaBlanco(doc, y, 'Nombre de la mascota');
+
+  y = tituloSeccion(doc, y + 2, 'Horarios y recargo');
+  y = filaBlanco(doc, y, 'Hora de aviso de "mascota lista"');
+  y = filaBlanco(doc, y, 'Hora de recogida');
+  y = bloqueTexto(
+    doc,
+    y,
+    `Recargo por demora: ${MARGEN_RECOGIDA_MIN} minutos de margen desde el aviso; superado ese plazo, ${RECARGO_EUR_HORA} € por hora o fracción.`,
+    { size: 8.5 },
+  );
+  y = filaBlanco(doc, y, 'Minutos de demora');
+  y = filaBlanco(doc, y, 'Recargo aplicado (€)');
+
+  y = tituloSeccion(doc, y + 2, 'Cuidados a tener en cuenta');
+  for (const c of CUIDADOS_CHECKLIST) {
+    y = bloqueTexto(doc, y, `[ ] ${c}`, { size: 9 });
+  }
+  y = filaBlanco(doc, y, 'Otras indicaciones');
+
+  y = firmaEnPDF(doc, y + 4, 'papel', null, 'Firma del tutor (recibí conforme):');
+
+  pieResponsable(doc);
+  doc.save('Ficha_Entrega_Plantilla.pdf');
 }

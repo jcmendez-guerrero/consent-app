@@ -1,9 +1,12 @@
 import { NavLink, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard.jsx';
 import Consentimiento from './pages/Consentimiento.jsx';
+import ConsentimientoPapel from './pages/ConsentimientoPapel.jsx';
+import ConsentimientoPapelConfirmar from './pages/ConsentimientoPapelConfirmar.jsx';
 import Ingreso from './pages/Ingreso.jsx';
 import Entrega from './pages/Entrega.jsx';
 import Clientes from './pages/Clientes.jsx';
+import Documentacion from './pages/Documentacion.jsx';
 import Login from './pages/Login.jsx';
 import LogoutButton from './components/LogoutButton.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -14,6 +17,8 @@ const tabs = [
   { to: '/ingreso', label: '2 · Ingreso' },
   { to: '/entrega', label: '3 · Entrega' },
   { to: '/clientes', label: 'Clientes' },
+  { to: '/consentimiento-papel', label: 'Consentimiento Papel' },
+  { to: '/documentacion', label: 'Documentación' },
 ];
 
 export default function App() {
@@ -52,6 +57,9 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/consentimiento" element={<ProtectedRoute><Consentimiento /></ProtectedRoute>} />
+          <Route path="/consentimiento-papel" element={<ProtectedRoute><ConsentimientoPapel /></ProtectedRoute>} />
+          <Route path="/consentimiento-papel/confirmar" element={<ProtectedRoute><ConsentimientoPapelConfirmar /></ProtectedRoute>} />
+          <Route path="/documentacion" element={<ProtectedRoute><Documentacion /></ProtectedRoute>} />
           <Route path="/ingreso" element={<ProtectedRoute><Ingreso /></ProtectedRoute>} />
           <Route path="/entrega" element={<ProtectedRoute><Entrega /></ProtectedRoute>} />
           <Route path="/entrega/:visitaId" element={<ProtectedRoute><Entrega /></ProtectedRoute>} />
