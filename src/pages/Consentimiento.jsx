@@ -18,7 +18,8 @@ import { Card, Field, TextInput, CheckBlock, ClauseBlock, ModoFirmaToggle, Prima
 import SignatureBox from '../components/SignatureBox';
 
 const CLIENTE_VACIO = { nombre_apellidos: '', dni_nie: '', telefono: '', email: '' };
-const MASCOTA_VACIA = { nombre: '', raza: '', edad: '', peso_aprox_kg: '', microchip: '', observaciones_generales: '' };
+const MASCOTA_VACIA = { nombre: '', especie: 'perro', raza: '', edad: '', peso_aprox_kg: '', microchip: '', observaciones_generales: '' };
+const ESPECIES = ['perro', 'gato', 'conejo', 'hámster', 'cobaya', 'otro'];
 
 export default function Consentimiento() {
   const db = useDB();
@@ -154,6 +155,15 @@ export default function Consentimiento() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Nombre" required>
             <TextInput value={mascota.nombre} onChange={setM('nombre')} />
+          </Field>
+          <Field label="Especie">
+            <select
+              value={mascota.especie || 'perro'}
+              onChange={setM('especie')}
+              className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-base focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
+            >
+              {ESPECIES.map((e) => <option key={e} value={e}>{e.charAt(0).toUpperCase() + e.slice(1)}</option>)}
+            </select>
           </Field>
           <Field label="Raza">
             <TextInput value={mascota.raza} onChange={setM('raza')} />

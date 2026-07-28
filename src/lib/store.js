@@ -148,6 +148,38 @@ export function ultimoConsentimiento(db, mascotaId) {
   );
 }
 
+// ---- Tratamientos (Historial de Tratamientos) ----
+
+export async function fetchTratamientos(mascotaId) {
+  return fetchJSON(`/api/tratamientos?mascota_id=${encodeURIComponent(mascotaId)}`);
+}
+
+export async function guardarTratamiento(tratamiento) {
+  const { id } = await fetchJSON('/api/tratamientos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tratamiento),
+  });
+  return id;
+}
+
+// ---- Consentimiento blob upload (US6) ----
+
+export async function uploadConsentBlob(consentimientoId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`/api/consentimientos/${consentimientoId}/blob`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Error ${res.status} al subir el archivo`);
+  }
+  return res.json(); // { blob_path }
+}
+
+export async function fetchConsentBlobPath(consentimientoId) {
+  return fetchJSON(`/api/consentimientos/${consentimientoId}/blob`);
+}
+
 // ---- Visitas (Formularios 2 y 3) ----
 
 export async function guardarVisita(visita) {

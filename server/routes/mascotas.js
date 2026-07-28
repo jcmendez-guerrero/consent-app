@@ -30,9 +30,10 @@ router.post('/', async (req, res, next) => {
       .input('peso_aprox_kg', sql.Decimal(5, 2), m.peso_aprox_kg || null)
       .input('microchip', sql.NVarChar, m.microchip || null)
       .input('observaciones_generales', sql.NVarChar, m.observaciones_generales || null)
+      .input('especie', sql.NVarChar, m.especie || 'perro')
       .query(`
-        INSERT INTO dbo.mascotas (id, cliente_id, nombre, raza, edad, peso_aprox_kg, microchip, observaciones_generales)
-        VALUES (@id, @cliente_id, @nombre, @raza, @edad, @peso_aprox_kg, @microchip, @observaciones_generales)
+        INSERT INTO dbo.mascotas (id, cliente_id, nombre, raza, edad, peso_aprox_kg, microchip, observaciones_generales, especie)
+        VALUES (@id, @cliente_id, @nombre, @raza, @edad, @peso_aprox_kg, @microchip, @observaciones_generales, @especie)
       `);
     res.status(201).json({ id });
   } catch (err) {
@@ -53,11 +54,12 @@ router.put('/:id', async (req, res, next) => {
       .input('peso_aprox_kg', sql.Decimal(5, 2), m.peso_aprox_kg || null)
       .input('microchip', sql.NVarChar, m.microchip || null)
       .input('observaciones_generales', sql.NVarChar, m.observaciones_generales || null)
+      .input('especie', sql.NVarChar, m.especie || 'perro')
       .query(`
         UPDATE dbo.mascotas
         SET nombre = @nombre, raza = @raza, edad = @edad, peso_aprox_kg = @peso_aprox_kg,
             microchip = @microchip, observaciones_generales = @observaciones_generales,
-            actualizado_en = SYSUTCDATETIME()
+            especie = @especie, actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
     res.json({ id: req.params.id });

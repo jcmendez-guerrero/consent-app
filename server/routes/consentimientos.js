@@ -1,8 +1,16 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { getPool, sql } from '../db/pool.js';
 import { mapConsentimiento } from '../lib/mappers.js';
 import { uid } from '../lib/id.js';
 import { currentUser } from '../middleware/auth.js';
+import { getBlobServiceClient } from '../lib/blobClient.js';
+
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'application/pdf']);
+const EXT_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' };
+const MAX_BYTES = 10 * 1024 * 1024;
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BYTES } });
 
 const router = Router();
 
@@ -49,6 +57,67 @@ router.post('/', async (req, res, next) => {
            @autoriza_comunicaciones, @legal_version, @legal_hash, @creado_por)
       `);
     res.status(201).json({ id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/blob', upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+    if (!ALLOWED_MIME.has(req.file.mimetype))
+      return res.status(400).json({ error: 'Tipo de archivo no permitido' });
+    if (req.file.size > MAX_BYTES)
+      return res.status(400).json({ error: 'Archivo demasiado grande' });
+
+    const pool = await getPool();
+    const row = await pool
+      .request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('SELECT mascota_id FROM dbo.consentimientos WHERE id = @id');
+    if (!row.recordset.length) return res.status(404).json({ error: 'Consentimiento no encontrado' });
+
+    const mascotaId = row.recordset[0].mascota_id;
+    const now = new Date();
+    const ts =
+      now.getUTCFullYear().toString() +
+      String(now.getUTCMonth() + 1).padStart(2, '0') +
+      String(now.getUTCDate()).padStart(2, '0') +
+      '-' +
+      String(now.getUTCHours()).padStart(2, '0') +
+      String(now.getUTCMinutes()).padStart(2, '0') +
+      String(now.getUTCSeconds()).padStart(2, '0');
+    const ext = EXT_MAP[req.file.mimetype];
+    const blobName = `${mascotaId}/${ts}-consent.${ext}`;
+    const blobPath = `/${blobName}`;
+
+    const containerName = process.env.BLOB_CONTAINER_NAME || 'consentimientos';
+    const blockBlob = getBlobServiceClient().getContainerClient(containerName).getBlockBlobClient(blobName);
+    await blockBlob.uploadData(req.file.buffer, {
+      blobHTTPHeaders: { blobContentType: req.file.mimetype },
+    });
+
+    await pool
+      .request()
+      .input('id', sql.NVarChar, req.params.id)
+      .input('path', sql.NVarChar, blobPath)
+      .query('UPDATE dbo.consentimientos SET consent_blob_path = @path WHERE id = @id');
+
+    res.json({ blob_path: blobPath });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/blob', async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('SELECT consent_blob_path FROM dbo.consentimientos WHERE id = @id');
+    if (!result.recordset.length) return res.status(404).json({ error: 'Consentimiento no encontrado' });
+    res.json({ blob_path: result.recordset[0].consent_blob_path ?? null });
   } catch (err) {
     next(err);
   }

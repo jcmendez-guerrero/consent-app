@@ -6,6 +6,7 @@ import clientesRouter from './routes/clientes.js';
 import mascotasRouter from './routes/mascotas.js';
 import consentimientosRouter from './routes/consentimientos.js';
 import visitasRouter from './routes/visitas.js';
+import tratamientosRouter from './routes/tratamientos.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 
@@ -22,6 +23,7 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/mascotas', mascotasRouter);
 app.use('/api/consentimientos', consentimientosRouter);
 app.use('/api/visitas', visitasRouter);
+app.use('/api/tratamientos', tratamientosRouter);
 
 const distDir = path.join(__dirname, '../dist');
 app.use(express.static(distDir));

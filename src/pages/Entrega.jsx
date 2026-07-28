@@ -7,7 +7,8 @@ import { CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST, COMPORTAMIENTO_OPCIONES, URL_RES
 import { horaAhora, calcularRecargo, fmtFecha } from '../lib/utils';
 import { pdfVisita } from '../lib/pdf';
 import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
-import DogSchematic from '../components/DogSchematic';
+import PetSchematic from '../components/PetSchematic';
+import TratamientoEntry from '../components/TratamientoEntry';
 import SignatureBox from '../components/SignatureBox';
 
 export default function Entrega() {
@@ -199,7 +200,8 @@ export default function Entrega() {
         title="Estado de la mascota en la entrega"
         subtitle="Los hallazgos del ingreso se muestran en gris como referencia. Marca en color los hallazgos nuevos de la entrega."
       >
-        <DogSchematic
+        <PetSchematic
+          especie={actual.mascota?.especie}
           hallazgos={hallazgos}
           onChange={handleHallazgosChange}
           referencia={actual.visita.hallazgos_ingreso || []}
@@ -306,6 +308,14 @@ export default function Entrega() {
           </PrimaryButton>
           {!modoPapel && !firmaEntrega && <span className="ml-3 text-sm text-brand-500">Falta la firma.</span>}
         </div>
+      </Card>
+
+      <Card title="Historial de Tratamientos" subtitle="Registra el servicio de entrega para que quede constancia en el historial de la mascota.">
+        <TratamientoEntry
+          mascotaId={actual.mascota.id}
+          visitaId={actual.visita.id}
+          fuente="entrega"
+        />
       </Card>
 
       <Card title="Pide una reseña" subtitle="Muestra este código al tutor para que pueda dejar una reseña.">

@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
-import { DOG_VIEWS, VISTAS, colorSeveridad, labelZona } from '../components/dogViews';
+import { DOG_VIEWS, VISTAS_PAPEL, colorSeveridad, labelZona } from '../components/dogViews';
 import { RESPONSABLE, URL_RESENA, SERVICIOS, CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST } from './legal';
 import { fechaLarga, fmtFecha, calcularRecargo, MARGEN_RECOGIDA_MIN, RECARGO_EUR_HORA } from './utils';
 
@@ -187,8 +187,9 @@ function pieResponsable(doc) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor('#60abb8');
+    doc.text(`${RESPONSABLE.nombre} · ${RESPONSABLE.establecimiento}`, 105, 287, { align: 'center' });
     doc.text(
-      `${RESPONSABLE.nombre} · ${RESPONSABLE.direccion} · ${RESPONSABLE.email} · Tel. ${RESPONSABLE.telefono}`,
+      `${RESPONSABLE.direccion} · ${RESPONSABLE.email} · Tel. ${RESPONSABLE.telefono}`,
       105,
       292,
       { align: 'center' },
@@ -202,9 +203,10 @@ async function hallazgosEnPDF(doc, y, titulo, hallazgos, referencia = []) {
   if (!hallazgos.length) {
     return bloqueTexto(doc, y, 'Sin hallazgos registrados.', { color: MID });
   }
-  const vistasConDatos = VISTAS.filter((v) =>
-    [...hallazgos, ...referencia].some((h) => h.vista === v.id),
-  );
+  const todosIds = [...new Set([...hallazgos, ...referencia].map((h) => h.vista))];
+  const vistasConDatos = todosIds
+    .filter((id) => DOG_VIEWS[id])
+    .map((id) => ({ id, label: VISTAS_PAPEL.find((v) => v.id === id)?.label ?? id }));
   // Esquemas en fila (máx 3), 55mm de ancho cada uno
   const imgW = 55;
   const imgH = imgW * (340 / 460);
@@ -227,7 +229,8 @@ async function hallazgosEnPDF(doc, y, titulo, hallazgos, referencia = []) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(DARK);
-    const cabeza = `${labelZona(h.vista, h.zona_id)} (${VISTAS.find((v) => v.id === h.vista).label}, ${sev}): `;
+    const vistaLabel = VISTAS_PAPEL.find((v) => v.id === h.vista)?.label ?? h.vista;
+    const cabeza = `${labelZona(h.vista, h.zona_id)} (${vistaLabel}, ${sev}): `;
     doc.text(cabeza, M + 4, y);
     const wCabeza = doc.getTextWidth(cabeza);
     doc.setFont('helvetica', 'normal');
@@ -514,6 +517,33 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
   doc.save(`${(mascota.nombre || 'mascota').replace(/\s+/g, '_')}_${visita.fecha}_${sufijo}.pdf`);
 }
 
+// Inserta 4 vistas del esquema corporal en blanco (2×2) para anotar a mano.
+async function esquema4VistasEnPDF(doc, y) {
+  y = tituloSeccion(doc, y, 'Estado de la mascota (esquema corporal)');
+  const imgW = (W - 5) / 2;
+  const imgH = imgW * (340 / 460);
+  const rowGap = 12;
+  if (y + 2 * imgH + rowGap > 275) { doc.addPage(); y = 20; }
+  for (let i = 0; i < VISTAS_PAPEL.length; i++) {
+    const v = VISTAS_PAPEL[i];
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = M + col * (imgW + 5);
+    const yImg = y + row * (imgH + rowGap);
+    const png = await svgToPng(esquemaSVG(v.id, [], []), 1);
+    doc.addImage(png, 'PNG', x, yImg, imgW, imgH);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(TEAL);
+    doc.text(v.label, x + imgW / 2, yImg + imgH + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(DARK);
+    doc.text('Hallazgos: _______________________', x, yImg + imgH + 9);
+  }
+  return y + 2 * imgH + rowGap + 4;
+}
+
 // ---------- Plantilla en blanco: ficha de ingreso (uso sin conexión) ----------
 
 export async function pdfBlankIngreso() {
@@ -532,6 +562,8 @@ export async function pdfBlankIngreso() {
   y = tituloSeccion(doc, y + 2, 'Datos de la mascota');
   y = filaBlanco(doc, y, 'Nombre');
   y = filaBlanco(doc, y, 'Raza');
+
+  y = await esquema4VistasEnPDF(doc, y + 2);
 
   y = tituloSeccion(doc, y + 2, 'Servicio');
   y = bloqueTexto(doc, y, `Servicios contratados: ${SERVICIOS.map((s) => `[ ] ${s}`).join('    ')}`, { size: 9 });
@@ -571,6 +603,8 @@ export async function pdfBlankEntrega() {
   y = filaBlanco(doc, y, 'Nombre del tutor');
   y = filaBlanco(doc, y, 'DNI/NIE');
   y = filaBlanco(doc, y, 'Nombre de la mascota');
+
+  y = await esquema4VistasEnPDF(doc, y + 2);
 
   y = tituloSeccion(doc, y + 2, 'Horarios y recargo');
   y = filaBlanco(doc, y, 'Hora de aviso de "mascota lista"');

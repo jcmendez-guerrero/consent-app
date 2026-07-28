@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { VISTAS, DOG_VIEWS, SEVERIDADES, colorSeveridad, labelZona } from './dogViews';
+import { VISTAS_WEB, DOG_VIEWS, SEVERIDADES, colorSeveridad, labelZona } from './dogViews';
+import { GENERIC_CUADRUPEDO, labelZonaGenerico } from './genericViews';
 
 function Shape({ def, ...props }) {
   if (def.tipo === 'circle') return <circle cx={def.cx} cy={def.cy} r={def.r} {...props} />;
@@ -11,17 +12,21 @@ function Shape({ def, ...props }) {
 }
 
 /**
- * Esquema corporal interactivo del perro.
+ * Esquema corporal interactivo para cualquier especie.
+ * - especie: 'perro' (default) → silueta canina; cualquier otro valor → silueta genérica.
  * - hallazgos: [{vista, zona_id, descripcion, severidad}]
  * - onChange: actualiza la lista (si falta, el componente es de solo lectura)
  * - referencia: hallazgos previos (p. ej. del ingreso) mostrados en gris tenue
  * - svgIdPrefix: para capturar los SVG al generar el PDF
  */
-export default function DogSchematic({ hallazgos = [], onChange, referencia = [], svgIdPrefix = 'esquema' }) {
+export default function PetSchematic({ especie = 'perro', hallazgos = [], onChange, referencia = [], svgIdPrefix = 'esquema' }) {
   const [vista, setVista] = useState('perfil');
-  const [editor, setEditor] = useState(null); // {zona_id, descripcion, severidad, existente}
+  const [editor, setEditor] = useState(null);
   const readOnly = !onChange;
-  const view = DOG_VIEWS[vista];
+
+  const views = especie === 'perro' ? DOG_VIEWS : GENERIC_CUADRUPEDO;
+  const view = views[vista] ?? views['perfil'];
+  const getLabel = especie === 'perro' ? labelZona : labelZonaGenerico;
 
   const hallazgoEn = (zonaId) => hallazgos.find((h) => h.vista === vista && h.zona_id === zonaId);
   const referenciaEn = (zonaId) => referencia.find((h) => h.vista === vista && h.zona_id === zonaId);
@@ -40,12 +45,7 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
 
   function guardar() {
     if (!editor.descripcion.trim()) return;
-    const nuevo = {
-      vista,
-      zona_id: editor.zona_id,
-      descripcion: editor.descripcion.trim(),
-      severidad: editor.severidad,
-    };
+    const nuevo = { vista, zona_id: editor.zona_id, descripcion: editor.descripcion.trim(), severidad: editor.severidad };
     const rest = hallazgos.filter((h) => !(h.vista === vista && h.zona_id === editor.zona_id));
     onChange([...rest, nuevo]);
     setEditor(null);
@@ -58,22 +58,16 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
 
   return (
     <div className="rounded-2xl border border-brand-200 bg-white p-4">
-      {/* Pestañas de vista */}
       <div className="mb-3 flex gap-2" role="tablist" aria-label="Vista del esquema corporal">
-        {VISTAS.map((v) => (
+        {VISTAS_WEB.map((v) => (
           <button
             key={v.id}
             type="button"
             role="tab"
             aria-selected={vista === v.id}
-            onClick={() => {
-              setVista(v.id);
-              setEditor(null);
-            }}
+            onClick={() => { setVista(v.id); setEditor(null); }}
             className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              vista === v.id
-                ? 'bg-brand-600 text-white'
-                : 'bg-brand-100 text-brand-700 hover:bg-brand-200'
+              vista === v.id ? 'bg-brand-600 text-white' : 'bg-brand-100 text-brand-700 hover:bg-brand-200'
             }`}
           >
             {v.label}
@@ -92,14 +86,10 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
         className="w-full touch-manipulation select-none"
         style={{ maxHeight: 380, background: '#f2f8f9', borderRadius: 12 }}
       >
-        {/* Silueta decorativa */}
         <g fill="#b7d9df" stroke="#60abb8" strokeWidth="1.5">
-          {view.silueta.map((s, i) => (
-            <Shape key={i} def={s} />
-          ))}
+          {view.silueta.map((s, i) => <Shape key={i} def={s} />)}
         </g>
 
-        {/* Zonas clicables */}
         {view.zonas.map((z) => {
           const h = hallazgoEn(z.id);
           const ref = !h && referenciaEn(z.id);
@@ -137,7 +127,6 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
         })}
       </svg>
 
-      {/* Leyenda */}
       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-brand-700">
         {SEVERIDADES.map((s) => (
           <span key={s.id} className="flex items-center gap-1.5">
@@ -154,13 +143,14 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
         {!readOnly && <span className="ml-auto italic">Toca una zona para registrar un hallazgo</span>}
       </div>
 
-      {/* Editor de hallazgo */}
       {editor && (
         <div className="mt-3 rounded-xl border-2 border-brand-300 bg-brand-50 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="font-semibold text-brand-800">
-              {labelZona(vista, editor.zona_id)}{' '}
-              <span className="text-sm font-normal text-brand-500">({VISTAS.find((v) => v.id === vista)?.label ?? vista})</span>
+              {getLabel(vista, editor.zona_id)}{' '}
+              <span className="text-sm font-normal text-brand-500">
+                ({VISTAS_WEB.find((v) => v.id === vista)?.label ?? vista})
+              </span>
             </h4>
             {editor.existente && (
               <button type="button" onClick={eliminar} className="text-sm font-semibold text-red-600 hover:underline">
@@ -211,15 +201,14 @@ export default function DogSchematic({ hallazgos = [], onChange, referencia = []
         </div>
       )}
 
-      {/* Lista de hallazgos registrados */}
       {hallazgos.length > 0 && (
         <ul className="mt-3 space-y-1.5">
           {hallazgos.map((h) => (
             <li key={`${h.vista}-${h.zona_id}`} className="flex items-start gap-2 text-sm">
               <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorSeveridad(h.severidad) }} />
               <span>
-                <strong>{labelZona(h.vista, h.zona_id)}</strong>{' '}
-                <span className="text-brand-500">({VISTAS.find((v) => v.id === h.vista)?.label ?? h.vista})</span>: {h.descripcion}
+                <strong>{getLabel(h.vista, h.zona_id)}</strong>{' '}
+                <span className="text-brand-500">({VISTAS_WEB.find((v) => v.id === h.vista)?.label ?? h.vista})</span>: {h.descripcion}
               </span>
             </li>
           ))}

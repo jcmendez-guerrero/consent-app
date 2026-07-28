@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useDB,
@@ -7,6 +7,8 @@ import {
   revocarConsentimiento,
   eliminarCliente,
   exportarCliente,
+  fetchTratamientos,
+  uploadConsentBlob,
 } from '../lib/store';
 import {
   CLAUSULAS_CONSENTIMIENTO,
@@ -20,6 +22,36 @@ import { Card, Aviso } from '../components/ui';
 export default function Clientes() {
   const db = useDB();
   const [confirmando, setConfirmando] = useState(null);
+  const [historial, setHistorial] = useState({});           // mascota_id → TratamientoRecord[]
+  const [cargandoHistorial, setCargandoHistorial] = useState({});
+  const [blobUpload, setBlobUpload] = useState({});         // consentimiento_id → {subiendo, error, exito}
+  const fileInputRefs = useRef({});
+
+  async function verHistorial(mascotaId) {
+    if (historial[mascotaId]) {
+      setHistorial((prev) => { const next = { ...prev }; delete next[mascotaId]; return next; });
+      return;
+    }
+    setCargandoHistorial((prev) => ({ ...prev, [mascotaId]: true }));
+    try {
+      const data = await fetchTratamientos(mascotaId);
+      setHistorial((prev) => ({ ...prev, [mascotaId]: data }));
+    } catch {
+      setHistorial((prev) => ({ ...prev, [mascotaId]: [] }));
+    } finally {
+      setCargandoHistorial((prev) => ({ ...prev, [mascotaId]: false }));
+    }
+  }
+
+  async function subirConsentimiento(consentimientoId, file) {
+    setBlobUpload((prev) => ({ ...prev, [consentimientoId]: { subiendo: true, error: '', exito: false } }));
+    try {
+      await uploadConsentBlob(consentimientoId, file);
+      setBlobUpload((prev) => ({ ...prev, [consentimientoId]: { subiendo: false, error: '', exito: true } }));
+    } catch (e) {
+      setBlobUpload((prev) => ({ ...prev, [consentimientoId]: { subiendo: false, error: e.message, exito: false } }));
+    }
+  }
 
   const clientes = [...db.clientes].sort((a, b) => a.nombre_apellidos.localeCompare(b.nombre_apellidos));
 
@@ -106,6 +138,44 @@ export default function Clientes() {
                           >
                             Revocar consentimiento
                           </button>
+                          {/* Blob upload for manual paper consent */}
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            className="hidden"
+                            ref={(el) => { fileInputRefs.current[consent.id] = el; }}
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirConsentimiento(consent.id, f); }}
+                          />
+                          <button
+                            className="rounded-lg border border-brand-300 px-3 py-1.5 font-semibold text-brand-600 hover:bg-brand-100"
+                            onClick={() => fileInputRefs.current[consent.id]?.click()}
+                            disabled={blobUpload[consent.id]?.subiendo}
+                          >
+                            {blobUpload[consent.id]?.subiendo ? 'Subiendo…' : 'Subir consentimiento en papel'}
+                          </button>
+                          {consent.consent_blob_path && !blobUpload[consent.id]?.exito && (
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                              Papel digitalizado ✓
+                            </span>
+                          )}
+                          {blobUpload[consent.id]?.exito && (
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                              Subida completada ✓
+                            </span>
+                          )}
+                          {blobUpload[consent.id]?.error && (
+                            <div className="w-full">
+                              <Aviso tipo="error">
+                                {blobUpload[consent.id].error}{' '}
+                                <button
+                                  className="font-bold underline"
+                                  onClick={() => fileInputRefs.current[consent.id]?.click()}
+                                >
+                                  Reintentar
+                                </button>
+                              </Aviso>
+                            </div>
+                          )}
                         </>
                       ) : (
                         <Link
@@ -115,7 +185,40 @@ export default function Clientes() {
                           Firmar consentimiento
                         </Link>
                       )}
+                      <button
+                        className="rounded-lg border border-brand-200 px-3 py-1.5 font-semibold text-brand-600 hover:bg-brand-100"
+                        onClick={() => verHistorial(mascota.id)}
+                      >
+                        {historial[mascota.id] ? 'Ocultar historial' : 'Ver historial de tratamientos'}
+                      </button>
                     </div>
+
+                    {/* Historial de Tratamientos */}
+                    {cargandoHistorial[mascota.id] && (
+                      <p className="mt-3 text-sm text-brand-400">Cargando historial…</p>
+                    )}
+                    {historial[mascota.id] && (
+                      <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50 p-3">
+                        <h5 className="mb-2 font-semibold text-brand-800">Historial de Tratamientos</h5>
+                        {historial[mascota.id].length === 0 ? (
+                          <p className="text-sm text-brand-400">Sin tratamientos registrados.</p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {historial[mascota.id].map((t) => (
+                              <li key={t.id} className="text-sm">
+                                <span className="font-semibold text-brand-700">{fmtFecha(t.fecha)}</span>{' '}
+                                <span className="text-brand-900">{t.tipo_servicio}</span>
+                                {t.personal && <span className="text-brand-500"> · {t.personal}</span>}
+                                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-xs font-bold ${t.fuente === 'ingreso' ? 'bg-brand-100 text-brand-600' : 'bg-amber-100 text-amber-700'}`}>
+                                  {t.fuente}
+                                </span>
+                                {t.notas && <p className="mt-0.5 text-brand-500">{t.notas}</p>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}

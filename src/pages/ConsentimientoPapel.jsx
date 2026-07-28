@@ -33,6 +33,7 @@ export default function ConsentimientoPapel() {
   const [autorizaComunicaciones, setAutorizaComunicaciones] = useState(borrador?.autorizaComunicaciones ?? false);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState('');
+  const [mostrarErrores, setMostrarErrores] = useState(false);
 
   const setC = (k) => (e) => { setDirty(true); setCliente({ ...cliente, [k]: e.target.value }); };
   const setM = (k) => (e) => { setDirty(true); setMascota({ ...mascota, [k]: e.target.value }); };
@@ -55,7 +56,11 @@ export default function ConsentimientoPapel() {
   const puedeGenerar = datosOk && todasRespondidas;
 
   async function generarEImprimir() {
-    if (!puedeGenerar || generando) return;
+    if (generando) return;
+    if (!puedeGenerar) {
+      setMostrarErrores(true);
+      return;
+    }
     setGenerando(true);
     setError('');
     try {
@@ -115,13 +120,13 @@ export default function ConsentimientoPapel() {
 
       <Card title="Datos del tutor">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre y apellidos" required>
+          <Field label="Nombre y apellidos" required error={mostrarErrores && !cliente.nombre_apellidos.trim() ? 'Campo obligatorio' : ''}>
             <TextInput value={cliente.nombre_apellidos} onChange={setC('nombre_apellidos')} placeholder="Nombre y apellidos del tutor" />
           </Field>
-          <Field label="DNI/NIE" required>
+          <Field label="DNI/NIE" required error={mostrarErrores && !cliente.dni_nie.trim() ? 'Campo obligatorio' : ''}>
             <TextInput value={cliente.dni_nie} onChange={setC('dni_nie')} placeholder="00000000A" />
           </Field>
-          <Field label="Teléfono" required>
+          <Field label="Teléfono" required error={mostrarErrores && !cliente.telefono.trim() ? 'Campo obligatorio' : ''}>
             <TextInput value={cliente.telefono} onChange={setC('telefono')} placeholder="600000000" />
           </Field>
           <Field label="Email">
@@ -132,7 +137,7 @@ export default function ConsentimientoPapel() {
 
       <Card title="Datos de la mascota">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre" required>
+          <Field label="Nombre" required error={mostrarErrores && !mascota.nombre.trim() ? 'Campo obligatorio' : ''}>
             <TextInput value={mascota.nombre} onChange={setM('nombre')} placeholder="Nombre de la mascota" />
           </Field>
           <Field label="Raza">
@@ -173,7 +178,7 @@ export default function ConsentimientoPapel() {
       <Card title="Cláusulas del consentimiento" subtitle="Marque, junto al tutor, si acepta o no cada cláusula.">
         <div className="space-y-3">
           {CLAUSULAS_CONSENTIMIENTO.map((c) => (
-            <div key={c.id}>
+            <div key={c.id} className={mostrarErrores && !respuestas[c.id] ? 'rounded-xl ring-2 ring-amber-400' : ''}>
               <ClauseBlock
                 titulo={c.titulo}
                 texto={c.texto}
@@ -221,12 +226,12 @@ export default function ConsentimientoPapel() {
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       <div className="space-y-2">
-        <PrimaryButton onClick={generarEImprimir} disabled={!puedeGenerar || generando}>
+        <PrimaryButton onClick={generarEImprimir} disabled={generando}>
           {generando ? 'Generando…' : 'Generar e imprimir consentimiento'}
         </PrimaryButton>
-        {!puedeGenerar && (
-          <p className="text-sm text-brand-400">
-            Complete los datos obligatorios y responda todas las cláusulas para continuar.
+        {mostrarErrores && !puedeGenerar && (
+          <p className="text-sm font-semibold text-red-600">
+            Complete los campos obligatorios (marcados en rojo) y responda todas las cláusulas (marcadas en amarillo) para continuar.
           </p>
         )}
       </div>

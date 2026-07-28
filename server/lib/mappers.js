@@ -27,6 +27,7 @@ export function mapMascota(row) {
     id: row.id,
     cliente_id: row.cliente_id,
     nombre: row.nombre,
+    especie: row.especie ?? 'perro',
     raza: row.raza,
     edad: row.edad,
     peso_aprox_kg: row.peso_aprox_kg,
@@ -54,6 +55,7 @@ export function mapConsentimiento(row) {
     legal_hash: row.legal_hash,
     revocado: row.revocado instanceof Date ? row.revocado.toISOString() : row.revocado,
     creado_por: row.creado_por,
+    consent_blob_path: row.consent_blob_path ?? null,
   };
 }
 

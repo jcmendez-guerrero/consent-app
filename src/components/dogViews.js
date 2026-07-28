@@ -1,12 +1,24 @@
-// Definición de las tres vistas del esquema corporal canino.
+// Definición de las vistas del esquema corporal canino.
 // Cada zona es una forma SVG clicable con su etiqueta; lados nombrados
 // desde la perspectiva del animal.
 
-export const VISTAS = [
-  { id: 'perfil', label: 'Perfil' },
-  { id: 'frontal', label: 'Frontal' },
-  { id: 'cenital', label: 'Cenital' },
+// Tabs para la aplicación web (Ingreso, Entrega)
+export const VISTAS_WEB = [
+  { id: 'perfil',  label: 'Izquierda' },
+  { id: 'derecha', label: 'Derecha'   },
+  { id: 'dorsal',  label: 'Espalda'   },
 ];
+
+// Vistas para las plantillas PDF en papel (4 vistas)
+export const VISTAS_PAPEL = [
+  { id: 'cenital', label: 'Superior'  },
+  { id: 'derecha', label: 'Derecha'   },
+  { id: 'perfil',  label: 'Izquierda' },
+  { id: 'dorsal',  label: 'Espalda'   },
+];
+
+// Alias backward-compat para código que ya importa VISTAS
+export const VISTAS = VISTAS_WEB;
 
 // El perro mira hacia la izquierda.
 const PERFIL = {
@@ -109,7 +121,70 @@ const CENITAL = {
   ],
 };
 
-export const DOG_VIEWS = { perfil: PERFIL, frontal: FRONTAL, cenital: CENITAL };
+// Vista lateral derecha: espejo horizontal de PERFIL (x' = 460 - x).
+const DERECHA = {
+  viewBox: '0 0 460 340',
+  mirrored: true,
+  silueta: [
+    { tipo: 'ellipse', cx: 205, cy: 170, rx: 118, ry: 64 },
+    { tipo: 'circle',  cx: 357, cy: 103, r: 42 },
+    { tipo: 'ellipse', cx: 398, cy: 120, rx: 30, ry: 17 },
+    { tipo: 'path', d: 'M342 62 Q320 30 308 62 Q302 90 328 100 Q344 84 342 62 Z' },
+    { tipo: 'path', d: 'M340 120 Q300 100 270 130 L285 190 Q320 175 338 150 Z' },
+    { tipo: 'rect', x: 269, y: 215, width: 26, height: 85, rx: 12 },
+    { tipo: 'rect', x: 114, y: 215, width: 28, height: 85, rx: 12 },
+    { tipo: 'path', d: 'M98 132 Q60 110 52 70 Q40 66 44 88 Q50 130 88 150 Z' },
+  ],
+  zonas: [
+    { id: 'hocico',         label: 'Hocico',                             tipo: 'ellipse', cx: 400, cy: 119, rx: 27, ry: 16 },
+    { id: 'ojo',            label: 'Ojo',                                tipo: 'circle',  cx: 376, cy: 93,  r: 11 },
+    { id: 'cabeza',         label: 'Cabeza',                             tipo: 'circle',  cx: 352, cy: 103, r: 26 },
+    { id: 'oreja',          label: 'Oreja',                              tipo: 'ellipse', cx: 324, cy: 72,  rx: 16, ry: 25 },
+    { id: 'cuello',         label: 'Cuello / garganta',                  tipo: 'ellipse', cx: 305, cy: 140, rx: 25, ry: 29 },
+    { id: 'cruz',           label: 'Cruz',                               tipo: 'ellipse', cx: 255, cy: 116, rx: 30, ry: 17 },
+    { id: 'lomo',           label: 'Lomo / espalda',                     tipo: 'ellipse', cx: 192, cy: 112, rx: 38, ry: 16 },
+    { id: 'grupa',          label: 'Grupa',                              tipo: 'ellipse', cx: 128, cy: 122, rx: 27, ry: 18 },
+    { id: 'cola',           label: 'Cola',                               tipo: 'ellipse', cx:  66, cy: 98,  rx: 20, ry: 34 },
+    { id: 'zona_perianal',  label: 'Zona perianal / glándulas',          tipo: 'circle',  cx: 101, cy: 150, r: 13 },
+    { id: 'pecho',          label: 'Pecho',                              tipo: 'ellipse', cx: 282, cy: 185, rx: 26, ry: 31 },
+    { id: 'costillar',      label: 'Costillar / flanco',                 tipo: 'ellipse', cx: 202, cy: 168, rx: 48, ry: 36 },
+    { id: 'vientre',        label: 'Vientre',                            tipo: 'ellipse', cx: 202, cy: 218, rx: 46, ry: 18 },
+    { id: 'pata_delantera', label: 'Pata delantera',                     tipo: 'ellipse', cx: 282, cy: 253, rx: 15, ry: 40 },
+    { id: 'mano_delantera', label: 'Mano delantera (almohadillas)',      tipo: 'ellipse', cx: 280, cy: 300, rx: 18, ry: 11 },
+    { id: 'pata_trasera',   label: 'Pata trasera',                       tipo: 'ellipse', cx: 128, cy: 253, rx: 16, ry: 40 },
+    { id: 'pie_trasero',    label: 'Pie trasero (almohadillas)',         tipo: 'ellipse', cx: 126, cy: 300, rx: 18, ry: 11 },
+  ],
+};
+
+// Vista posterior (espalda / dorsal): el perro se aleja del espectador.
+const DORSAL = {
+  viewBox: '0 0 460 340',
+  silueta: [
+    { tipo: 'ellipse', cx: 230, cy: 165, rx: 100, ry: 130 },
+    { tipo: 'ellipse', cx: 230, cy:  55, rx:  36, ry:  32 },
+    { tipo: 'path', d: 'M194 40 Q172 16 158 44 Q156 72 188 72 Z' },
+    { tipo: 'path', d: 'M266 40 Q288 16 302 44 Q304 72 272 72 Z' },
+    { tipo: 'rect', x: 160, y: 262, width: 28, height: 62, rx: 12 },
+    { tipo: 'rect', x: 272, y: 262, width: 28, height: 62, rx: 12 },
+    { tipo: 'ellipse', cx: 230, cy: 22, rx: 10, ry: 18 },
+  ],
+  zonas: [
+    { id: 'cola_dorsal',          label: 'Cola',                         tipo: 'ellipse', cx: 230, cy:  22, rx: 12, ry: 20 },
+    { id: 'cabeza_dorsal',        label: 'Cabeza',                       tipo: 'ellipse', cx: 230, cy:  56, rx: 28, ry: 22 },
+    { id: 'oreja_izq_dorsal',     label: 'Oreja izquierda',              tipo: 'ellipse', cx: 176, cy:  48, rx: 18, ry: 22 },
+    { id: 'oreja_der_dorsal',     label: 'Oreja derecha',                tipo: 'ellipse', cx: 284, cy:  48, rx: 18, ry: 22 },
+    { id: 'cuello_dorsal',        label: 'Cuello',                       tipo: 'ellipse', cx: 230, cy:  98, rx: 28, ry: 16 },
+    { id: 'lomo_dorsal',          label: 'Lomo',                         tipo: 'ellipse', cx: 230, cy: 145, rx: 45, ry: 28 },
+    { id: 'costado_izq_dorsal',   label: 'Costado izquierdo',            tipo: 'ellipse', cx: 170, cy: 168, rx: 30, ry: 50 },
+    { id: 'costado_der_dorsal',   label: 'Costado derecho',              tipo: 'ellipse', cx: 290, cy: 168, rx: 30, ry: 50 },
+    { id: 'grupa_dorsal',         label: 'Grupa',                        tipo: 'ellipse', cx: 230, cy: 232, rx: 46, ry: 28 },
+    { id: 'zona_perianal_dorsal', label: 'Zona perianal / glándulas',    tipo: 'circle',  cx: 230, cy: 272, r: 18 },
+    { id: 'pata_tras_izq',        label: 'Pata trasera izquierda',       tipo: 'ellipse', cx: 174, cy: 287, rx: 16, ry: 38 },
+    { id: 'pata_tras_der',        label: 'Pata trasera derecha',         tipo: 'ellipse', cx: 286, cy: 287, rx: 16, ry: 38 },
+  ],
+};
+
+export const DOG_VIEWS = { perfil: PERFIL, frontal: FRONTAL, cenital: CENITAL, derecha: DERECHA, dorsal: DORSAL };
 
 export function labelZona(vista, zonaId) {
   const z = DOG_VIEWS[vista]?.zonas.find((z) => z.id === zonaId);

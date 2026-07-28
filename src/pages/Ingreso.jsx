@@ -7,7 +7,8 @@ import { hoyISO, horaAhora } from '../lib/utils';
 import { pdfVisita } from '../lib/pdf';
 import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
 import MascotaPicker from '../components/MascotaPicker';
-import DogSchematic from '../components/DogSchematic';
+import PetSchematic from '../components/PetSchematic';
+import TratamientoEntry from '../components/TratamientoEntry';
 import SignatureBox from '../components/SignatureBox';
 
 export default function Ingreso() {
@@ -239,7 +240,7 @@ export default function Ingreso() {
             title="Estado de la mascota al ingreso"
             subtitle="Marca sobre el esquema los hallazgos: nudos, heridas, parásitos, bultos, irritaciones…"
           >
-            <DogSchematic hallazgos={hallazgos} onChange={handleHallazgosChange} svgIdPrefix="ingreso" />
+            <PetSchematic especie={sel?.mascota?.especie} hallazgos={hallazgos} onChange={handleHallazgosChange} svgIdPrefix="ingreso" />
             <div className="mt-4">
               <Field label="Notas adicionales de ingreso">
                 <textarea
@@ -334,6 +335,14 @@ export default function Ingreso() {
                 <span className="text-sm text-brand-500">Confirma la firma en papel.</span>
               )}
             </div>
+          </Card>
+
+          <Card title="Historial de Tratamientos" subtitle="Registra el servicio realizado para que quede constancia en el historial de la mascota.">
+            <TratamientoEntry
+              mascotaId={sel.mascota.id}
+              visitaId={null}
+              fuente="ingreso"
+            />
           </Card>
         </>
       )}

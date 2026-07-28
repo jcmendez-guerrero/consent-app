@@ -11,14 +11,15 @@ export function Card({ title, subtitle, children, className = '' }) {
   );
 }
 
-export function Field({ label, required, children }) {
+export function Field({ label, required, error, children }) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-semibold text-brand-800">
         {label}
         {required && <span className="text-red-500"> *</span>}
       </span>
-      {children}
+      <div className={error ? 'rounded-xl ring-2 ring-red-400' : ''}>{children}</div>
+      {error && <p className="mt-1 text-xs font-semibold text-red-600">{error}</p>}
     </label>
   );
 }
