@@ -117,13 +117,13 @@ export async function exportarCliente(clienteId) {
 // ---- Consentimientos (Formulario 1) ----
 
 export async function guardarConsentimiento(consentimiento) {
-  const { id } = await fetchJSON('/api/consentimientos', {
+  const response = await fetchJSON('/api/consentimientos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(consentimiento),
   });
   await refetch();
-  return id;
+  return response; // { id, siweb360_candidates? }
 }
 
 export async function revocarConsentimiento(consentimientoId) {
@@ -197,3 +197,4 @@ export async function guardarVisita(visita) {
   await refetch();
   return id;
 }
+
