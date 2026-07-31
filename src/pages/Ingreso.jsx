@@ -28,7 +28,7 @@ export default function Ingreso() {
   }, [db, params]);
 
   const [sel, setSel] = useState(preseleccion);
-  const [servicios, setServicios] = useState([]);
+  const [servicios, setServicios] = useState(SERVICIOS.slice(0, 1)); // pre-select "Dermospa Veterinario"
   const [tratamiento, setTratamiento] = useState('');
   const [precio, setPrecio] = useState('');
   const [hallazgos, setHallazgos] = useState([]);
@@ -37,6 +37,7 @@ export default function Ingreso() {
   const [respuestaCondiciones, setRespuestaCondiciones] = useState(null); // 'acepta' | 'rechaza' | null
   const [modoPapel, setModoPapel] = useState(false);
   const [firmaIngreso, setFirmaIngreso] = useState(null);
+  const [firmaTienda, setFirmaTienda] = useState(null);
   const [confirmPapel, setConfirmPapel] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -45,12 +46,13 @@ export default function Ingreso() {
   const visitaAbierta = sel && db.visitas.find((v) => v.mascota_id === sel.mascota.id && v.estado === 'ingresada');
   const condicionesOk = modoPapel || !!respuestaCondiciones;
   const hayRechazo = !modoPapel && respuestaCondiciones === 'rechaza';
+  const firmasOk = modoPapel ? confirmPapel : (!!firmaIngreso && !!firmaTienda);
   const puedeGuardar =
     sel?.consentimiento &&
     servicios.length > 0 &&
     !visitaAbierta &&
     condicionesOk &&
-    (modoPapel ? confirmPapel : !!firmaIngreso);
+    firmasOk;
 
   function toggleServicio(s) {
     setDirty(true);
@@ -102,6 +104,11 @@ export default function Ingreso() {
     setFirmaIngreso(val);
   }
 
+  function handleFirmaTiendaChange(val) {
+    setDirty(true);
+    setFirmaTienda(val);
+  }
+
   function handleConfirmPapelChange(e) {
     setDirty(true);
     setConfirmPapel(e.target.checked);
@@ -125,6 +132,7 @@ export default function Ingreso() {
         hora_ingreso: horaIngreso,
         clausulas_respuesta_condiciones: modoPapel ? null : respuestaCondiciones,
         firma_ingreso: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaIngreso },
+        firma_tienda_ingreso: modoPapel ? null : firmaTienda,
         autoriza_fotos_redes: !!sel.consentimiento.autoriza_fotos,
       };
 
@@ -308,10 +316,19 @@ export default function Ingreso() {
                     onChange={handleConfirmPapelChange}
                     className="h-6 w-6 accent-[#016581]"
                   />
-                  Confirmo que el tutor firmará la ficha impresa de forma manual.
+                  Confirmo que el tutor y un representante de Mundo Mascotix firmarán la ficha impresa de forma manual.
                 </label>
               ) : (
-                <SignatureBox onChange={handleFirmaIngresoChange} label="Firma del tutor (ingreso)" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-brand-700">Firma del tutor (ingreso)</p>
+                    <SignatureBox onChange={handleFirmaIngresoChange} />
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-brand-700">Firma Mundo Mascotix (representante)</p>
+                    <SignatureBox onChange={handleFirmaTiendaChange} />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -329,7 +346,10 @@ export default function Ingreso() {
                 <span className="text-sm text-brand-500">Indica si el tutor acepta las condiciones.</span>
               )}
               {servicios.length > 0 && condicionesOk && !modoPapel && !firmaIngreso && (
-                <span className="text-sm text-brand-500">Falta la firma.</span>
+                <span className="text-sm text-brand-500">Falta la firma del tutor.</span>
+              )}
+              {servicios.length > 0 && condicionesOk && !modoPapel && firmaIngreso && !firmaTienda && (
+                <span className="text-sm text-brand-500">Falta la firma de Mundo Mascotix.</span>
               )}
               {servicios.length > 0 && condicionesOk && modoPapel && !confirmPapel && (
                 <span className="text-sm text-brand-500">Confirma la firma en papel.</span>

@@ -286,6 +286,46 @@ function firmaEnPDF(doc, y, tipoFirma, dataUrl, texto) {
   return y;
 }
 
+// Dos firmas en la misma fila: tutor (izquierda) y Mundo Mascotix (derecha).
+function firmasDualesEnPDF(doc, y, { tipoFirma, dataTutor, dataTienda, textoTutor, textoTienda }) {
+  const colW = (W - 6) / 2;
+  const boxW = colW - 4;
+  const boxH = 30;
+  const xLeft = M;
+  const xRight = M + colW + 6;
+
+  y = nuevaPaginaSi(doc, y, boxH + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(DARK);
+
+  const linesLeft = doc.splitTextToSize(textoTutor, colW);
+  const linesRight = doc.splitTextToSize(textoTienda, colW);
+  doc.text(linesLeft, xLeft, y);
+  doc.text(linesRight, xRight, y);
+  y += Math.max(linesLeft.length, linesRight.length) * 4 + 2;
+
+  doc.setDrawColor('#b7d9df');
+  [
+    { x: xLeft, data: dataTutor, label: 'Firma del tutor' },
+    { x: xRight, data: dataTienda, label: 'Firma Mundo Mascotix' },
+  ].forEach(({ x, data, label }) => {
+    if (tipoFirma === 'digital' && data) {
+      doc.roundedRect(x, y, boxW, boxH, 2, 2);
+      doc.addImage(data, 'PNG', x + 2, y + 2, boxW - 4, boxH - 4);
+    } else {
+      doc.setLineDashPattern([1.2, 1.2], 0);
+      doc.roundedRect(x, y, boxW, boxH, 2, 2);
+      doc.setLineDashPattern([], 0);
+      doc.setFontSize(7.5);
+      doc.setTextColor(MID);
+      doc.text(label, x + boxW / 2, y + boxH / 2 + 2, { align: 'center' });
+    }
+  });
+
+  return y + boxH + 4;
+}
+
 // ---------- Formulario 1: consentimiento ----------
 
 export async function pdfConsentimiento({ cliente, mascota, consentimiento, clausulas, clausulaImagenes, clausulaComunicaciones }) {
@@ -346,25 +386,35 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
 
   y = bloqueTexto(doc, y + 2, clausulaImagenes.titulo, { bold: true, size: 9.5 });
   y = bloqueTexto(doc, y, clausulaImagenes.texto);
-  y = bloqueTexto(
-    doc,
-    y,
-    consentimiento.autoriza_fotos
-      ? '[X] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.'
-      : '[X] NO autorizo el uso de imágenes de mi mascota.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : RED },
-  );
+  if (consentimiento.firma_tipo === 'papel') {
+    y = bloqueTexto(doc, y,
+      '[ ] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.     [ ] NO autorizo el uso de imágenes de mi mascota.',
+      { bold: true, size: 8.5, color: DARK },
+    );
+  } else {
+    y = bloqueTexto(doc, y,
+      consentimiento.autoriza_fotos
+        ? '[X] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.'
+        : '[X] NO autorizo el uso de imágenes de mi mascota.',
+      { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : RED },
+    );
+  }
 
   y = bloqueTexto(doc, y + 2, clausulaComunicaciones.titulo, { bold: true, size: 9.5 });
   y = bloqueTexto(doc, y, clausulaComunicaciones.texto);
-  y = bloqueTexto(
-    doc,
-    y,
-    consentimiento.autoriza_comunicaciones
-      ? '[X] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.'
-      : '[ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
-  );
+  if (consentimiento.firma_tipo === 'papel') {
+    y = bloqueTexto(doc, y,
+      '[ ] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.     [ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
+      { bold: true, size: 8.5, color: DARK },
+    );
+  } else {
+    y = bloqueTexto(doc, y,
+      consentimiento.autoriza_comunicaciones
+        ? '[X] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.'
+        : '[ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
+      { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
+    );
+  }
 
   // 'papel' = plantilla en blanco; 'papel-firmado' = datos rellenados en la app pero
   // firma manuscrita pendiente. Ambos llevan la línea de fecha en blanco.
@@ -372,13 +422,13 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
   const fechaTexto = esPapel
     ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
     : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
-  y = firmaEnPDF(
-    doc,
-    y + 6,
-    consentimiento.firma_tipo,
-    consentimiento.firma,
-    `Mediante la firma del presente documento, acepto todas las cláusulas arriba expuestas. ${fechaTexto}`,
-  );
+  y = firmasDualesEnPDF(doc, y + 6, {
+    tipoFirma: consentimiento.firma_tipo,
+    dataTutor: consentimiento.firma,
+    dataTienda: consentimiento.firma_tienda,
+    textoTutor: `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. ${fechaTexto}`,
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
   const pieFirma =
     consentimiento.firma_tipo === 'papel'
       ? `Documento generado en blanco para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
@@ -441,7 +491,13 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
     textoAcepta: 'El tutor acepta las condiciones anteriores',
     textoRechaza: 'El tutor NO acepta las condiciones anteriores',
   });
-  y = firmaEnPDF(doc, y + 4, visita.firma_ingreso?.tipo, visita.firma_ingreso?.data, 'Firma del tutor (ingreso):');
+  y = firmasDualesEnPDF(doc, y + 4, {
+    tipoFirma: visita.firma_ingreso?.tipo,
+    dataTutor: visita.firma_ingreso?.data,
+    dataTienda: visita.firma_tienda_ingreso,
+    textoTutor: 'Firma del tutor (ingreso):',
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
 
   if (esCompleta) {
     y = nuevaPaginaSi(doc, y + 4, 60);
@@ -541,7 +597,7 @@ async function esquema4VistasEnPDF(doc, y) {
     doc.setTextColor(DARK);
     doc.text('Hallazgos: _______________________', x, yImg + imgH + 9);
   }
-  return y + 2 * imgH + rowGap + 4;
+  return y + 2 * imgH + rowGap + 16;
 }
 
 // ---------- Plantilla en blanco: ficha de ingreso (uso sin conexión) ----------
