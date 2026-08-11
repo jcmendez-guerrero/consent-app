@@ -56,6 +56,7 @@ export function mapConsentimiento(row) {
     revocado: row.revocado instanceof Date ? row.revocado.toISOString() : row.revocado,
     creado_por: row.creado_por,
     consent_blob_path: row.consent_blob_path ?? null,
+    firma_tienda: row.firma_tienda ?? null,
   };
 }
 
@@ -84,6 +85,8 @@ export function mapVisita(row) {
     comportamiento_chips: parseJsonColumn(row.comportamiento_chips, []),
     comportamiento_notas: row.comportamiento_notas,
     firma_entrega: { tipo: row.firma_entrega_tipo, data: row.firma_entrega_data },
+    firma_tienda_ingreso: row.firma_tienda_ingreso ?? null,
+    firma_tienda_entrega: row.firma_tienda_entrega ?? null,
     creado_por: row.creado_por,
   };
 }

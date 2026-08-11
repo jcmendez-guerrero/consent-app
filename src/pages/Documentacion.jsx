@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import { pdfConsentimiento, pdfBlankIngreso, pdfBlankEntrega } from '../lib/pdf';
-import {
-  CLAUSULAS_CONSENTIMIENTO,
-  CLAUSULA_IMAGENES,
-  CLAUSULA_COMUNICACIONES,
-  LEGAL_VERSION,
-} from '../lib/legal';
+import { pdfBlankConsentimiento, pdfBlankIngreso, pdfBlankEntrega } from '../lib/pdf';
 import { Card, PrimaryButton } from '../components/ui';
 
 // Cada flujo se documenta como una lista numerada de pasos. Las capturas de
@@ -13,20 +7,9 @@ import { Card, PrimaryButton } from '../components/ui';
 // con <img src="/docs/..."> (mantenimiento manual; ver spec 002).
 const FLUJOS = [
   {
-    titulo: 'Flujo de consentimiento digital',
+    titulo: 'Flujo de consentimiento (firma en papel)',
     pasos: [
       'Ir a la pestaña "1 · Consentimiento".',
-      'Rellenar los datos del tutor y de la mascota.',
-      'Aceptar o rechazar cada cláusula junto al tutor.',
-      'Dibujar la firma en pantalla.',
-      'Pulsar "Guardar y continuar".',
-      'Se genera el PDF y la aplicación pasa al ingreso.',
-    ],
-  },
-  {
-    titulo: 'Flujo de consentimiento en papel',
-    pasos: [
-      'Ir a la pestaña "Consentimiento Papel".',
       'Rellenar los datos del tutor y de la mascota.',
       'Marcar "Acepta" o "No acepta" en cada cláusula junto al tutor.',
       'Pulsar "Generar e imprimir consentimiento".',
@@ -42,7 +25,7 @@ const FLUJOS = [
       'Seleccionar la mascota con consentimiento vigente.',
       'Indicar los servicios contratados, el tratamiento y el precio acordado.',
       'Registrar la hora de ingreso y los hallazgos sobre el esquema del animal.',
-      'Recoger la aceptación de las condiciones del servicio y la firma del tutor.',
+      'Recoger la aceptación de las condiciones del servicio y confirmar la firma en papel.',
       'Guardar la ficha de ingreso.',
     ],
   },
@@ -54,14 +37,13 @@ const FLUJOS = [
       'Registrar los hallazgos de la entrega y los cuidados recomendados.',
       'Anotar la hora de aviso de "mascota lista" y la hora de recogida.',
       'Revisar el recargo por demora si aplica (60 min de margen, 15 €/hora o fracción).',
-      'Recoger la firma de "recibí conforme" y guardar la entrega.',
+      'Confirmar la firma en papel de "recibí conforme" y guardar la entrega.',
     ],
   },
 ];
 
 const PROBLEMAS = [
   ['El PDF no se genera', 'Revise que el navegador permite ventanas emergentes para este sitio y vuelva a intentarlo.'],
-  ['La firma no aparece en el PDF', 'Asegúrese de dibujar la firma en el recuadro antes de pulsar "Guardar".'],
   ['Error al guardar los datos', 'Verifique la conexión a internet e inténtelo de nuevo; los datos introducidos se conservan.'],
   ['La página no carga', 'Recargue el navegador; si el problema continúa, consulte con el administrador.'],
 ];
@@ -102,28 +84,6 @@ export default function Documentacion() {
     } finally {
       setGenerandoPlantilla(false);
     }
-  }
-
-  function imprimirConsentimientoBlanco() {
-    return pdfConsentimiento({
-      cliente: {},
-      mascota: {},
-      consentimiento: {
-        estado: 'aceptado',
-        firma_tipo: 'papel',
-        firma: null,
-        clausulas_respuestas: {},
-        condiciones_preexistentes: [],
-        autoriza_fotos: false,
-        autoriza_comunicaciones: false,
-        legal_version: LEGAL_VERSION,
-        legal_hash: '',
-        fecha: new Date().toISOString(),
-      },
-      clausulas: CLAUSULAS_CONSENTIMIENTO,
-      clausulaImagenes: CLAUSULA_IMAGENES,
-      clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
-    });
   }
 
   return (
@@ -175,7 +135,7 @@ export default function Documentacion() {
       <Card title="Plantillas en blanco" subtitle="Imprima estos documentos para rellenarlos a mano cuando no haya conexión.">
         <div className="space-y-4">
           <div className="space-y-1">
-            <PrimaryButton onClick={() => generar(imprimirConsentimientoBlanco)} disabled={generandoPlantilla}>
+            <PrimaryButton onClick={() => generar(pdfBlankConsentimiento)} disabled={generandoPlantilla}>
               Imprimir formulario de consentimiento en blanco
             </PrimaryButton>
             <p className="text-sm text-brand-400">

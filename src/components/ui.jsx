@@ -96,32 +96,6 @@ export function ClauseBlock({ titulo, texto, value, onChange }) {
   );
 }
 
-// Selector de modo de firma compartido por los 3 formularios.
-export function ModoFirmaToggle({ modoPapel, onChange }) {
-  return (
-    <div className="mb-4 inline-flex gap-1 rounded-xl bg-brand-100 p-1">
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-          !modoPapel ? 'bg-white text-brand-700 shadow' : 'text-brand-500'
-        }`}
-      >
-        🖥️ Firma en pantalla
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-          modoPapel ? 'bg-white text-brand-700 shadow' : 'text-brand-500'
-        }`}
-      >
-        🖊️ Firma en papel
-      </button>
-    </div>
-  );
-}
-
 export function PrimaryButton({ children, ...props }) {
   return (
     <button

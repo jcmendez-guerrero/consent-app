@@ -7,6 +7,7 @@ import mascotasRouter from './routes/mascotas.js';
 import consentimientosRouter from './routes/consentimientos.js';
 import visitasRouter from './routes/visitas.js';
 import tratamientosRouter from './routes/tratamientos.js';
+import siweb360Router from './routes/siweb360.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 
@@ -24,6 +25,7 @@ app.use('/api/mascotas', mascotasRouter);
 app.use('/api/consentimientos', consentimientosRouter);
 app.use('/api/visitas', visitasRouter);
 app.use('/api/tratamientos', tratamientosRouter);
+app.use('/api/siweb360', siweb360Router);
 
 const distDir = path.join(__dirname, '../dist');
 app.use(express.static(distDir));

@@ -44,17 +44,18 @@ router.post('/', async (req, res, next) => {
       .input('clausulas_respuesta_condiciones', sql.NVarChar, v.clausulas_respuesta_condiciones || null)
       .input('firma_ingreso_tipo', sql.NVarChar, v.firma_ingreso?.tipo || null)
       .input('firma_ingreso_data', sql.NVarChar(sql.MAX), v.firma_ingreso?.data || null)
+      .input('firma_tienda_ingreso', sql.NVarChar(sql.MAX), v.firma_tienda_ingreso || null)
       .input('autoriza_fotos_redes', sql.Bit, !!v.autoriza_fotos_redes)
       .input('creado_por', sql.NVarChar, currentUser(req))
       .query(`
         INSERT INTO dbo.visitas
           (id, mascota_id, fecha, estado, servicios, tratamiento, precio, hallazgos_ingreso,
            hallazgos_entrega, notas_ingreso, hora_ingreso, clausulas_respuesta_condiciones,
-           firma_ingreso_tipo, firma_ingreso_data, autoriza_fotos_redes, creado_por)
+           firma_ingreso_tipo, firma_ingreso_data, firma_tienda_ingreso, autoriza_fotos_redes, creado_por)
         VALUES
           (@id, @mascota_id, @fecha, @estado, @servicios, @tratamiento, @precio, @hallazgos_ingreso,
            @hallazgos_entrega, @notas_ingreso, @hora_ingreso, @clausulas_respuesta_condiciones,
-           @firma_ingreso_tipo, @firma_ingreso_data, @autoriza_fotos_redes, @creado_por)
+           @firma_ingreso_tipo, @firma_ingreso_data, @firma_tienda_ingreso, @autoriza_fotos_redes, @creado_por)
       `);
     res.status(201).json({ id });
   } catch (err) {
@@ -90,6 +91,7 @@ router.put('/:id', async (req, res, next) => {
       .input('comportamiento_notas', sql.NVarChar, v.comportamiento_notas || null)
       .input('firma_entrega_tipo', sql.NVarChar, v.firma_entrega?.tipo || null)
       .input('firma_entrega_data', sql.NVarChar(sql.MAX), v.firma_entrega?.data || null)
+      .input('firma_tienda_entrega', sql.NVarChar(sql.MAX), v.firma_tienda_entrega || null)
       .query(`
         UPDATE dbo.visitas SET
           estado = @estado, servicios = @servicios, tratamiento = @tratamiento, precio = @precio,
@@ -102,6 +104,7 @@ router.put('/:id', async (req, res, next) => {
           hora_recogida = @hora_recogida, recargo_por_demora = @recargo_por_demora,
           comportamiento_chips = @comportamiento_chips, comportamiento_notas = @comportamiento_notas,
           firma_entrega_tipo = @firma_entrega_tipo, firma_entrega_data = @firma_entrega_data,
+          firma_tienda_entrega = @firma_tienda_entrega,
           actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);

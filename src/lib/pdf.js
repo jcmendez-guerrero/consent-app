@@ -1,7 +1,17 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { DOG_VIEWS, VISTAS_PAPEL, colorSeveridad, labelZona } from '../components/dogViews';
-import { RESPONSABLE, URL_RESENA, SERVICIOS, CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST } from './legal';
+import {
+  RESPONSABLE,
+  URL_RESENA,
+  SERVICIOS,
+  CLAUSULAS_INGRESO,
+  CUIDADOS_CHECKLIST,
+  CLAUSULAS_CONSENTIMIENTO,
+  CLAUSULA_IMAGENES,
+  CLAUSULA_COMUNICACIONES,
+  CONDICIONES_PREEXISTENTES_OPCIONES,
+} from './legal';
 import { fechaLarga, fmtFecha, calcularRecargo, MARGEN_RECOGIDA_MIN, RECARGO_EUR_HORA } from './utils';
 
 const TEAL = '#016581';
@@ -286,6 +296,46 @@ function firmaEnPDF(doc, y, tipoFirma, dataUrl, texto) {
   return y;
 }
 
+// Dos firmas en la misma fila: tutor (izquierda) y Mundo Mascotix (derecha).
+function firmasDualesEnPDF(doc, y, { tipoFirma, dataTutor, dataTienda, textoTutor, textoTienda }) {
+  const colW = (W - 6) / 2;
+  const boxW = colW - 4;
+  const boxH = 30;
+  const xLeft = M;
+  const xRight = M + colW + 6;
+
+  y = nuevaPaginaSi(doc, y, boxH + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(DARK);
+
+  const linesLeft = doc.splitTextToSize(textoTutor, colW);
+  const linesRight = doc.splitTextToSize(textoTienda, colW);
+  doc.text(linesLeft, xLeft, y);
+  doc.text(linesRight, xRight, y);
+  y += Math.max(linesLeft.length, linesRight.length) * 4 + 2;
+
+  doc.setDrawColor('#b7d9df');
+  [
+    { x: xLeft, data: dataTutor, label: 'Firma del tutor' },
+    { x: xRight, data: dataTienda, label: 'Firma Mundo Mascotix' },
+  ].forEach(({ x, data, label }) => {
+    if (tipoFirma === 'digital' && data) {
+      doc.roundedRect(x, y, boxW, boxH, 2, 2);
+      doc.addImage(data, 'PNG', x + 2, y + 2, boxW - 4, boxH - 4);
+    } else {
+      doc.setLineDashPattern([1.2, 1.2], 0);
+      doc.roundedRect(x, y, boxW, boxH, 2, 2);
+      doc.setLineDashPattern([], 0);
+      doc.setFontSize(7.5);
+      doc.setTextColor(MID);
+      doc.text(label, x + boxW / 2, y + boxH / 2 + 2, { align: 'center' });
+    }
+  });
+
+  return y + boxH + 4;
+}
+
 // ---------- Formulario 1: consentimiento ----------
 
 export async function pdfConsentimiento({ cliente, mascota, consentimiento, clausulas, clausulaImagenes, clausulaComunicaciones }) {
@@ -346,25 +396,35 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
 
   y = bloqueTexto(doc, y + 2, clausulaImagenes.titulo, { bold: true, size: 9.5 });
   y = bloqueTexto(doc, y, clausulaImagenes.texto);
-  y = bloqueTexto(
-    doc,
-    y,
-    consentimiento.autoriza_fotos
-      ? '[X] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.'
-      : '[X] NO autorizo el uso de imágenes de mi mascota.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : RED },
-  );
+  if (consentimiento.firma_tipo === 'papel') {
+    y = bloqueTexto(doc, y,
+      '[ ] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.     [ ] NO autorizo el uso de imágenes de mi mascota.',
+      { bold: true, size: 8.5, color: DARK },
+    );
+  } else {
+    y = bloqueTexto(doc, y,
+      consentimiento.autoriza_fotos
+        ? '[X] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.'
+        : '[X] NO autorizo el uso de imágenes de mi mascota.',
+      { bold: true, size: 8.5, color: consentimiento.autoriza_fotos ? MID : RED },
+    );
+  }
 
   y = bloqueTexto(doc, y + 2, clausulaComunicaciones.titulo, { bold: true, size: 9.5 });
   y = bloqueTexto(doc, y, clausulaComunicaciones.texto);
-  y = bloqueTexto(
-    doc,
-    y,
-    consentimiento.autoriza_comunicaciones
-      ? '[X] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.'
-      : '[ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
-    { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
-  );
+  if (consentimiento.firma_tipo === 'papel') {
+    y = bloqueTexto(doc, y,
+      '[ ] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.     [ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
+      { bold: true, size: 8.5, color: DARK },
+    );
+  } else {
+    y = bloqueTexto(doc, y,
+      consentimiento.autoriza_comunicaciones
+        ? '[X] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.'
+        : '[ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
+      { bold: true, size: 8.5, color: consentimiento.autoriza_comunicaciones ? MID : RED },
+    );
+  }
 
   // 'papel' = plantilla en blanco; 'papel-firmado' = datos rellenados en la app pero
   // firma manuscrita pendiente. Ambos llevan la línea de fecha en blanco.
@@ -372,13 +432,8 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
   const fechaTexto = esPapel
     ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
     : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
-  y = firmaEnPDF(
-    doc,
-    y + 6,
-    consentimiento.firma_tipo,
-    consentimiento.firma,
-    `Mediante la firma del presente documento, acepto todas las cláusulas arriba expuestas. ${fechaTexto}`,
-  );
+  y = firmaEnPDF(doc, y + 6, consentimiento.firma_tipo, consentimiento.firma,
+    `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. ${fechaTexto}`);
   const pieFirma =
     consentimiento.firma_tipo === 'papel'
       ? `Documento generado en blanco para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
@@ -441,7 +496,13 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
     textoAcepta: 'El tutor acepta las condiciones anteriores',
     textoRechaza: 'El tutor NO acepta las condiciones anteriores',
   });
-  y = firmaEnPDF(doc, y + 4, visita.firma_ingreso?.tipo, visita.firma_ingreso?.data, 'Firma del tutor (ingreso):');
+  y = firmasDualesEnPDF(doc, y + 4, {
+    tipoFirma: visita.firma_ingreso?.tipo,
+    dataTutor: visita.firma_ingreso?.data,
+    dataTienda: visita.firma_tienda_ingreso,
+    textoTutor: 'Firma del tutor (ingreso):',
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
 
   if (esCompleta) {
     y = nuevaPaginaSi(doc, y + 4, 60);
@@ -492,13 +553,13 @@ export async function pdfVisita({ cliente, mascota, visita, clausulasIngreso }) 
         : 'No aplica (dentro del margen de 60 minutos)',
     );
 
-    y = firmaEnPDF(
-      doc,
-      y + 4,
-      visita.firma_entrega?.tipo,
-      visita.firma_entrega?.data,
-      'Recibí conforme — el tutor recoge a la mascota y recibe las indicaciones de cuidado.',
-    );
+    y = firmasDualesEnPDF(doc, y + 4, {
+      tipoFirma: visita.firma_entrega?.tipo,
+      dataTutor: visita.firma_entrega?.data,
+      dataTienda: visita.firma_tienda_entrega,
+      textoTutor: 'Recibí conforme — firma del tutor (recoge a la mascota y las indicaciones de cuidado):',
+      textoTienda: 'Por Mundo Mascotix (representante):',
+    });
 
     y = nuevaPaginaSi(doc, y + 4, 45);
     y = tituloSeccion(doc, y, '¡Gracias por confiar en nosotros!');
@@ -541,7 +602,85 @@ async function esquema4VistasEnPDF(doc, y) {
     doc.setTextColor(DARK);
     doc.text('Hallazgos: _______________________', x, yImg + imgH + 9);
   }
-  return y + 2 * imgH + rowGap + 4;
+  return y + 2 * imgH + rowGap + 16;
+}
+
+// ---------- Plantilla en blanco: consentimiento (uso sin conexión) ----------
+// A diferencia de pdfConsentimiento (que rellena los datos ya introducidos en
+// la app), esta plantilla no recibe cliente/mascota: usa líneas en blanco
+// (filaBlanco) para que el tutor y la mascota se identifiquen a mano. Incluye
+// siempre todas las cláusulas (no se puede saber de antemano si el cliente ya
+// tiene el consentimiento de protección de datos en vigor).
+export async function pdfBlankConsentimiento() {
+  const doc = new jsPDF();
+  let y = await cabecera(
+    doc,
+    'AUTORIZACIÓN Y EXONERACIÓN DE RESPONSABILIDAD PARA SERVICIOS DE PELUQUERÍA CANINA',
+    `${RESPONSABLE.establecimiento} · Plantilla en blanco · Vigencia indefinida`,
+  );
+
+  y = tituloSeccion(doc, y, '1. Datos del tutor del animal');
+  y = filaBlanco(doc, y, 'Nombre y apellidos');
+  y = filaBlanco(doc, y, 'DNI/NIE');
+  y = filaBlanco(doc, y, 'Teléfono');
+  y = filaBlanco(doc, y, 'Email (obligatorio)');
+
+  y = tituloSeccion(doc, y + 2, '2. Datos del animal');
+  y = filaBlanco(doc, y, 'Nombre');
+  y = filaBlanco(doc, y, 'Raza');
+  y = filaBlanco(doc, y, 'Edad');
+  y = filaBlanco(doc, y, 'Peso aproximado');
+  y = filaBlanco(doc, y, 'Microchip');
+  y = filaBlanco(doc, y, 'Observaciones');
+
+  y = tituloSeccion(doc, y + 2, 'Condiciones preexistentes declaradas');
+  y = bloqueTexto(doc, y, CONDICIONES_PREEXISTENTES_OPCIONES.map((c) => `[ ] ${c}`).join('    '), { size: 9 });
+  y = filaBlanco(doc, y, 'Otras / detalles');
+
+  y = tituloSeccion(doc, y + 2, '3. Declaraciones y aceptación de condiciones');
+  y = bloqueTexto(
+    doc,
+    y,
+    'Yo, el/la abajo firmante, en calidad de propietario/a o tutor legal del animal arriba identificado, declaro y acepto lo siguiente:',
+  );
+  for (const c of CLAUSULAS_CONSENTIMIENTO) {
+    y = bloqueTexto(doc, y + 1, c.titulo, { bold: true, size: 9.5 });
+    y = bloqueTexto(doc, y, c.texto);
+    y = lineaAceptacion(doc, y, { tipoFirma: 'papel', textoAcepta: 'Acepto', textoRechaza: 'No acepto' });
+  }
+
+  y = bloqueTexto(doc, y + 2, CLAUSULA_IMAGENES.titulo, { bold: true, size: 9.5 });
+  y = bloqueTexto(doc, y, CLAUSULA_IMAGENES.texto);
+  y = bloqueTexto(
+    doc,
+    y,
+    '[ ] Autorizo expresamente la utilización de las imágenes en los términos anteriormente descritos.     [ ] NO autorizo el uso de imágenes de mi mascota.',
+    { bold: true, size: 8.5, color: DARK },
+  );
+
+  y = bloqueTexto(doc, y + 2, CLAUSULA_COMUNICACIONES.titulo, { bold: true, size: 9.5 });
+  y = bloqueTexto(doc, y, CLAUSULA_COMUNICACIONES.texto);
+  y = bloqueTexto(
+    doc,
+    y,
+    '[ ] Doy mi consentimiento expreso para recibir comunicaciones en los términos anteriormente descritos.     [ ] NO doy mi consentimiento para recibir comunicaciones comerciales.',
+    { bold: true, size: 8.5, color: DARK },
+  );
+
+  y = firmaEnPDF(
+    doc,
+    y + 6,
+    'papel',
+    null,
+    `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`,
+  );
+  y = bloqueTexto(doc, y + 2, `Documento generado en blanco para firma manual el ${new Date().toLocaleString('es-ES')}`, {
+    size: 7.5,
+    color: MID,
+  });
+
+  pieResponsable(doc);
+  doc.save('Consentimiento_Plantilla.pdf');
 }
 
 // ---------- Plantilla en blanco: ficha de ingreso (uso sin conexión) ----------
@@ -558,18 +697,19 @@ export async function pdfBlankIngreso() {
   y = filaBlanco(doc, y, 'Nombre y apellidos');
   y = filaBlanco(doc, y, 'DNI/NIE');
   y = filaBlanco(doc, y, 'Teléfono');
+  y = filaBlanco(doc, y, 'Email (obligatorio)');
 
   y = tituloSeccion(doc, y + 2, 'Datos de la mascota');
   y = filaBlanco(doc, y, 'Nombre');
   y = filaBlanco(doc, y, 'Raza');
-
-  y = await esquema4VistasEnPDF(doc, y + 2);
 
   y = tituloSeccion(doc, y + 2, 'Servicio');
   y = bloqueTexto(doc, y, `Servicios contratados: ${SERVICIOS.map((s) => `[ ] ${s}`).join('    ')}`, { size: 9 });
   y = filaBlanco(doc, y, 'Tratamiento a aplicar');
   y = filaBlanco(doc, y, 'Precio acordado (€)');
   y = filaBlanco(doc, y, 'Hora de ingreso');
+
+  y = await esquema4VistasEnPDF(doc, y + 2);
 
   y = tituloSeccion(doc, y + 2, 'Condiciones preexistentes declaradas');
   y = filaBlanco(doc, y, 'Condiciones / detalles');
@@ -583,7 +723,11 @@ export async function pdfBlankIngreso() {
     textoAcepta: 'El tutor acepta las condiciones anteriores',
     textoRechaza: 'El tutor NO acepta las condiciones anteriores',
   });
-  y = firmaEnPDF(doc, y + 4, 'papel', null, 'Firma del tutor (ingreso):');
+  y = firmasDualesEnPDF(doc, y + 4, {
+    tipoFirma: 'papel',
+    textoTutor: 'Firma del tutor (ingreso):',
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
 
   pieResponsable(doc);
   doc.save('Ficha_Ingreso_Plantilla.pdf');
@@ -624,7 +768,22 @@ export async function pdfBlankEntrega() {
   }
   y = filaBlanco(doc, y, 'Otras indicaciones');
 
-  y = firmaEnPDF(doc, y + 4, 'papel', null, 'Firma del tutor (recibí conforme):');
+  y = firmasDualesEnPDF(doc, y + 4, {
+    tipoFirma: 'papel',
+    textoTutor: 'Firma del tutor (recibí conforme):',
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
+
+  y = nuevaPaginaSi(doc, y + 4, 45);
+  y = tituloSeccion(doc, y, '¡Gracias por confiar en nosotros!');
+  y = bloqueTexto(doc, y, 'Escanea este código para dejarnos una reseña:');
+  try {
+    const qrDataUrl = await QRCode.toDataURL(URL_RESENA, { margin: 1, width: 240 });
+    doc.addImage(qrDataUrl, 'PNG', M, y, 30, 30);
+    y += 34;
+  } catch {
+    // si falla la generación del QR, se omite sin bloquear el resto del PDF
+  }
 
   pieResponsable(doc);
   doc.save('Ficha_Entrega_Plantilla.pdf');

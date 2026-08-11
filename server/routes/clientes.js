@@ -17,21 +17,32 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const pool = await getPool();
     const c = req.body;
+    if (!c.email || !c.email.trim()) {
+      return res.status(400).json({ error: 'El email del cliente es obligatorio' });
+    }
+    const pool = await getPool();
     const id = uid('cli');
-    await pool
+    const result = await pool
       .request()
       .input('id', sql.NVarChar, id)
       .input('nombre_apellidos', sql.NVarChar, c.nombre_apellidos)
-      .input('dni_nie', sql.NVarChar, c.dni_nie)
+      .input('dni_nie', sql.NVarChar, (c.dni_nie || '').trim().toUpperCase())
       .input('telefono', sql.NVarChar, c.telefono)
       .input('email', sql.NVarChar, c.email || null)
       .query(`
-        INSERT INTO dbo.clientes (id, nombre_apellidos, dni_nie, telefono, email)
-        VALUES (@id, @nombre_apellidos, @dni_nie, @telefono, @email)
+        MERGE dbo.clientes AS t
+        USING (VALUES (@dni_nie)) AS s(dni_nie) ON t.dni_nie = s.dni_nie
+        WHEN MATCHED THEN UPDATE SET
+          nombre_apellidos = @nombre_apellidos,
+          telefono = @telefono,
+          email = COALESCE(@email, t.email),
+          actualizado_en = SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT (id, nombre_apellidos, dni_nie, telefono, email)
+          VALUES (@id, @nombre_apellidos, @dni_nie, @telefono, @email)
+        OUTPUT inserted.id;
       `);
-    res.status(201).json({ id });
+    res.status(201).json({ id: result.recordset[0].id });
   } catch (err) {
     next(err);
   }
@@ -39,13 +50,16 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const pool = await getPool();
     const c = req.body;
+    if (!c.email || !c.email.trim()) {
+      return res.status(400).json({ error: 'El email del cliente es obligatorio' });
+    }
+    const pool = await getPool();
     await pool
       .request()
       .input('id', sql.NVarChar, req.params.id)
       .input('nombre_apellidos', sql.NVarChar, c.nombre_apellidos)
-      .input('dni_nie', sql.NVarChar, c.dni_nie)
+      .input('dni_nie', sql.NVarChar, (c.dni_nie || '').trim().toUpperCase())
       .input('telefono', sql.NVarChar, c.telefono)
       .input('email', sql.NVarChar, c.email || null)
       .query(`

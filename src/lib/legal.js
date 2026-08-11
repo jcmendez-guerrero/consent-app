@@ -3,7 +3,7 @@
 // guarda la versión y el hash SHA-256 del texto aceptado (requisito RGPD de
 // poder demostrar qué texto exacto se aceptó).
 
-export const LEGAL_VERSION = '2026-07-04.1';
+export const LEGAL_VERSION = '2026-07-31.1';
 
 export const URL_RESENA = 'https://g.page/r/CXhutFfZILZTEBM/review';
 
@@ -133,17 +133,7 @@ export const CLAUSULAS_INGRESO = [
   },
 ];
 
-export const SERVICIOS = [
-  'Baño',
-  'Corte',
-  'Secado',
-  'Deslanado',
-  'Stripping',
-  'Vaciado de glándulas',
-  'Limpieza de oídos',
-  'Corte de uñas',
-  'Otro',
-];
+export const SERVICIOS = ['Dermospa Veterinario'];
 
 export const COMPORTAMIENTO_OPCIONES = [
   'Tranquilo',
