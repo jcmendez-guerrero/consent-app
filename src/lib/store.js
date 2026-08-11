@@ -126,6 +126,15 @@ export async function guardarConsentimiento(consentimiento) {
   return response; // { id, siweb360_candidates? }
 }
 
+export async function actualizarConsentimiento(id, datos) {
+  await fetchJSON(`/api/consentimientos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+}
+
 export async function revocarConsentimiento(consentimientoId) {
   await fetchJSON(`/api/consentimientos/${consentimientoId}/revocar`, { method: 'POST' });
   await refetch();

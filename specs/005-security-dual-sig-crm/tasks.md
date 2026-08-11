@@ -152,7 +152,7 @@
 - [ ] T029 Run full E2E regression per `quickstart.md` scenarios 1–6: security, CRM sync, dual signature (digital + paper), service chip, body-map overlap, foto checkbox
 - [ ] T030 Run `npm run build` on final branch; confirm bundle delta ≤ 10% (or document it if larger)
 - [ ] T031 Confirm `LEGAL_VERSION = '2026-07-31.1'` in `src/lib/legal.js` and that no other `legal.js` changes were made without this bump
-- [ ] T032 Create zip deploy and push to App Service: `cd dist && zip -r ../deploy.zip . && cd .. && zip -ur deploy.zip server package.json .deployment && az webapp deploy --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --src-path deploy.zip --type zip`
+- [X] T032 Create zip deploy and push to App Service: `cd dist && zip -r ../deploy.zip . && cd .. && zip -ur deploy.zip server package.json .deployment && az webapp deploy --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --src-path deploy.zip --type zip`
 - [ ] T033 Smoke-test production URL after deploy: complete one full Consentimiento → Ingreso → Entrega flow, verify SiWeb360 contact created
 
 ---

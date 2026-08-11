@@ -20,7 +20,7 @@ router.post('/', async (req, res, next) => {
     const pool = await getPool();
     const m = req.body;
     const id = uid('mas');
-    await pool
+    const result = await pool
       .request()
       .input('id', sql.NVarChar, id)
       .input('cliente_id', sql.NVarChar, m.cliente_id)
@@ -32,10 +32,23 @@ router.post('/', async (req, res, next) => {
       .input('observaciones_generales', sql.NVarChar, m.observaciones_generales || null)
       .input('especie', sql.NVarChar, m.especie || 'perro')
       .query(`
-        INSERT INTO dbo.mascotas (id, cliente_id, nombre, raza, edad, peso_aprox_kg, microchip, observaciones_generales, especie)
-        VALUES (@id, @cliente_id, @nombre, @raza, @edad, @peso_aprox_kg, @microchip, @observaciones_generales, @especie)
+        MERGE dbo.mascotas AS t
+        USING (VALUES (@cliente_id, @nombre)) AS s(cliente_id, nombre)
+          ON t.cliente_id = s.cliente_id AND t.nombre = s.nombre
+        WHEN MATCHED THEN UPDATE SET
+          raza = COALESCE(@raza, t.raza),
+          edad = COALESCE(@edad, t.edad),
+          peso_aprox_kg = COALESCE(@peso_aprox_kg, t.peso_aprox_kg),
+          microchip = COALESCE(@microchip, t.microchip),
+          observaciones_generales = COALESCE(@observaciones_generales, t.observaciones_generales),
+          especie = @especie,
+          actualizado_en = SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT
+          (id, cliente_id, nombre, raza, edad, peso_aprox_kg, microchip, observaciones_generales, especie)
+          VALUES (@id, @cliente_id, @nombre, @raza, @edad, @peso_aprox_kg, @microchip, @observaciones_generales, @especie)
+        OUTPUT inserted.id;
       `);
-    res.status(201).json({ id });
+    res.status(201).json({ id: result.recordset[0].id });
   } catch (err) {
     next(err);
   }

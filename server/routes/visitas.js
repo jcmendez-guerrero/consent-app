@@ -91,6 +91,7 @@ router.put('/:id', async (req, res, next) => {
       .input('comportamiento_notas', sql.NVarChar, v.comportamiento_notas || null)
       .input('firma_entrega_tipo', sql.NVarChar, v.firma_entrega?.tipo || null)
       .input('firma_entrega_data', sql.NVarChar(sql.MAX), v.firma_entrega?.data || null)
+      .input('firma_tienda_entrega', sql.NVarChar(sql.MAX), v.firma_tienda_entrega || null)
       .query(`
         UPDATE dbo.visitas SET
           estado = @estado, servicios = @servicios, tratamiento = @tratamiento, precio = @precio,
@@ -103,6 +104,7 @@ router.put('/:id', async (req, res, next) => {
           hora_recogida = @hora_recogida, recargo_por_demora = @recargo_por_demora,
           comportamiento_chips = @comportamiento_chips, comportamiento_notas = @comportamiento_notas,
           firma_entrega_tipo = @firma_entrega_tipo, firma_entrega_data = @firma_entrega_data,
+          firma_tienda_entrega = @firma_tienda_entrega,
           actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);

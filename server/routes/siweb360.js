@@ -23,7 +23,7 @@ router.post('/resolve', async (req, res, next) => {
       .request()
       .input('id', sql.NVarChar, consentimiento_id)
       .query(`
-        SELECT cl.nombre_apellidos, cl.email, cl.telefono, cl.id AS cliente_id
+        SELECT cl.nombre_apellidos, cl.dni_nie, cl.email, cl.telefono, cl.id AS cliente_id
         FROM dbo.consentimientos c
         JOIN dbo.clientes cl ON cl.id = c.cliente_id
         WHERE c.id = @id
@@ -33,8 +33,8 @@ router.post('/resolve', async (req, res, next) => {
       return res.status(404).json({ error: 'Consentimiento no encontrado' });
     }
 
-    const { nombre_apellidos, email, telefono, cliente_id } = result.recordset[0];
-    const cliente = { nombre_apellidos, email, telefono };
+    const { nombre_apellidos, dni_nie, email, telefono, cliente_id } = result.recordset[0];
+    const cliente = { nombre_apellidos, dni_nie, email, telefono };
 
     const mascotasResult = await pool
       .request()

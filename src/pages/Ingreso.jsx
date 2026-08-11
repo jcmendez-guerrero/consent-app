@@ -5,11 +5,9 @@ import { useDB, consentimientoVigente, guardarVisita } from '../lib/store';
 import { SERVICIOS, CLAUSULAS_INGRESO } from '../lib/legal';
 import { hoyISO, horaAhora } from '../lib/utils';
 import { pdfVisita } from '../lib/pdf';
-import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
+import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, inputCls } from '../components/ui';
 import MascotaPicker from '../components/MascotaPicker';
 import PetSchematic from '../components/PetSchematic';
-import TratamientoEntry from '../components/TratamientoEntry';
-import SignatureBox from '../components/SignatureBox';
 
 export default function Ingreso() {
   const db = useDB();
@@ -35,24 +33,21 @@ export default function Ingreso() {
   const [notas, setNotas] = useState('');
   const [horaIngreso, setHoraIngreso] = useState(horaAhora());
   const [respuestaCondiciones, setRespuestaCondiciones] = useState(null); // 'acepta' | 'rechaza' | null
-  const [modoPapel, setModoPapel] = useState(false);
-  const [firmaIngreso, setFirmaIngreso] = useState(null);
-  const [firmaTienda, setFirmaTienda] = useState(null);
   const [confirmPapel, setConfirmPapel] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [avisoRechazo, setAvisoRechazo] = useState(false);
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const [errorImpresion, setErrorImpresion] = useState('');
 
   const visitaAbierta = sel && db.visitas.find((v) => v.mascota_id === sel.mascota.id && v.estado === 'ingresada');
-  const condicionesOk = modoPapel || !!respuestaCondiciones;
-  const hayRechazo = !modoPapel && respuestaCondiciones === 'rechaza';
-  const firmasOk = modoPapel ? confirmPapel : (!!firmaIngreso && !!firmaTienda);
+  const hayRechazo = respuestaCondiciones === 'rechaza';
   const puedeGuardar =
     sel?.consentimiento &&
     servicios.length > 0 &&
     !visitaAbierta &&
-    condicionesOk &&
-    firmasOk;
+    !!respuestaCondiciones &&
+    confirmPapel;
 
   function toggleServicio(s) {
     setDirty(true);
@@ -94,24 +89,42 @@ export default function Ingreso() {
     setRespuestaCondiciones(value);
   }
 
-  function handleModoPapelChange(val) {
-    setDirty(true);
-    setModoPapel(val);
-  }
-
-  function handleFirmaIngresoChange(val) {
-    setDirty(true);
-    setFirmaIngreso(val);
-  }
-
-  function handleFirmaTiendaChange(val) {
-    setDirty(true);
-    setFirmaTienda(val);
-  }
-
   function handleConfirmPapelChange(e) {
     setDirty(true);
     setConfirmPapel(e.target.checked);
+  }
+
+  // Imprime lo que ya se ha rellenado en pantalla hasta ahora, sin necesidad de
+  // completar ni guardar el ingreso — útil para llevar el papel ya avanzado y
+  // terminar de anotar a mano lo que falte.
+  async function imprimirBorrador() {
+    if (!sel || imprimiendo) return;
+    setImprimiendo(true);
+    setErrorImpresion('');
+    try {
+      await pdfVisita({
+        cliente: sel.cliente,
+        mascota: sel.mascota,
+        visita: {
+          mascota_id: sel.mascota.id,
+          fecha: hoyISO(),
+          servicios,
+          tratamiento,
+          precio,
+          hallazgos_ingreso: hallazgos,
+          hallazgos_entrega: [],
+          notas_ingreso: notas,
+          hora_ingreso: horaIngreso,
+          clausulas_respuesta_condiciones: respuestaCondiciones,
+          estado: 'ingresada',
+        },
+        clausulasIngreso: CLAUSULAS_INGRESO,
+      });
+    } catch (e) {
+      setErrorImpresion('No se pudo generar el PDF: ' + (e.message || e));
+    } finally {
+      setImprimiendo(false);
+    }
   }
 
   async function guardar() {
@@ -130,9 +143,9 @@ export default function Ingreso() {
         hallazgos_entrega: [],
         notas_ingreso: notas,
         hora_ingreso: horaIngreso,
-        clausulas_respuesta_condiciones: modoPapel ? null : respuestaCondiciones,
-        firma_ingreso: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaIngreso },
-        firma_tienda_ingreso: modoPapel ? null : firmaTienda,
+        clausulas_respuesta_condiciones: respuestaCondiciones,
+        firma_ingreso: { tipo: 'papel', data: null },
+        firma_tienda_ingreso: null,
         autoriza_fotos_redes: !!sel.consentimiento.autoriza_fotos,
       };
 
@@ -178,7 +191,7 @@ export default function Ingreso() {
             <Aviso tipo="error">
               <strong>{sel.mascota.nombre}</strong> no tiene un consentimiento firmado vigente. Hay que firmarlo antes
               de poder registrar el ingreso.{' '}
-              <Link to={`/consentimiento?cliente=${sel.cliente.id}`} className="font-bold underline">
+              <Link to={`/consentimiento?cliente=${sel.cliente.id}&mascota=${sel.mascota.id}`} className="font-bold underline">
                 Ir al formulario de consentimiento →
               </Link>
             </Aviso>
@@ -244,6 +257,24 @@ export default function Ingreso() {
             </div>
           </Card>
 
+          <Card title="Imprimir ficha">
+            <Aviso tipo="info">
+              Puedes imprimir esta ficha ahora mismo, con el esquema de la mascota en blanco para rellenarlo a mano,
+              o continuar y marcar el estado de la mascota más abajo antes de imprimir.
+            </Aviso>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={imprimirBorrador}
+                disabled={imprimiendo}
+                className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+              >
+                Imprimir ficha
+              </button>
+            </div>
+            {errorImpresion && <div className="mt-3"><Aviso tipo="error">{errorImpresion}</Aviso></div>}
+          </Card>
+
           <Card
             title="Estado de la mascota al ingreso"
             subtitle="Marca sobre el esquema los hallazgos: nudos, heridas, parásitos, bultos, irritaciones…"
@@ -262,7 +293,27 @@ export default function Ingreso() {
             </div>
           </Card>
 
+          <Card title="Imprimir ficha con el estado ya rellenado">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={imprimirBorrador}
+                disabled={imprimiendo}
+                className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+              >
+                Imprimir ficha
+              </button>
+            </div>
+            {errorImpresion && <div className="mt-3"><Aviso tipo="error">{errorImpresion}</Aviso></div>}
+          </Card>
+
           <Card title="Condiciones del servicio" subtitle="Se muestran al tutor y quedan reflejadas en el PDF de la visita.">
+            <div className="mb-4">
+              <Aviso tipo="info">
+                Se genera la ficha con la aceptación marcada y la línea de firma en blanco para completar a mano. Al
+                guardar, el ingreso quedará registrado.
+              </Aviso>
+            </div>
             <ul className="mb-4 space-y-2.5">
               {CLAUSULAS_INGRESO.map((c) => (
                 <li key={c.id} className="text-sm leading-relaxed">
@@ -271,98 +322,58 @@ export default function Ingreso() {
               ))}
             </ul>
 
-            <ModoFirmaToggle modoPapel={modoPapel} onChange={handleModoPapelChange} />
-
-            {modoPapel ? (
-              <Aviso tipo="info">
-                Se generará la ficha con la aceptación y la firma en blanco para completar a mano. Al guardar, el
-                ingreso quedará registrado.
-              </Aviso>
-            ) : (
-              <div className="rounded-xl border border-brand-200 bg-white p-4">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'acepta' ? null : 'acepta')}
-                    className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
-                      respuestaCondiciones === 'acepta'
-                        ? 'border-emerald-600 bg-emerald-600 text-white'
-                        : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-100'
-                    }`}
-                  >
-                    El tutor acepta las condiciones
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'rechaza' ? null : 'rechaza')}
-                    className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
-                      respuestaCondiciones === 'rechaza'
-                        ? 'border-red-600 bg-red-600 text-white'
-                        : 'border-brand-200 bg-white text-brand-700 hover:bg-red-50'
-                    }`}
-                  >
-                    El tutor NO acepta las condiciones
-                  </button>
-                </div>
+            <div className="rounded-xl border border-brand-200 bg-white p-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'acepta' ? null : 'acepta')}
+                  className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+                    respuestaCondiciones === 'acepta'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-100'
+                  }`}
+                >
+                  El tutor acepta las condiciones
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRespuestaCondicionesChange(respuestaCondiciones === 'rechaza' ? null : 'rechaza')}
+                  className={`rounded-full border px-5 py-2.5 text-sm font-bold transition ${
+                    respuestaCondiciones === 'rechaza'
+                      ? 'border-red-600 bg-red-600 text-white'
+                      : 'border-brand-200 bg-white text-brand-700 hover:bg-red-50'
+                  }`}
+                >
+                  El tutor NO acepta las condiciones
+                </button>
               </div>
-            )}
+            </div>
 
             <div className="mt-4">
-              {modoPapel ? (
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
-                  <input
-                    type="checkbox"
-                    checked={confirmPapel}
-                    onChange={handleConfirmPapelChange}
-                    className="h-6 w-6 accent-[#016581]"
-                  />
-                  Confirmo que el tutor y un representante de Mundo Mascotix firmarán la ficha impresa de forma manual.
-                </label>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="mb-2 text-sm font-semibold text-brand-700">Firma del tutor (ingreso)</p>
-                    <SignatureBox onChange={handleFirmaIngresoChange} />
-                  </div>
-                  <div>
-                    <p className="mb-2 text-sm font-semibold text-brand-700">Firma Mundo Mascotix (representante)</p>
-                    <SignatureBox onChange={handleFirmaTiendaChange} />
-                  </div>
-                </div>
-              )}
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
+                <input
+                  type="checkbox"
+                  checked={confirmPapel}
+                  onChange={handleConfirmPapelChange}
+                  className="h-6 w-6 accent-[#016581]"
+                />
+                Confirmo que el tutor y un representante de Mundo Mascotix firmarán la ficha impresa de forma manual.
+              </label>
             </div>
 
             {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
             <div className="mt-4 flex items-center gap-3">
               <PrimaryButton onClick={guardar} disabled={!puedeGuardar || guardando}>
-                {guardando
-                  ? 'Guardando…'
-                  : modoPapel
-                    ? 'Generar ficha en blanco para firma manual'
-                    : 'Registrar ingreso y generar PDF'}
+                {guardando ? 'Guardando…' : 'Registrar ingreso y generar PDF'}
               </PrimaryButton>
               {servicios.length === 0 && <span className="text-sm text-brand-500">Selecciona al menos un servicio.</span>}
-              {servicios.length > 0 && !condicionesOk && (
+              {servicios.length > 0 && !respuestaCondiciones && (
                 <span className="text-sm text-brand-500">Indica si el tutor acepta las condiciones.</span>
               )}
-              {servicios.length > 0 && condicionesOk && !modoPapel && !firmaIngreso && (
-                <span className="text-sm text-brand-500">Falta la firma del tutor.</span>
-              )}
-              {servicios.length > 0 && condicionesOk && !modoPapel && firmaIngreso && !firmaTienda && (
-                <span className="text-sm text-brand-500">Falta la firma de Mundo Mascotix.</span>
-              )}
-              {servicios.length > 0 && condicionesOk && modoPapel && !confirmPapel && (
+              {servicios.length > 0 && !!respuestaCondiciones && !confirmPapel && (
                 <span className="text-sm text-brand-500">Confirma la firma en papel.</span>
               )}
             </div>
-          </Card>
-
-          <Card title="Historial de Tratamientos" subtitle="Registra el servicio realizado para que quede constancia en el historial de la mascota.">
-            <TratamientoEntry
-              mascotaId={sel.mascota.id}
-              visitaId={null}
-              fuente="ingreso"
-            />
           </Card>
         </>
       )}

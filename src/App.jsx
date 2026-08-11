@@ -1,8 +1,9 @@
-import { NavLink, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { NavLink, Routes, Route, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard.jsx';
 import Consentimiento from './pages/Consentimiento.jsx';
-import ConsentimientoPapel from './pages/ConsentimientoPapel.jsx';
-import ConsentimientoPapelConfirmar from './pages/ConsentimientoPapelConfirmar.jsx';
+import ConsentimientoConfirmar from './pages/ConsentimientoConfirmar.jsx';
+import ConsentimientoEditar from './pages/ConsentimientoEditar.jsx';
 import Ingreso from './pages/Ingreso.jsx';
 import Entrega from './pages/Entrega.jsx';
 import Clientes from './pages/Clientes.jsx';
@@ -17,13 +18,25 @@ const tabs = [
   { to: '/ingreso', label: '2 · Ingreso' },
   { to: '/entrega', label: '3 · Entrega' },
   { to: '/clientes', label: 'Clientes' },
-  { to: '/consentimiento-papel', label: 'Consentimiento Papel' },
   { to: '/documentacion', label: 'Documentación' },
 ];
+
+// React Router no restaura el scroll al navegar entre páginas (a diferencia de
+// una navegación normal del navegador): sin esto, cambiar de página conserva la
+// posición de scroll de la página anterior, dando la sensación de "aterrizar"
+// en medio del contenido en vez de al principio.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 export default function App() {
   return (
     <div className="min-h-screen">
+      <ScrollToTop />
       <header className="sticky top-0 z-20 border-b border-brand-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
           <img src="/logo-full.jpg" alt="Mundo Mascotix" className="h-12 rounded" />
@@ -57,8 +70,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/consentimiento" element={<ProtectedRoute><Consentimiento /></ProtectedRoute>} />
-          <Route path="/consentimiento-papel" element={<ProtectedRoute><ConsentimientoPapel /></ProtectedRoute>} />
-          <Route path="/consentimiento-papel/confirmar" element={<ProtectedRoute><ConsentimientoPapelConfirmar /></ProtectedRoute>} />
+          <Route path="/consentimiento/confirmar" element={<ProtectedRoute><ConsentimientoConfirmar /></ProtectedRoute>} />
+          <Route path="/consentimiento/:id/editar" element={<ProtectedRoute><ConsentimientoEditar /></ProtectedRoute>} />
           <Route path="/documentacion" element={<ProtectedRoute><Documentacion /></ProtectedRoute>} />
           <Route path="/ingreso" element={<ProtectedRoute><Ingreso /></ProtectedRoute>} />
           <Route path="/entrega" element={<ProtectedRoute><Entrega /></ProtectedRoute>} />

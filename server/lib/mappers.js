@@ -86,6 +86,7 @@ export function mapVisita(row) {
     comportamiento_notas: row.comportamiento_notas,
     firma_entrega: { tipo: row.firma_entrega_tipo, data: row.firma_entrega_data },
     firma_tienda_ingreso: row.firma_tienda_ingreso ?? null,
+    firma_tienda_entrega: row.firma_tienda_entrega ?? null,
     creado_por: row.creado_por,
   };
 }

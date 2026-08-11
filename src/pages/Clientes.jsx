@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   useDB,
   consentimientoVigente,
@@ -21,6 +21,7 @@ import { Card, Aviso } from '../components/ui';
 
 export default function Clientes() {
   const db = useDB();
+  const navigate = useNavigate();
   const [confirmando, setConfirmando] = useState(null);
   const [historial, setHistorial] = useState({});           // mascota_id → TratamientoRecord[]
   const [cargandoHistorial, setCargandoHistorial] = useState({});
@@ -130,6 +131,12 @@ export default function Clientes() {
                             Descargar consentimiento (PDF)
                           </button>
                           <button
+                            className="rounded-lg border border-brand-300 px-3 py-1.5 font-semibold text-brand-600 hover:bg-brand-100"
+                            onClick={() => navigate(`/consentimiento/${consent.id}/editar`)}
+                          >
+                            Editar consentimiento
+                          </button>
+                          <button
                             className="rounded-lg border border-red-200 px-3 py-1.5 font-semibold text-red-600 hover:bg-red-50"
                             onClick={async () => {
                               if (window.confirm(`¿Revocar el consentimiento de ${mascota.nombre}? Habrá que firmar uno nuevo antes de la próxima visita.`))
@@ -179,7 +186,7 @@ export default function Clientes() {
                         </>
                       ) : (
                         <Link
-                          to={`/consentimiento?cliente=${cliente.id}`}
+                          to={`/consentimiento?cliente=${cliente.id}&mascota=${mascota.id}`}
                           className="rounded-lg bg-brand-600 px-3 py-1.5 font-semibold text-white hover:bg-brand-700"
                         >
                           Firmar consentimiento

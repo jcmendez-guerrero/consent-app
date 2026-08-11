@@ -38,7 +38,7 @@ router.post('/', async (req, res, next) => {
       const clienteRow = await pool
         .request()
         .input('id', sql.NVarChar, c.cliente_id)
-        .query('SELECT nombre_apellidos, email, telefono FROM dbo.clientes WHERE id = @id');
+        .query('SELECT nombre_apellidos, dni_nie, email, telefono FROM dbo.clientes WHERE id = @id');
       if (clienteRow.recordset.length) {
         siwebCliente = clienteRow.recordset[0];
         siwebSearchResult = await searchContacto(siwebCliente);
@@ -153,6 +153,37 @@ router.get('/:id/blob', async (req, res, next) => {
       .query('SELECT consent_blob_path FROM dbo.consentimientos WHERE id = @id');
     if (!result.recordset.length) return res.status(404).json({ error: 'Consentimiento no encontrado' });
     res.json({ blob_path: result.recordset[0].consent_blob_path ?? null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:id', async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const c = req.body;
+    const hayRechazo = Object.entries(c.clausulas_respuestas || {}).some(([, v]) => v === 'rechaza');
+    const estado = hayRechazo ? 'rechazado' : 'aceptado';
+    await pool
+      .request()
+      .input('id', sql.NVarChar, req.params.id)
+      .input('clausulas_respuestas', sql.NVarChar(sql.MAX), JSON.stringify(c.clausulas_respuestas || {}))
+      .input('estado', sql.NVarChar, estado)
+      .input('condiciones_preexistentes', sql.NVarChar(sql.MAX), JSON.stringify(c.condiciones_preexistentes || []))
+      .input('condiciones_preexistentes_otras', sql.NVarChar, c.condiciones_preexistentes_otras || null)
+      .input('autoriza_fotos', sql.Bit, !!c.autoriza_fotos)
+      .input('autoriza_comunicaciones', sql.Bit, !!c.autoriza_comunicaciones)
+      .query(`
+        UPDATE dbo.consentimientos SET
+          clausulas_respuestas = @clausulas_respuestas,
+          estado = @estado,
+          condiciones_preexistentes = @condiciones_preexistentes,
+          condiciones_preexistentes_otras = @condiciones_preexistentes_otras,
+          autoriza_fotos = @autoriza_fotos,
+          autoriza_comunicaciones = @autoriza_comunicaciones
+        WHERE id = @id AND revocado IS NULL
+      `);
+    res.json({ id: req.params.id });
   } catch (err) {
     next(err);
   }

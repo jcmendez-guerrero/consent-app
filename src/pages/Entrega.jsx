@@ -5,11 +5,10 @@ import QRCode from 'qrcode';
 import { useDB, guardarVisita } from '../lib/store';
 import { CLAUSULAS_INGRESO, CUIDADOS_CHECKLIST, COMPORTAMIENTO_OPCIONES, URL_RESENA } from '../lib/legal';
 import { horaAhora, calcularRecargo, fmtFecha } from '../lib/utils';
-import { pdfVisita } from '../lib/pdf';
-import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, ModoFirmaToggle, inputCls } from '../components/ui';
+import { pdfVisita, pdfBlankEntrega } from '../lib/pdf';
+import { Card, Field, TextInput, PrimaryButton, Chip, Aviso, inputCls } from '../components/ui';
 import PetSchematic from '../components/PetSchematic';
 import TratamientoEntry from '../components/TratamientoEntry';
-import SignatureBox from '../components/SignatureBox';
 
 export default function Entrega() {
   const db = useDB();
@@ -39,18 +38,19 @@ export default function Entrega() {
   const [horaRecogida, setHoraRecogida] = useState('');
   const [comportamientoChips, setComportamientoChips] = useState([]);
   const [comportamientoNotas, setComportamientoNotas] = useState('');
-  const [modoPapel, setModoPapel] = useState(false);
-  const [firmaEntrega, setFirmaEntrega] = useState(null);
+  const [confirmPapel, setConfirmPapel] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const [errorImpresion, setErrorImpresion] = useState('');
 
   useEffect(() => {
     QRCode.toDataURL(URL_RESENA, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, []);
 
   const { minutosExtra, recargo } = calcularRecargo(horaAviso, horaRecogida);
-  const puedeGuardar = modoPapel || !!firmaEntrega;
+  const puedeGuardar = confirmPapel;
 
   function toggleCuidado(c) {
     setDirty(true);
@@ -87,14 +87,9 @@ export default function Entrega() {
     setComportamientoNotas(e.target.value);
   }
 
-  function handleModoPapelChange(val) {
+  function handleConfirmPapelChange(e) {
     setDirty(true);
-    setModoPapel(val);
-  }
-
-  function handleFirmaEntregaChange(val) {
-    setDirty(true);
-    setFirmaEntrega(val);
+    setConfirmPapel(e.target.checked);
   }
 
   function handleSetHoraAvisoNow() {
@@ -105,6 +100,51 @@ export default function Entrega() {
   function handleSetHoraRecogidaNow() {
     setDirty(true);
     setHoraRecogida(horaAhora());
+  }
+
+  async function imprimirBlanco() {
+    if (imprimiendo) return;
+    setImprimiendo(true);
+    setErrorImpresion('');
+    try {
+      await pdfBlankEntrega();
+    } catch (e) {
+      setErrorImpresion('No se pudo generar la plantilla: ' + (e.message || e));
+    } finally {
+      setImprimiendo(false);
+    }
+  }
+
+  // Imprime lo que ya se ha rellenado en pantalla hasta ahora, sin necesidad de
+  // completar ni cerrar la visita — útil para llevar el papel ya avanzado y
+  // terminar de anotar a mano lo que falte.
+  async function imprimirBorrador() {
+    if (!actual || imprimiendo) return;
+    setImprimiendo(true);
+    setErrorImpresion('');
+    try {
+      await pdfVisita({
+        cliente: actual.cliente,
+        mascota: actual.mascota,
+        visita: {
+          ...actual.visita,
+          hallazgos_entrega: hallazgos,
+          cuidados_checklist: cuidados,
+          notas_cuidado_entrega: notasCuidado,
+          hora_aviso_listo: horaAviso,
+          hora_recogida: horaRecogida,
+          recargo_por_demora: recargo,
+          comportamiento_chips: comportamientoChips,
+          comportamiento_notas: comportamientoNotas,
+          estado: 'entregada',
+        },
+        clausulasIngreso: CLAUSULAS_INGRESO,
+      });
+    } catch (e) {
+      setErrorImpresion('No se pudo generar el PDF: ' + (e.message || e));
+    } finally {
+      setImprimiendo(false);
+    }
   }
 
   async function guardar() {
@@ -123,7 +163,8 @@ export default function Entrega() {
         recargo_por_demora: recargo,
         comportamiento_chips: comportamientoChips,
         comportamiento_notas: comportamientoNotas,
-        firma_entrega: modoPapel ? { tipo: 'papel', data: null } : { tipo: 'digital', data: firmaEntrega },
+        firma_entrega: { tipo: 'papel', data: null },
+        firma_tienda_entrega: null,
       };
       await guardarVisita(visita);
       await pdfVisita({
@@ -149,6 +190,17 @@ export default function Entrega() {
           <h1 className="text-2xl font-bold text-brand-800">Ficha de entrega de la mascota</h1>
           <p className="text-sm text-brand-500">Selecciona la visita abierta que quieres cerrar.</p>
         </div>
+        <Card title="Imprimir ficha en blanco" subtitle="Para rellenar la entrega a mano cuando aún no hay una visita abierta que cerrar.">
+          <button
+            type="button"
+            onClick={imprimirBlanco}
+            disabled={imprimiendo}
+            className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+          >
+            Imprimir ficha de entrega en blanco
+          </button>
+          {errorImpresion && <div className="mt-3"><Aviso tipo="error">{errorImpresion}</Aviso></div>}
+        </Card>
         <Card title="Visitas abiertas">
           {abiertas.length === 0 ? (
             <Aviso tipo="info">
@@ -195,6 +247,24 @@ export default function Entrega() {
           {actual.visita.precio ? `${actual.visita.precio} €` : '—'}
         </p>
       </div>
+
+      <Card title="Imprimir ficha">
+        <Aviso tipo="info">
+          Puedes imprimir esta ficha ahora mismo, con el esquema de la mascota en blanco para rellenarlo a mano, o
+          continuar y rellenarlo digitalmente más abajo antes de imprimir.
+        </Aviso>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={imprimirBorrador}
+            disabled={imprimiendo}
+            className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+          >
+            Imprimir ficha
+          </button>
+        </div>
+        {errorImpresion && <div className="mt-3"><Aviso tipo="error">{errorImpresion}</Aviso></div>}
+      </Card>
 
       <Card
         title="Estado de la mascota en la entrega"
@@ -291,22 +361,42 @@ export default function Entrega() {
         </div>
       </Card>
 
+      <Card title="Imprimir ficha con los datos ya rellenados">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={imprimirBorrador}
+            disabled={imprimiendo}
+            className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+          >
+            Imprimir ficha
+          </button>
+        </div>
+        {errorImpresion && <div className="mt-3"><Aviso tipo="error">{errorImpresion}</Aviso></div>}
+      </Card>
+
       <Card title="Recibí conforme" subtitle="Firma del tutor al recoger la mascota, como constancia de la entrega y de haber recibido las indicaciones de cuidado.">
-        <ModoFirmaToggle modoPapel={modoPapel} onChange={handleModoPapelChange} />
-        {modoPapel ? (
-          <Aviso tipo="info">
-            Se generará el documento con la línea de firma en blanco para completar a mano. Al guardar, la visita
-            quedará cerrada.
-          </Aviso>
-        ) : (
-          <SignatureBox onChange={handleFirmaEntregaChange} label="Firma de recogida" />
-        )}
+        <Aviso tipo="info">
+          Se genera el documento con la línea de firma en blanco para completar a mano. Al guardar, la visita quedará
+          cerrada.
+        </Aviso>
+        <div className="mt-4">
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
+            <input
+              type="checkbox"
+              checked={confirmPapel}
+              onChange={handleConfirmPapelChange}
+              className="h-6 w-6 accent-[#016581]"
+            />
+            Confirmo que el tutor firmará la ficha impresa de forma manual al recoger a la mascota.
+          </label>
+        </div>
         {error && <div className="mt-3"><Aviso tipo="error">{error}</Aviso></div>}
         <div className="mt-4">
           <PrimaryButton onClick={guardar} disabled={!puedeGuardar || guardando}>
-            {guardando ? 'Guardando…' : modoPapel ? 'Generar documento en blanco y cerrar visita' : 'Cerrar visita y generar PDF completo'}
+            {guardando ? 'Guardando…' : 'Generar documento en blanco y cerrar visita'}
           </PrimaryButton>
-          {!modoPapel && !firmaEntrega && <span className="ml-3 text-sm text-brand-500">Falta la firma.</span>}
+          {!confirmPapel && <span className="ml-3 text-sm text-brand-500">Confirma la firma en papel.</span>}
         </div>
       </Card>
 
