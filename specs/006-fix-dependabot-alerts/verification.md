@@ -11,7 +11,7 @@
 ## After - same date, branch commits e2c9aa9 and 786a8de
 
 | Check | Result |
-|-------|--------|
+| --- | --- |
 | `npm ls` resolved versions | `@azure/msal-node` 7.1.2, `dompurify` 3.4.17, `proxy-addr` 2.0.8, `body-parser` 1.20.9, `multer` 2.5.0, `vite` 6.4.5, `source-map-js` 1.2.2, `browserslist` 4.29.5, `baseline-browser-mapping` 2.11.34, `qs` 6.16.2, `minimatch` 11.0.4 (override) |
 | `npm audit` | **0 vulnerabilities** (fresh clone, `npm ci`) |
 | `npm ci` from a fresh clone (runs `postinstall` build) | exit 0 |

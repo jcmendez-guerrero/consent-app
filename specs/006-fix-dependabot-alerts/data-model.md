@@ -7,7 +7,7 @@ No application data model changes. No database migration, no `localStorage` sche
 A finding from GitHub's Dependabot for the repository.
 
 | Attribute | Description |
-|-----------|-------------|
+| --- | --- |
 | number | Alert identifier on the dashboard |
 | severity | critical, high, medium or low |
 | package | Affected package name |
@@ -20,7 +20,7 @@ A finding from GitHub's Dependabot for the repository.
 ### Inventory (snapshot 2026-11-02)
 
 | Package | Scope | Alerts | Severities | Required version |
-|---------|-------|--------|------------|------------------|
+| --- | --- | --- | --- | --- |
 | `dompurify` | runtime | 5 | 1 critical, 1 high, 3 low/medium | ≥ 3.4.17 |
 | `multer` | runtime | 6 | 4 high, 1 medium, 1 low | ≥ 2.5.0 |
 | `proxy-addr` | runtime | 1 | critical | ≥ 2.0.8 |

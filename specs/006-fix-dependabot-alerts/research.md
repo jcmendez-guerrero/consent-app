@@ -13,7 +13,7 @@
 **Evidence** (scratch dry run, resolved versions vs. required fix):
 
 | Package | Scope | Installed | Required | After refresh | Reached via |
-|---------|-------|-----------|----------|---------------|-------------|
+| --- | --- | --- | --- | --- | --- |
 | `proxy-addr` | runtime | 2.0.7 | ≥ 2.0.8 | 2.0.8 | `express` 4 |
 | `body-parser` | runtime | 1.20.6 | ≥ 1.20.9 | 1.20.9 | `express` 4 (4.22.3) |
 | `qs` | runtime | 6.15.3 | ≥ 6.16.1 | 6.16.2 | `express`, `body-parser` |
@@ -34,7 +34,8 @@
 
 **Decision**: Add `"overrides": { "minimatch": "^11.0.1" }` to `package.json`.
 
-**Evidence**: In a scratch install with the override, `npm ls minimatch` shows 11.0.4 everywhere, `npm audit` reports 0 vulnerabilities, `npx eslint .` exits 0 on the current code, and a probe file with an unused variable is still reported, so lint rules and file globs keep working. minimatch 11 supports Node `20 || >=22`, which matches the project's engines (`>=20`). It is development-only (lint tooling), so there is no production runtime risk.
+**Evidence**: In a scratch install with the override, `npm ls minimatch` shows 11.0.4 everywhere, `npm audit` reports 0 vulnerabilities, `npx eslint .` exits 0 on the current code, and a probe file with an unused variable is still reported, so lint rules and file globs keep working. minimatch 11
+supports Node `20 || >=22`, which matches the project's engines (`>=20`). It is development-only (lint tooling), so there is no production runtime risk.
 
 **Rationale**: It is the only route to a patched version that works today. The change is a single line, and the lint run proves compatibility.
 

@@ -6,7 +6,9 @@
 
 ## Summary
 
-Bring the repository from 26 open Dependabot alerts (2 critical, 10 high, 10 medium, 4 low; 11 packages) to 0 with the smallest possible change. A dry run in a scratch copy showed that a lockfile refresh within the existing semver ranges clears 9 of the 11 packages. Two packages need a `package.json` change: `@azure/identity` must move its floor to `^4.14.1` to pull `@azure/msal-node` 7.x, and `minimatch` needs an `overrides` entry (`^11.0.1`) because no 3.x/10.x release is patched and its parents (eslint, eslint-plugin-react) pin `^3`. ESLint was verified to still run correctly with minimatch 11. No application source file is expected to change.
+Bring the repository from 26 open Dependabot alerts (2 critical, 10 high, 10 medium, 4 low; 11 packages) to 0 with the smallest possible change. A dry run in a scratch copy showed that a lockfile refresh within the existing semver ranges clears 9 of the 11 packages. Two packages need a
+`package.json` change: `@azure/identity` must move its floor to `^4.14.1` to pull `@azure/msal-node` 7.x, and `minimatch` needs an `overrides` entry (`^11.0.1`) because no 3.x/10.x release is patched and its parents (eslint, eslint-plugin-react) pin `^3`. ESLint was verified to still run correctly
+with minimatch 11. No application source file is expected to change.
 
 ## Technical Context
 
@@ -33,7 +35,7 @@ Bring the repository from 26 open Dependabot alerts (2 critical, 10 high, 10 med
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 | Principle | Status | Notes |
-|-----------|--------|-------|
+| --- | --- | --- |
 | I. Code Quality | ✅ Pass | Dependency/lockfile change only. One `overrides` entry, added because the parents' ranges block the only patched line. No new abstractions. |
 | II. Testing Standards | ✅ Pass | Manual end-to-end of the three forms, PDF on the counter device, consent guard, rate limiting and CRM sync is mandatory (see quickstart). |
 | III. UX Consistency | ✅ Pass | No UI changes. |

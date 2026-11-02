@@ -12,7 +12,8 @@
 
 ### User Story 1 - Close all critical and high-severity alerts (Priority: P1)
 
-The maintainer opens the repository's security dashboard and finds 2 critical and 10 high-severity open alerts. They affect the consent server (client IP spoofing through the proxy trust check, denial of service through request bodies and file uploads, leakage of authorization-code parameters in the Azure sign-in library) and the browser side (a critical HTML-sanitizer bypass, plus high-severity issues in the development server tooling and build tooling). After this feature, none of these remain open, and the clinic's consent intake, PDF generation and CRM sync behave exactly as before.
+The maintainer opens the repository's security dashboard and finds 2 critical and 10 high-severity open alerts. They affect the consent server (client IP spoofing through the proxy trust check, denial of service through request bodies and file uploads, leakage of authorization-code parameters in the
+Azure sign-in library) and the browser side (a critical HTML-sanitizer bypass, plus high-severity issues in the development server tooling and build tooling). After this feature, none of these remain open, and the clinic's consent intake, PDF generation and CRM sync behave exactly as before.
 
 **Why this priority**: These alerts are directly exploitable or can take the server down during clinic hours. The IP-spoofing alert also undermines the per-IP rate limiting introduced in spec 003. Critical and high findings are the minimum bar for a safe deployment.
 
@@ -29,7 +30,8 @@ The maintainer opens the repository's security dashboard and finds 2 critical an
 
 ### User Story 2 - Close all medium and low-severity alerts (Priority: P2)
 
-The maintainer clears the remaining 10 medium and 4 low alerts: query-string parsing denial of service, glob-matching denial of service, source-map and browser-list parsing crashes, further sanitizer edge cases and file-serving and command-launch issues in the development tooling. None is easily reachable in production, but leaving them open keeps the dashboard red and hides new, more serious alerts.
+The maintainer clears the remaining 10 medium and 4 low alerts: query-string parsing denial of service, glob-matching denial of service, source-map and browser-list parsing crashes, further sanitizer edge cases and file-serving and command-launch issues in the development tooling. None is easily
+reachable in production, but leaving them open keeps the dashboard red and hides new, more serious alerts.
 
 **Why this priority**: These carry lower real-world risk, but closing them gets the repository to a clean state in which any new alert stands out.
 
