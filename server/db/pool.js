@@ -1,7 +1,4 @@
 import sql from 'mssql';
-import { DefaultAzureCredential } from '@azure/identity';
-
-const SQL_TOKEN_SCOPE = 'https://database.windows.net/.default';
 
 const server = process.env.SQL_SERVER || 'azusqlsappconsentnp01.database.windows.net';
 const database = process.env.SQL_DATABASE || 'azu-sql-consent-app-01';
@@ -16,7 +13,7 @@ let poolPromise = null;
 // ETIMEOUT. Se sube el timeout y se reintenta una vez para no propagar el error.
 const CONNECT_TIMEOUT_MS = 60000;
 
-async function buildConfig() {
+function buildConfig() {
   if (process.env.SQL_AUTH_MODE === 'sql') {
     return {
       server,
@@ -30,8 +27,9 @@ async function buildConfig() {
   }
 
   // Managed Identity en Azure; az login / credenciales del desarrollador en local.
-  const credential = new DefaultAzureCredential();
-  const { token } = await credential.getToken(SQL_TOKEN_SCOPE);
+  // Usamos 'azure-active-directory-default': tedious obtiene (y refresca) el token
+  // internamente vía @azure/identity en CADA conexión nueva del pool, evitando el
+  // "Token is expired" que provocaba cachear un único token de acceso estático.
   return {
     server,
     database,
@@ -39,8 +37,11 @@ async function buildConfig() {
     requestTimeout: CONNECT_TIMEOUT_MS,
     options: { encrypt: true, trustServerCertificate: false },
     authentication: {
-      type: 'azure-active-directory-access-token',
-      options: { token },
+      type: 'azure-active-directory-default',
+      options: {
+        // Opcional: fija la identidad gestionada asignada por el usuario si aplica.
+        clientId: process.env.AZURE_CLIENT_ID,
+      },
     },
   };
 }
@@ -52,15 +53,13 @@ function sleep(ms) {
 export async function getPool() {
   if (poolPromise) return poolPromise;
   poolPromise = (async () => {
-    const config = await buildConfig();
     try {
-      return await sql.connect(config);
+      return await sql.connect(buildConfig());
     } catch (err) {
       // Reintento único: cubre el caso típico de que la base de datos serverless
       // estuviera pausada y la primera conexión la haya despertado pero no llegado a tiempo.
       await sleep(5000);
-      const retryConfig = await buildConfig();
-      return await sql.connect(retryConfig);
+      return await sql.connect(buildConfig());
     }
   })().catch((err) => {
     poolPromise = null; // permite reintentar (con token fresco) en la siguiente llamada
