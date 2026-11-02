@@ -54,6 +54,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
