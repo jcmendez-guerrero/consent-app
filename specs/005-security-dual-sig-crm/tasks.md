@@ -59,18 +59,54 @@
 **Prerequisite**: T002 (Azure Key Vault setting must be live so `process.env.SIWEB360_API_KEY` resolves).
 
 - [X] T009 [US2] Create `server/lib/siweb360.js` exporting two functions using Node 22 built-in `fetch`:
-  - **`searchContacto(cliente)`** (async): (1) guard — if `!process.env.SIWEB360_API_KEY` return `{ action: 'skip' }`; (2) `GET https://app.siweb360.com/api/public/contacts?search=${encodeURIComponent(cliente.email || cliente.nombre_apellidos)}`; (3) 0 results → `{ action: 'create' }`; (4) exactly 1 result → `{ action: 'update', contactId: result.id, existingNotas: result.notas ?? '' }`; (5) 2+ results AND no email → `{ action: 'ambiguous', candidates: results.map(r => ({ id, nombre, email, telefono })) }`; (6) any fetch error → log `[siweb360] SEARCH ERROR` and return `{ action: 'skip' }`
-  - **`completeSync(searchResult, cliente, mascotas)`** (async): (1) if `action` is `'skip'` or `'ambiguous'` return immediately; (2) if `action === 'create'`: POST to create contact, capture `contactId` and set `existingNotas = ''`; (3) if `action === 'update'`: use `searchResult.contactId` and `searchResult.existingNotas`; (4) **Notes merge (only when `mascotas.length > 0`)**: strip all lines from `Mascotas:` header onwards in `existingNotas`, preserve content above, append `Mascotas:\n` + one `- nombre · especie · raza · edad años · peso kg · Chip: microchip` line per pet (omit absent fields), `PUT /api/public/contacts/{contactId}` with `{ notas: mergedNotas }`; (5) if `mascotas.length === 0` skip the PUT entirely; (6) catch all errors → log `[siweb360] ERROR {status} {body}`
+  - **`searchContacto(cliente)`** (async): (1) guard — if `!process.env.SIWEB360_API_KEY` return
+    `{ action: 'skip' }`; (2)
+    `GET https://app.siweb360.com/api/public/contacts?search=${encodeURIComponent(cliente.email || cliente.nombre_apellidos)}`;
+    (3) 0 results → `{ action: 'create' }`; (4) exactly 1 result →
+    `{ action: 'update', contactId: result.id, existingNotas: result.notas ?? '' }`; (5) 2+ results AND no
+    email → `{ action: 'ambiguous', candidates: results.map(r => ({ id, nombre, email, telefono })) }`; (6)
+    any fetch error → log `[siweb360] SEARCH ERROR` and return `{ action: 'skip' }`
+  - **`completeSync(searchResult, cliente, mascotas)`** (async): (1) if `action` is `'skip'` or `'ambiguous'`
+    return immediately; (2) if `action === 'create'`: POST to create contact, capture `contactId` and set
+    `existingNotas = ''`; (3) if `action === 'update'`: use `searchResult.contactId` and
+    `searchResult.existingNotas`; (4) **Notes merge (only when `mascotas.length > 0`)**: strip all lines from
+    `Mascotas:` header onwards in `existingNotas`, preserve content above, append `Mascotas:\n` + one
+    `- nombre · especie · raza · edad años · peso kg · Chip: microchip` line per pet (omit absent fields),
+    `PUT /api/public/contacts/{contactId}` with `{ notas: mergedNotas }`; (5) if `mascotas.length === 0` skip
+    the PUT entirely; (6) catch all errors → log `[siweb360] ERROR {status} {body}`
 
-- [X] T010 [US2] Integrate two-phase sync into `server/routes/consentimientos.js` `router.post('/')`: (1) after the INSERT, fetch cliente and mascotas rows from the DB; (2) **await `searchContacto(cliente)`** before calling `res.json()` — this is a blocking call that must complete before the response is sent; (3) build `responseBody = { id }`; if `searchResult.action === 'ambiguous'`, add `responseBody.siweb360_candidates = searchResult.candidates`; (4) `res.status(201).json(responseBody)`; (5) `completeSync(searchResult, cliente, mascotas).catch(err => console.error('[siweb360]', err))` — fire-and-forget after response
+- [X] T010 [US2] Integrate two-phase sync into `server/routes/consentimientos.js` `router.post('/')`: (1)
+      after the INSERT, fetch cliente and mascotas rows from the DB; (2) **await `searchContacto(cliente)`**
+      before calling `res.json()` — this is a blocking call that must complete before the response is sent;
+      (3) build `responseBody = { id }`; if `searchResult.action === 'ambiguous'`, add
+      `responseBody.siweb360_candidates = searchResult.candidates`; (4) `res.status(201).json(responseBody)`;
+      (5) `completeSync(searchResult, cliente, mascotas).catch(err => console.error('[siweb360]', err))` —
+      fire-and-forget after response
 
-- [X] T034 [US2] Create `server/routes/siweb360.js` with `router.post('/resolve', ...)`: (1) validate `consentimiento_id` and `action` present; (2) `res.status(202).json({ ok: true })` immediately; (3) fire-and-forget: fetch cliente + mascotas by `consentimiento_id`; build `searchResult` from `action` + `contact_id` (for `'select'`: `{ action: 'update', contactId: contact_id, existingNotas: '' }` — GET current notas from SiWeb360 first; for `'create'`: `{ action: 'create' }`); call `completeSync(searchResult, cliente, mascotas)`; (4) register route in app's router index as `app.use('/api/siweb360', siweb360Router)`
+- [X] T034 [US2] Create `server/routes/siweb360.js` with `router.post('/resolve', ...)`: (1) validate
+      `consentimiento_id` and `action` present; (2) `res.status(202).json({ ok: true })` immediately; (3)
+      fire-and-forget: fetch cliente + mascotas by `consentimiento_id`; build `searchResult` from `action` +
+      `contact_id` (for `'select'`: `{ action: 'update', contactId: contact_id, existingNotas: '' }` — GET
+      current notas from SiWeb360 first; for `'create'`: `{ action: 'create' }`); call
+      `completeSync(searchResult, cliente, mascotas)`; (4) register route in app's router index as
+      `app.use('/api/siweb360', siweb360Router)`
 
-- [X] T035 [US2] Update `src/pages/Consentimiento.jsx` to handle `siweb360_candidates` in the save response: (1) add state `const [siweb360Candidates, setSiweb360Candidates] = useState(null)`; (2) in the `guardarConsentimiento` call handler, check `if (result.siweb360_candidates?.length) setSiweb360Candidates(result.siweb360_candidates)`; (3) render a `<DisambiguationModal>` when `siweb360Candidates` is set, listing each candidate (nombre, email, telefono) with a "Seleccionar" button and a "Crear nuevo contacto" button; (4) on selection, call `POST /api/siweb360/resolve` with `{ consentimiento_id: result.id, action: 'select' | 'create', contact_id? }` then close the modal
+- [X] T035 [US2] Update `src/pages/Consentimiento.jsx` to handle `siweb360_candidates` in the save response:
+      (1) add state `const [siweb360Candidates, setSiweb360Candidates] = useState(null)`; (2) in the
+      `guardarConsentimiento` call handler, check
+      `if (result.siweb360_candidates?.length) setSiweb360Candidates(result.siweb360_candidates)`; (3) render
+      a `<DisambiguationModal>` when `siweb360Candidates` is set, listing each candidate (nombre, email,
+      telefono) with a "Seleccionar" button and a "Crear nuevo contacto" button; (4) on selection, call
+      `POST /api/siweb360/resolve` with
+      `{ consentimiento_id: result.id, action: 'select' | 'create', contact_id? }` then close the modal
 
 - [X] T011 [US2] Manual test — happy path: restart dev server (`npm run dev`), save a consent for a new client with at least one pet; confirm `[siweb360]` server logs show no ERROR; open SiWeb360 and verify contact appears with the correct merged pet note; confirm existing non-pet notes in that contact (if any) were preserved above the `Mascotas:` block
 
-- [X] T012 [US2] Manual test — edge paths: (a) `SIWEB360_API_KEY=bad` → save consent → local save succeeds, server shows `[siweb360] ERROR`; restore key; (b) client with no pets → consent saved → contact created in SiWeb360, notes field unchanged; (c) simulate ambiguous match (use a test client name that exists twice in SiWeb360 and omit email) → save consent → disambiguation modal appears → select one → confirm SiWeb360 contact updated
+- [X] T012 [US2] Manual test — edge paths: (a) `SIWEB360_API_KEY=bad` → save consent → local save succeeds,
+      server shows `[siweb360] ERROR`; restore key; (b) client with no pets → consent saved → contact created
+      in SiWeb360, notes field unchanged; (c) simulate ambiguous match (use a test client name that exists
+      twice in SiWeb360 and omit email) → save consent → disambiguation modal appears → select one → confirm
+      SiWeb360 contact updated
 
 **Checkpoint**: US2 fully done. Blocking search detects existing contacts and ambiguous matches. Disambiguation modal lets staff resolve. Fire-and-forget create/update runs on all unambiguous paths. Failures are isolated from local registration.
 
@@ -97,15 +133,32 @@
 
 ### Frontend UI — Consentimiento.jsx
 
-- [X] T018 [US3] Update `src/pages/Consentimiento.jsx`: (1) add `const [firmaTienda, setFirmaTienda] = useState(null);`; (2) extend `puedeGuardar` with `&& (modoPapel ? true : !!firmaTienda)`; (3) in the "5 · Firma" Card, after the existing tutor `<SignatureBox>`, add `<SignatureBox onChange={setFirmaTienda} label="Firma Mundo Mascotix" />`; (4) add hint text "Falta la firma de Mundo Mascotix." in the hint row when digital mode, tutor signed but `!firmaTienda`; (5) include `firma_tienda: firmaTienda` in the object passed to both `guardarConsentimiento` and `pdfConsentimiento`
+- [X] T018 [US3] Update `src/pages/Consentimiento.jsx`: (1) add
+      `const [firmaTienda, setFirmaTienda] = useState(null);`; (2) extend `puedeGuardar` with
+      `&& (modoPapel ? true : !!firmaTienda)`; (3) in the "5 · Firma" Card, after the existing tutor
+      `<SignatureBox>`, add `<SignatureBox onChange={setFirmaTienda} label="Firma Mundo Mascotix" />`; (4) add
+      hint text "Falta la firma de Mundo Mascotix." in the hint row when digital mode, tutor signed but
+      `!firmaTienda`; (5) include `firma_tienda: firmaTienda` in the object passed to both
+      `guardarConsentimiento` and `pdfConsentimiento`
 
 ### Frontend UI — Ingreso.jsx
 
-- [X] T019 [US3] Update `src/pages/Ingreso.jsx`: (1) add `const [firmaTiendaIngreso, setFirmaTiendaIngreso] = useState(null);`; (2) extend `puedeGuardar` with `&& (modoPapel ? true : !!firmaTiendaIngreso)`; (3) after the existing tutor `<SignatureBox onChange={handleFirmaIngresoChange} label="Firma del tutor (ingreso)" />`, add `<SignatureBox onChange={setFirmaTiendaIngreso} label="Firma Mundo Mascotix" />`; (4) add hint text for missing Mundo Mascotix signature; (5) include `firma_tienda_ingreso: firmaTiendaIngreso` in `visitaBase`
+- [X] T019 [US3] Update `src/pages/Ingreso.jsx`: (1) add
+      `const [firmaTiendaIngreso, setFirmaTiendaIngreso] = useState(null);`; (2) extend `puedeGuardar` with
+      `&& (modoPapel ? true : !!firmaTiendaIngreso)`; (3) after the existing tutor
+      `<SignatureBox onChange={handleFirmaIngresoChange} label="Firma del tutor (ingreso)" />`, add
+      `<SignatureBox onChange={setFirmaTiendaIngreso} label="Firma Mundo Mascotix" />`; (4) add hint text for
+      missing Mundo Mascotix signature; (5) include `firma_tienda_ingreso: firmaTiendaIngreso` in `visitaBase`
 
 ### PDF rendering — dual-column signature layout
 
-- [X] T020 [US3] Update `src/lib/pdf.js` `pdfConsentimiento`: replace the single `firmaEnPDF(doc, y+6, ...)` call with a two-column layout — (a) compute half-width `hw = (W / 2) - 4`; (b) draw tutor box starting at `x = M` with width `hw`, using existing `firmaEnPDF` logic but with a custom `x` and `w` parameter (or inline the drawing code); (c) draw Mundo Mascotix box starting at `x = M + hw + 8` with same width; (d) both labelled: "Firma del tutor" and "Firma Mundo Mascotix"; (e) digital mode: show `firma` data-URL for tutor box and `consentimiento.firma_tienda` for the store box; (f) paper mode: both boxes blank with dashed outline
+- [X] T020 [US3] Update `src/lib/pdf.js` `pdfConsentimiento`: replace the single `firmaEnPDF(doc, y+6, ...)`
+      call with a two-column layout — (a) compute half-width `hw = (W / 2) - 4`; (b) draw tutor box starting
+      at `x = M` with width `hw`, using existing `firmaEnPDF` logic but with a custom `x` and `w` parameter
+      (or inline the drawing code); (c) draw Mundo Mascotix box starting at `x = M + hw + 8` with same width;
+      (d) both labelled: "Firma del tutor" and "Firma Mundo Mascotix"; (e) digital mode: show `firma` data-URL
+      for tutor box and `consentimiento.firma_tienda` for the store box; (f) paper mode: both boxes blank with
+      dashed outline
 - [X] T021 [US3] Update `src/lib/pdf.js` `pdfVisita`: apply same two-column dual-signature pattern as T020 to the intake-form signature section (the `firmaEnPDF` call currently labelled "Firma del tutor (ingreso):"); use `visita.firma_ingreso?.data` for the tutor box and `visita.firma_tienda_ingreso` for the store box
 - [ ] T022 [US3] Manual browser test: open Consentimiento (digital mode) → sign both pads → save → open PDF → confirm two labelled signature boxes with images; repeat for paper mode (two blank boxes); repeat both modes for Ingreso
 
@@ -138,7 +191,11 @@
 **Note**: T026 and T027 both modify `src/lib/pdf.js` but different functions — do T026 first, then T027.
 
 - [X] T026 [US5] Update `src/lib/pdf.js` function `esquema4VistasEnPDF`: change the final return from `return y + 2 * imgH + rowGap + 4;` to `return y + 2 * imgH + rowGap + 16;` to account for the bottom-row label (at +4.5mm) and hallazgo text line (at +9mm) below the second row of images
-- [X] T027 [US5] Update `src/lib/pdf.js` function `pdfConsentimiento`: for the `CLAUSULA_IMAGENES` block (~line 347) and the `CLAUSULA_COMUNICACIONES` block (~line 358), wrap each existing `bloqueTexto` call in an `if/else` on `consentimiento.firma_tipo === 'papel'`: paper branch renders `[ ] Autorizo...   [ ] No autorizo...` (both unchecked); digital branch keeps the existing `[X]` selected-option logic — see plan.md Group C4 for the exact code pattern
+- [X] T027 [US5] Update `src/lib/pdf.js` function `pdfConsentimiento`: for the `CLAUSULA_IMAGENES` block
+      (~line 347) and the `CLAUSULA_COMUNICACIONES` block (~line 358), wrap each existing `bloqueTexto` call
+      in an `if/else` on `consentimiento.firma_tipo === 'papel'`: paper branch renders
+      `[ ] Autorizo...   [ ] No autorizo...` (both unchecked); digital branch keeps the existing `[X]`
+      selected-option logic — see plan.md Group C4 for the exact code pattern
 - [ ] T028 [US5] Browser verify: (a) generate blank Ficha from Documentación page → confirm no overlap on A4; (b) open Consentimiento Papel, generate blank consent → confirm foto + comunicaciones both unchecked
 
 **Checkpoint**: US5 fully done. All PDF rendering defects corrected.
@@ -152,7 +209,7 @@
 - [ ] T029 Run full E2E regression per `quickstart.md` scenarios 1–6: security, CRM sync, dual signature (digital + paper), service chip, body-map overlap, foto checkbox
 - [ ] T030 Run `npm run build` on final branch; confirm bundle delta ≤ 10% (or document it if larger)
 - [ ] T031 Confirm `LEGAL_VERSION = '2026-07-31.1'` in `src/lib/legal.js` and that no other `legal.js` changes were made without this bump
-- [ ] T032 Create zip deploy and push to App Service: `cd dist && zip -r ../deploy.zip . && cd .. && zip -ur deploy.zip server package.json .deployment && az webapp deploy --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --src-path deploy.zip --type zip`
+- [X] T032 Create zip deploy and push to App Service: `cd dist && zip -r ../deploy.zip . && cd .. && zip -ur deploy.zip server package.json .deployment && az webapp deploy --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --src-path deploy.zip --type zip`
 - [ ] T033 Smoke-test production URL after deploy: complete one full Consentimiento → Ingreso → Entrega flow, verify SiWeb360 contact created
 
 ---
@@ -161,7 +218,7 @@
 
 ### Phase Dependencies
 
-```
+```text
 Phase 1 (T001, T002)  ←── no dependencies, start immediately in parallel
       │
 Phase 2 (T003)        ←── depends on T001 (migration file must exist)
@@ -177,13 +234,13 @@ Phase 8 (T029–T033)   ←── depends on all phases complete
 
 ### Within Phase 5 (US3)
 
-```
+```text
 T013, T014, T015 [parallel]  →  T016  →  T017  →  T018  →  T019  →  T020  →  T021  →  T022
 ```
 
 ### Within Phase 6 (US4)
 
-```
+```text
 T023 [parallel with T024]  →  T025
 ```
 
@@ -199,7 +256,7 @@ T023 [parallel with T024]  →  T025
 
 ## Parallel Example: User Story 3
 
-```
+```text
 # Three backend tasks can start in parallel:
 T013: server/lib/mappers.js — add firma_tienda fields to both mappers
 T014: server/routes/consentimientos.js — add firma_tienda to INSERT
@@ -250,5 +307,19 @@ T022          (browser verification)
 
 **Findings from `/speckit-converge` run 2026-07-31**: 2 gaps identified after full implementation assessment. Constitution: clean (no violations). All other FRs satisfied.
 
-- [X] T036 Execute T002 Azure KV setup with correct UMI `ClientId` parameter per FR-005 (missing) — UMI `azu-umi-consent-kv-np-01` requires `ClientId` in the Key Vault Reference or the App Service cannot resolve `SIWEB360_API_KEY` at runtime. Steps: (1) `az identity show --name azu-umi-consent-kv-np-01 --resource-group azu-rg-app-consent-np-01 --query '{objectId:principalId,clientId:clientId}' -o json`; (2) `az role assignment create --assignee-object-id <objectId> --role "Key Vault Secrets User" --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/azu-rg-app-consent-np-01/providers/Microsoft.KeyVault/vaults/azukvappmascotix01"`; (3) `az webapp config appsettings set --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --settings "SIWEB360_API_KEY=@Microsoft.KeyVault(VaultName=azukvappmascotix01;SecretName=azu-siweb-prod-api-key-01;ClientId=<clientId>)"`
-- [X] T037 Fix `server/routes/siweb360.js` resolve route to preserve existing SiWeb360 notas per T034/FR-014 (partial) — for `action='select'`, the route currently passes `{ id: contact_id, notas: null }` to `completeSync`, causing `mergeNotas(null, mascotas)` to discard any non-pet content already in SiWeb360. Fix: (1) add `export async function getContactNotas(contactId)` to `server/lib/siweb360.js` that calls `siGet(\`/contacts/${contactId}\`)` and returns `data?.data?.notas ?? null`; (2) import it in `server/routes/siweb360.js`; (3) when `action === 'select'`, await `getContactNotas(contact_id)` before building `searchResult`, then pass `{ type: 'found', contact: { id: contact_id, notas: existingNotas } }` to `completeSync`
+- [X] T036 Execute T002 Azure KV setup with correct UMI `ClientId` parameter per FR-005 (missing) — UMI
+      `azu-umi-consent-kv-np-01` requires `ClientId` in the Key Vault Reference or the App Service cannot
+      resolve `SIWEB360_API_KEY` at runtime. Steps: (1)
+      `az identity show --name azu-umi-consent-kv-np-01 --resource-group azu-rg-app-consent-np-01 --query '{objectId:principalId,clientId:clientId}' -o json`;
+      (2)
+      `az role assignment create --assignee-object-id <objectId> --role "Key Vault Secrets User" --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/azu-rg-app-consent-np-01/providers/Microsoft.KeyVault/vaults/azukvappmascotix01"`;
+      (3)
+      `az webapp config appsettings set --resource-group azu-rg-app-consent-np-01 --name dermospa-mundo-mascotix --settings "SIWEB360_API_KEY=@Microsoft.KeyVault(VaultName=azukvappmascotix01;SecretName=azu-siweb-prod-api-key-01;ClientId=<clientId>)"`
+- [X] T037 Fix `server/routes/siweb360.js` resolve route to preserve existing SiWeb360 notas per T034/FR-014
+      (partial) — for `action='select'`, the route currently passes `{ id: contact_id, notas: null }` to
+      `completeSync`, causing `mergeNotas(null, mascotas)` to discard any non-pet content already in SiWeb360.
+      Fix: (1) add `export async function getContactNotas(contactId)` to `server/lib/siweb360.js` that calls
+      ``siGet(`/contacts/${contactId}`)`` and returns `data?.data?.notas ?? null`; (2) import it in
+      `server/routes/siweb360.js`; (3) when `action === 'select'`, await `getContactNotas(contact_id)` before
+      building `searchResult`, then pass
+      `{ type: 'found', contact: { id: contact_id, notas: existingNotas } }` to `completeSync`

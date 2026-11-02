@@ -1,10 +1,10 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getPool, sql } from './pool.js';
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getPool, sql } from "./pool.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const migrationsDir = path.join(__dirname, 'migrations');
+const migrationsDir = path.join(__dirname, "migrations");
 
 async function ensureMigrationsTable(pool) {
   await pool.request().query(`
@@ -17,7 +17,9 @@ async function ensureMigrationsTable(pool) {
 }
 
 async function appliedMigrations(pool) {
-  const result = await pool.request().query('SELECT filename FROM dbo.__migrations');
+  const result = await pool
+    .request()
+    .query("SELECT filename FROM dbo.__migrations");
   return new Set(result.recordset.map((r) => r.filename));
 }
 
@@ -35,7 +37,7 @@ async function run() {
   const applied = await appliedMigrations(pool);
 
   const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => f.endsWith(".sql"))
     .sort();
 
   for (const file of files) {
@@ -44,7 +46,7 @@ async function run() {
       continue;
     }
     console.log(`aplicando ${file}...`);
-    const contents = readFileSync(path.join(migrationsDir, file), 'utf8');
+    const contents = readFileSync(path.join(migrationsDir, file), "utf8");
     const batches = splitBatches(contents);
 
     const transaction = new sql.Transaction(pool);
@@ -54,8 +56,8 @@ async function run() {
         await new sql.Request(transaction).query(batch);
       }
       await new sql.Request(transaction)
-        .input('filename', sql.NVarChar, file)
-        .query('INSERT INTO dbo.__migrations (filename) VALUES (@filename)');
+        .input("filename", sql.NVarChar, file)
+        .query("INSERT INTO dbo.__migrations (filename) VALUES (@filename)");
       await transaction.commit();
       console.log(`  ✓ ${file}`);
     } catch (err) {
@@ -64,11 +66,11 @@ async function run() {
     }
   }
 
-  console.log('Migraciones al día.');
+  console.log("Migraciones al día.");
   process.exit(0);
 }
 
 run().catch((err) => {
-  console.error('Error ejecutando migraciones:', err);
+  console.error("Error ejecutando migraciones:", err);
   process.exit(1);
 });

@@ -4,7 +4,7 @@
 // para que las páginas no cambien su lógica de lectura; las funciones de mutación
 // ahora son async (hay que hacerles await desde las páginas).
 
-import { useSyncExternalStore, useEffect } from 'react';
+import { useSyncExternalStore, useEffect } from "react";
 
 const EMPTY = { clientes: [], mascotas: [], consentimientos: [], visitas: [] };
 
@@ -28,10 +28,10 @@ async function fetchJSON(url, options) {
 
 async function fetchAll() {
   const [clientes, mascotas, consentimientos, visitas] = await Promise.all([
-    fetchJSON('/api/clientes'),
-    fetchJSON('/api/mascotas'),
-    fetchJSON('/api/consentimientos'),
-    fetchJSON('/api/visitas'),
+    fetchJSON("/api/clientes"),
+    fetchJSON("/api/mascotas"),
+    fetchJSON("/api/consentimientos"),
+    fetchJSON("/api/visitas"),
   ]);
   cache = { clientes, mascotas, consentimientos, visitas };
   notify();
@@ -73,39 +73,47 @@ export function useDB() {
 
 export async function upsertCliente(cliente) {
   const id = cliente.id
-    ? (await fetchJSON(`/api/clientes/${cliente.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cliente),
-      })).id
-    : (await fetchJSON('/api/clientes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cliente),
-      })).id;
+    ? (
+        await fetchJSON(`/api/clientes/${cliente.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cliente),
+        })
+      ).id
+    : (
+        await fetchJSON("/api/clientes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cliente),
+        })
+      ).id;
   await refetch();
   return id;
 }
 
 export async function upsertMascota(mascota) {
   const id = mascota.id
-    ? (await fetchJSON(`/api/mascotas/${mascota.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mascota),
-      })).id
-    : (await fetchJSON('/api/mascotas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mascota),
-      })).id;
+    ? (
+        await fetchJSON(`/api/mascotas/${mascota.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mascota),
+        })
+      ).id
+    : (
+        await fetchJSON("/api/mascotas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mascota),
+        })
+      ).id;
   await refetch();
   return id;
 }
 
 // Derechos ARCO+: eliminación completa de un cliente y todo lo asociado.
 export async function eliminarCliente(clienteId) {
-  await fetchJSON(`/api/clientes/${clienteId}`, { method: 'DELETE' });
+  await fetchJSON(`/api/clientes/${clienteId}`, { method: "DELETE" });
   await refetch();
 }
 
@@ -117,24 +125,38 @@ export async function exportarCliente(clienteId) {
 // ---- Consentimientos (Formulario 1) ----
 
 export async function guardarConsentimiento(consentimiento) {
-  const response = await fetchJSON('/api/consentimientos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await fetchJSON("/api/consentimientos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(consentimiento),
   });
   await refetch();
   return response; // { id, siweb360_candidates? }
 }
 
+export async function actualizarConsentimiento(id, datos) {
+  await fetchJSON(`/api/consentimientos/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+}
+
 export async function revocarConsentimiento(consentimientoId) {
-  await fetchJSON(`/api/consentimientos/${consentimientoId}/revocar`, { method: 'POST' });
+  await fetchJSON(`/api/consentimientos/${consentimientoId}/revocar`, {
+    method: "POST",
+  });
   await refetch();
 }
 
 export function consentimientoVigente(db, mascotaId) {
   return (
     db.consentimientos
-      .filter((c) => c.mascota_id === mascotaId && !c.revocado && c.estado === 'aceptado')
+      .filter(
+        (c) =>
+          c.mascota_id === mascotaId && !c.revocado && c.estado === "aceptado",
+      )
       .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0] || null
   );
 }
@@ -151,13 +173,15 @@ export function ultimoConsentimiento(db, mascotaId) {
 // ---- Tratamientos (Historial de Tratamientos) ----
 
 export async function fetchTratamientos(mascotaId) {
-  return fetchJSON(`/api/tratamientos?mascota_id=${encodeURIComponent(mascotaId)}`);
+  return fetchJSON(
+    `/api/tratamientos?mascota_id=${encodeURIComponent(mascotaId)}`,
+  );
 }
 
 export async function guardarTratamiento(tratamiento) {
-  const { id } = await fetchJSON('/api/tratamientos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const { id } = await fetchJSON("/api/tratamientos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(tratamiento),
   });
   return id;
@@ -167,8 +191,11 @@ export async function guardarTratamiento(tratamiento) {
 
 export async function uploadConsentBlob(consentimientoId, file) {
   const form = new FormData();
-  form.append('file', file);
-  const res = await fetch(`/api/consentimientos/${consentimientoId}/blob`, { method: 'POST', body: form });
+  form.append("file", file);
+  const res = await fetch(`/api/consentimientos/${consentimientoId}/blob`, {
+    method: "POST",
+    body: form,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Error ${res.status} al subir el archivo`);
@@ -184,17 +211,20 @@ export async function fetchConsentBlobPath(consentimientoId) {
 
 export async function guardarVisita(visita) {
   const id = visita.id
-    ? (await fetchJSON(`/api/visitas/${visita.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(visita),
-      })).id
-    : (await fetchJSON('/api/visitas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(visita),
-      })).id;
+    ? (
+        await fetchJSON(`/api/visitas/${visita.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(visita),
+        })
+      ).id
+    : (
+        await fetchJSON("/api/visitas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(visita),
+        })
+      ).id;
   await refetch();
   return id;
 }
-

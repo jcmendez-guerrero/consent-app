@@ -1,90 +1,85 @@
-import { useState } from 'react';
-import { pdfConsentimiento, pdfBlankIngreso, pdfBlankEntrega } from '../lib/pdf';
+import { useState } from "react";
 import {
-  CLAUSULAS_CONSENTIMIENTO,
-  CLAUSULA_IMAGENES,
-  CLAUSULA_COMUNICACIONES,
-  LEGAL_VERSION,
-} from '../lib/legal';
-import { Card, PrimaryButton } from '../components/ui';
+  pdfBlankConsentimiento,
+  pdfBlankIngreso,
+  pdfBlankEntrega,
+} from "../lib/pdf";
+import { Card, PrimaryButton } from "../components/ui";
 
 // Cada flujo se documenta como una lista numerada de pasos. Las capturas de
 // pantalla, cuando se tomen, se colocan en `public/docs/` y se referencian aquí
 // con <img src="/docs/..."> (mantenimiento manual; ver spec 002).
 const FLUJOS = [
   {
-    titulo: 'Flujo de consentimiento digital',
+    titulo: "Flujo de consentimiento (firma en papel)",
     pasos: [
       'Ir a la pestaña "1 · Consentimiento".',
-      'Rellenar los datos del tutor y de la mascota.',
-      'Aceptar o rechazar cada cláusula junto al tutor.',
-      'Dibujar la firma en pantalla.',
-      'Pulsar "Guardar y continuar".',
-      'Se genera el PDF y la aplicación pasa al ingreso.',
-    ],
-  },
-  {
-    titulo: 'Flujo de consentimiento en papel',
-    pasos: [
-      'Ir a la pestaña "Consentimiento Papel".',
-      'Rellenar los datos del tutor y de la mascota.',
+      "Rellenar los datos del tutor y de la mascota.",
       'Marcar "Acepta" o "No acepta" en cada cláusula junto al tutor.',
       'Pulsar "Generar e imprimir consentimiento".',
-      'Imprimir el documento y entregarlo al tutor para que lo firme a mano.',
-      'En la pantalla de confirmación, verificar que los datos coinciden con el formulario firmado.',
+      "Imprimir el documento y entregarlo al tutor para que lo firme a mano.",
+      "En la pantalla de confirmación, verificar que los datos coinciden con el formulario firmado.",
       'Pulsar "Confirmar y proceder al ingreso".',
     ],
   },
   {
-    titulo: 'Registro de ingreso',
+    titulo: "Registro de ingreso",
     pasos: [
       'Ir a la pestaña "2 · Ingreso".',
-      'Seleccionar la mascota con consentimiento vigente.',
-      'Indicar los servicios contratados, el tratamiento y el precio acordado.',
-      'Registrar la hora de ingreso y los hallazgos sobre el esquema del animal.',
-      'Recoger la aceptación de las condiciones del servicio y la firma del tutor.',
-      'Guardar la ficha de ingreso.',
+      "Seleccionar la mascota con consentimiento vigente.",
+      "Indicar los servicios contratados, el tratamiento y el precio acordado.",
+      "Registrar la hora de ingreso y los hallazgos sobre el esquema del animal.",
+      "Recoger la aceptación de las condiciones del servicio y confirmar la firma en papel.",
+      "Guardar la ficha de ingreso.",
     ],
   },
   {
-    titulo: 'Registro de entrega',
+    titulo: "Registro de entrega",
     pasos: [
       'Ir a la pestaña "3 · Entrega".',
-      'Abrir la visita en curso de la mascota.',
-      'Registrar los hallazgos de la entrega y los cuidados recomendados.',
+      "Abrir la visita en curso de la mascota.",
+      "Registrar los hallazgos de la entrega y los cuidados recomendados.",
       'Anotar la hora de aviso de "mascota lista" y la hora de recogida.',
-      'Revisar el recargo por demora si aplica (60 min de margen, 15 €/hora o fracción).',
-      'Recoger la firma de "recibí conforme" y guardar la entrega.',
+      "Revisar el recargo por demora si aplica (60 min de margen, 15 €/hora o fracción).",
+      'Confirmar la firma en papel de "recibí conforme" y guardar la entrega.',
     ],
   },
 ];
 
 const PROBLEMAS = [
-  ['El PDF no se genera', 'Revise que el navegador permite ventanas emergentes para este sitio y vuelva a intentarlo.'],
-  ['La firma no aparece en el PDF', 'Asegúrese de dibujar la firma en el recuadro antes de pulsar "Guardar".'],
-  ['Error al guardar los datos', 'Verifique la conexión a internet e inténtelo de nuevo; los datos introducidos se conservan.'],
-  ['La página no carga', 'Recargue el navegador; si el problema continúa, consulte con el administrador.'],
+  [
+    "El PDF no se genera",
+    "Revise que el navegador permite ventanas emergentes para este sitio y vuelva a intentarlo.",
+  ],
+  [
+    "Error al guardar los datos",
+    "Verifique la conexión a internet e inténtelo de nuevo; los datos introducidos se conservan.",
+  ],
+  [
+    "La página no carga",
+    "Recargue el navegador; si el problema continúa, consulte con el administrador.",
+  ],
 ];
 
 const FAQ = [
   [
-    '¿Qué pasa si el tutor rechaza una cláusula?',
-    'Si la cláusula es obligatoria, el servicio no puede prestarse y la aplicación bloquea la continuación al ingreso. Las cláusulas opcionales (imágenes, comunicaciones) pueden rechazarse sin bloquear el servicio.',
+    "¿Qué pasa si el tutor rechaza una cláusula?",
+    "Si la cláusula es obligatoria, el servicio no puede prestarse y la aplicación bloquea la continuación al ingreso. Las cláusulas opcionales (imágenes, comunicaciones) pueden rechazarse sin bloquear el servicio.",
   ],
   [
-    '¿Puedo usar la aplicación sin conexión a internet?',
-    'La página de documentación y las plantillas en blanco funcionan sin conexión. El guardado de fichas requiere conexión; en caso de corte, use las plantillas en papel y regístrelas después.',
+    "¿Puedo usar la aplicación sin conexión a internet?",
+    "La página de documentación y las plantillas en blanco funcionan sin conexión. El guardado de fichas requiere conexión; en caso de corte, use las plantillas en papel y regístrelas después.",
   ],
   [
-    '¿Cómo revoco el consentimiento de un cliente?',
+    "¿Cómo revoco el consentimiento de un cliente?",
     'En la pestaña "Clientes", localice la mascota y utilice la opción de revocar consentimiento. La revocación queda registrada con su fecha.',
   ],
   [
-    '¿Qué datos se almacenan y durante cuánto tiempo?',
-    'Se almacenan los datos del tutor y la mascota, las respuestas a las cláusulas, la versión del texto legal y el resguardo de la firma, durante el tiempo imprescindible para gestionar la relación con el cliente.',
+    "¿Qué datos se almacenan y durante cuánto tiempo?",
+    "Se almacenan los datos del tutor y la mascota, las respuestas a las cláusulas, la versión del texto legal y el resguardo de la firma, durante el tiempo imprescindible para gestionar la relación con el cliente.",
   ],
   [
-    '¿Cómo obtengo una copia de los datos de un cliente (portabilidad)?',
+    "¿Cómo obtengo una copia de los datos de un cliente (portabilidad)?",
     'En la pestaña "Clientes" puede exportar en formato JSON todos los datos asociados a un cliente para ejercer el derecho de portabilidad.',
   ],
 ];
@@ -98,40 +93,21 @@ export default function Documentacion() {
     try {
       await fn();
     } catch (e) {
-      alert('No se pudo generar la plantilla: ' + (e.message || e));
+      alert("No se pudo generar la plantilla: " + (e.message || e));
     } finally {
       setGenerandoPlantilla(false);
     }
   }
 
-  function imprimirConsentimientoBlanco() {
-    return pdfConsentimiento({
-      cliente: {},
-      mascota: {},
-      consentimiento: {
-        estado: 'aceptado',
-        firma_tipo: 'papel',
-        firma: null,
-        clausulas_respuestas: {},
-        condiciones_preexistentes: [],
-        autoriza_fotos: false,
-        autoriza_comunicaciones: false,
-        legal_version: LEGAL_VERSION,
-        legal_hash: '',
-        fecha: new Date().toISOString(),
-      },
-      clausulas: CLAUSULAS_CONSENTIMIENTO,
-      clausulaImagenes: CLAUSULA_IMAGENES,
-      clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
-    });
-  }
-
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-brand-700">Documentación y plantillas en blanco</h1>
+        <h1 className="text-2xl font-bold text-brand-700">
+          Documentación y plantillas en blanco
+        </h1>
         <p className="text-sm text-brand-400">
-          Guía de uso, resolución de problemas y plantillas imprimibles para trabajar sin conexión.
+          Guía de uso, resolución de problemas y plantillas imprimibles para
+          trabajar sin conexión.
         </p>
       </div>
 
@@ -172,30 +148,45 @@ export default function Documentacion() {
         </dl>
       </Card>
 
-      <Card title="Plantillas en blanco" subtitle="Imprima estos documentos para rellenarlos a mano cuando no haya conexión.">
+      <Card
+        title="Plantillas en blanco"
+        subtitle="Imprima estos documentos para rellenarlos a mano cuando no haya conexión."
+      >
         <div className="space-y-4">
           <div className="space-y-1">
-            <PrimaryButton onClick={() => generar(imprimirConsentimientoBlanco)} disabled={generandoPlantilla}>
+            <PrimaryButton
+              onClick={() => generar(pdfBlankConsentimiento)}
+              disabled={generandoPlantilla}
+            >
               Imprimir formulario de consentimiento en blanco
             </PrimaryButton>
             <p className="text-sm text-brand-400">
-              Para usar cuando no hay conexión y se necesita firmar el consentimiento a mano.
+              Para usar cuando no hay conexión y se necesita firmar el
+              consentimiento a mano.
             </p>
           </div>
           <div className="space-y-1">
-            <PrimaryButton onClick={() => generar(pdfBlankIngreso)} disabled={generandoPlantilla}>
+            <PrimaryButton
+              onClick={() => generar(pdfBlankIngreso)}
+              disabled={generandoPlantilla}
+            >
               Imprimir ficha de ingreso en blanco
             </PrimaryButton>
             <p className="text-sm text-brand-400">
-              Para registrar a mano el ingreso de la mascota y las condiciones del servicio.
+              Para registrar a mano el ingreso de la mascota y las condiciones
+              del servicio.
             </p>
           </div>
           <div className="space-y-1">
-            <PrimaryButton onClick={() => generar(pdfBlankEntrega)} disabled={generandoPlantilla}>
+            <PrimaryButton
+              onClick={() => generar(pdfBlankEntrega)}
+              disabled={generandoPlantilla}
+            >
               Imprimir ficha de entrega en blanco
             </PrimaryButton>
             <p className="text-sm text-brand-400">
-              Para registrar a mano la entrega de la mascota, los cuidados y el recargo por demora.
+              Para registrar a mano la entrega de la mascota, los cuidados y el
+              recargo por demora.
             </p>
           </div>
         </div>
