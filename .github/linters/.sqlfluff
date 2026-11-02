@@ -1,0 +1,9 @@
+[sqlfluff]
+# Azure SQL Database (T-SQL); sin dialecto sqlfluff aborta con "No dialect was specified".
+dialect = tsql
+max_line_length = 200
+# El DDL del proyecto alinea columnas y usa nombres de constraint en mayúsculas (DF_/FK_/UX_):
+# se desactivan solo las reglas de estilo que chocan con eso.
+#   LT01 espaciado (alineación de columnas), LT02 indentación (ALTER TABLE ... ADD),
+#   LT14 saltos de línea entre cláusulas, CP02 capitalización de identificadores
+exclude_rules = LT01, LT02, LT14, CP02
