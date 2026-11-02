@@ -237,3 +237,17 @@ mcp-needs-auth-cache.json
 /.last-update-result.json
 /daemon.status.json
 /agent-memory
+
+.claude/launch.json
+
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+node_modules/
+dist/
