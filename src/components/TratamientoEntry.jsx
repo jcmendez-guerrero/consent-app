@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { guardarTratamiento } from '../lib/store';
-import { SERVICIOS } from '../lib/legal';
-import { hoyISO } from '../lib/utils';
-import { Field, TextInput, PrimaryButton, Aviso, inputCls } from './ui';
+import { useState } from "react";
+import { guardarTratamiento } from "../lib/store";
+import { SERVICIOS } from "../lib/legal";
+import { hoyISO } from "../lib/utils";
+import { Field, TextInput, PrimaryButton, Aviso, inputCls } from "./ui";
 
 /**
  * Panel de registro de un tratamiento en el historial.
@@ -12,18 +12,23 @@ import { Field, TextInput, PrimaryButton, Aviso, inputCls } from './ui';
  * - fuente: 'ingreso' | 'entrega'
  * - onGuardado: () => void (callback after successful save)
  */
-export default function TratamientoEntry({ mascotaId, visitaId = null, fuente, onGuardado }) {
-  const [tipoServicio, setTipoServicio] = useState('');
-  const [personal, setPersonal] = useState('');
-  const [notas, setNotas] = useState('');
+export default function TratamientoEntry({
+  mascotaId,
+  visitaId = null,
+  fuente,
+  onGuardado,
+}) {
+  const [tipoServicio, setTipoServicio] = useState("");
+  const [personal, setPersonal] = useState("");
+  const [notas, setNotas] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [exito, setExito] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   async function guardar() {
     if (!tipoServicio.trim() || guardando) return;
     setGuardando(true);
-    setError('');
+    setError("");
     setExito(false);
     try {
       await guardarTratamiento({
@@ -35,13 +40,13 @@ export default function TratamientoEntry({ mascotaId, visitaId = null, fuente, o
         notas: notas.trim() || null,
         fuente,
       });
-      setTipoServicio('');
-      setPersonal('');
-      setNotas('');
+      setTipoServicio("");
+      setPersonal("");
+      setNotas("");
       setExito(true);
       onGuardado?.();
     } catch (e) {
-      setError(e.message || 'No se pudo guardar el tratamiento.');
+      setError(e.message || "No se pudo guardar el tratamiento.");
     } finally {
       setGuardando(false);
     }
@@ -49,17 +54,25 @@ export default function TratamientoEntry({ mascotaId, visitaId = null, fuente, o
 
   return (
     <div className="space-y-3 rounded-xl border border-brand-200 bg-brand-50 p-4">
-      <h4 className="font-semibold text-brand-800">Registrar en historial de tratamientos</h4>
+      <h4 className="font-semibold text-brand-800">
+        Registrar en historial de tratamientos
+      </h4>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Servicio / tratamiento realizado" required>
           <select
-            value={SERVICIOS.includes(tipoServicio) ? tipoServicio : ''}
-            onChange={(e) => { if (e.target.value) setTipoServicio(e.target.value); }}
+            value={SERVICIOS.includes(tipoServicio) ? tipoServicio : ""}
+            onChange={(e) => {
+              if (e.target.value) setTipoServicio(e.target.value);
+            }}
             className={inputCls}
           >
             <option value="">Seleccionar…</option>
-            {SERVICIOS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {SERVICIOS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
           <input
             className={`mt-1 ${inputCls}`}
@@ -88,11 +101,18 @@ export default function TratamientoEntry({ mascotaId, visitaId = null, fuente, o
         />
       </Field>
 
-      {exito && <Aviso tipo="ok">Tratamiento registrado correctamente en el historial.</Aviso>}
+      {exito && (
+        <Aviso tipo="ok">
+          Tratamiento registrado correctamente en el historial.
+        </Aviso>
+      )}
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <PrimaryButton onClick={guardar} disabled={!tipoServicio.trim() || guardando}>
-        {guardando ? 'Guardando…' : 'Guardar tratamiento'}
+      <PrimaryButton
+        onClick={guardar}
+        disabled={!tipoServicio.trim() || guardando}
+      >
+        {guardando ? "Guardando…" : "Guardar tratamiento"}
       </PrimaryButton>
     </div>
   );

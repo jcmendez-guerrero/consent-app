@@ -1,7 +1,8 @@
-import sql from 'mssql';
+import sql from "mssql";
 
-const server = process.env.SQL_SERVER || 'azusqlsappconsentnp01.database.windows.net';
-const database = process.env.SQL_DATABASE || 'azu-sql-consent-app-01';
+const server =
+  process.env.SQL_SERVER || "azusqlsappconsentnp01.database.windows.net";
+const database = process.env.SQL_DATABASE || "azu-sql-consent-app-01";
 
 let poolPromise = null;
 
@@ -14,7 +15,7 @@ let poolPromise = null;
 const CONNECT_TIMEOUT_MS = 60000;
 
 function buildConfig() {
-  if (process.env.SQL_AUTH_MODE === 'sql') {
+  if (process.env.SQL_AUTH_MODE === "sql") {
     return {
       server,
       database,
@@ -37,7 +38,7 @@ function buildConfig() {
     requestTimeout: CONNECT_TIMEOUT_MS,
     options: { encrypt: true, trustServerCertificate: false },
     authentication: {
-      type: 'azure-active-directory-default',
+      type: "azure-active-directory-default",
       options: {
         // Opcional: fija la identidad gestionada asignada por el usuario si aplica.
         clientId: process.env.AZURE_CLIENT_ID,

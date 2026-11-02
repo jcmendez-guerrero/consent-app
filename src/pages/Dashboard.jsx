@@ -1,21 +1,24 @@
-import { Link } from 'react-router-dom';
-import { useDB } from '../lib/store';
-import { fmtFecha } from '../lib/utils';
-import { Card, Aviso } from '../components/ui';
+import { Link } from "react-router-dom";
+import { useDB } from "../lib/store";
+import { fmtFecha } from "../lib/utils";
+import { Card, Aviso } from "../components/ui";
 
 function VisitaFila({ visita, mascota, cliente }) {
-  const abierta = visita.estado === 'ingresada';
+  const abierta = visita.estado === "ingresada";
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-200 bg-white px-4 py-3">
       <div>
         <div className="font-bold text-brand-800">
-          {mascota?.nombre || '—'}
-          <span className="ml-2 text-sm font-normal text-brand-500">{cliente?.nombre_apellidos}</span>
+          {mascota?.nombre || "—"}
+          <span className="ml-2 text-sm font-normal text-brand-500">
+            {cliente?.nombre_apellidos}
+          </span>
         </div>
         <div className="text-sm text-brand-600">
-          {fmtFecha(visita.fecha)} · {(visita.servicios || []).join(', ')}
+          {fmtFecha(visita.fecha)} · {(visita.servicios || []).join(", ")}
           {visita.precio && ` · ${visita.precio} €`}
-          {visita.recargo_por_demora > 0 && ` · recargo ${visita.recargo_por_demora} €`}
+          {visita.recargo_por_demora > 0 &&
+            ` · recargo ${visita.recargo_por_demora} €`}
         </div>
       </div>
       {abierta ? (
@@ -26,7 +29,9 @@ function VisitaFila({ visita, mascota, cliente }) {
           Entregar →
         </Link>
       ) : (
-        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Entregada</span>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+          Entregada
+        </span>
       )}
     </li>
   );
@@ -37,11 +42,16 @@ export default function Dashboard() {
   const conDatos = (v) => ({
     visita: v,
     mascota: db.mascotas.find((m) => m.id === v.mascota_id),
-    cliente: db.clientes.find((c) => c.id === db.mascotas.find((m) => m.id === v.mascota_id)?.cliente_id),
+    cliente: db.clientes.find(
+      (c) =>
+        c.id === db.mascotas.find((m) => m.id === v.mascota_id)?.cliente_id,
+    ),
   });
-  const abiertas = db.visitas.filter((v) => v.estado === 'ingresada').map(conDatos);
+  const abiertas = db.visitas
+    .filter((v) => v.estado === "ingresada")
+    .map(conDatos);
   const cerradas = db.visitas
-    .filter((v) => v.estado === 'entregada')
+    .filter((v) => v.estado === "entregada")
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
     .slice(0, 10)
     .map(conDatos);
@@ -55,7 +65,9 @@ export default function Dashboard() {
         >
           <div className="text-3xl">✍️</div>
           <div className="mt-2 text-lg font-bold">Nuevo cliente</div>
-          <div className="text-sm text-brand-100">Firmar consentimiento informado (una sola vez)</div>
+          <div className="text-sm text-brand-100">
+            Firmar consentimiento informado (una sola vez)
+          </div>
         </Link>
         <Link
           to="/ingreso"
@@ -63,7 +75,9 @@ export default function Dashboard() {
         >
           <div className="text-3xl">🐕</div>
           <div className="mt-2 text-lg font-bold">Ingreso</div>
-          <div className="text-sm text-brand-100">Recibir mascota y abrir visita</div>
+          <div className="text-sm text-brand-100">
+            Recibir mascota y abrir visita
+          </div>
         </Link>
         <Link
           to="/entrega"
@@ -71,13 +85,20 @@ export default function Dashboard() {
         >
           <div className="text-3xl">🏠</div>
           <div className="mt-2 text-lg font-bold">Entrega</div>
-          <div className="text-sm opacity-80">Cerrar visita y entregar mascota</div>
+          <div className="text-sm opacity-80">
+            Cerrar visita y entregar mascota
+          </div>
         </Link>
       </div>
 
-      <Card title="Visitas abiertas" subtitle="Mascotas actualmente en el establecimiento.">
+      <Card
+        title="Visitas abiertas"
+        subtitle="Mascotas actualmente en el establecimiento."
+      >
         {abiertas.length === 0 ? (
-          <Aviso tipo="info">No hay mascotas en el establecimiento ahora mismo.</Aviso>
+          <Aviso tipo="info">
+            No hay mascotas en el establecimiento ahora mismo.
+          </Aviso>
         ) : (
           <ul className="space-y-2">
             {abiertas.map((x) => (
