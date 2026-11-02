@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDirty } from '../contexts/DirtyContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useDB } from '../lib/store';
@@ -37,20 +37,16 @@ export default function Consentimiento() {
   const [error, setError] = useState('');
 
   // db se carga de forma asíncrona: si el cliente/mascota referenciados en la URL
-  // todavía no estaban disponibles al montar, se rellenan en cuanto llegan.
-  useEffect(() => {
-    if (clienteIdParam && cliente.id !== clienteIdParam) {
-      const c = db.clientes.find((x) => x.id === clienteIdParam);
-      if (c) setCliente({ ...c });
-    }
-  }, [db.clientes, clienteIdParam, cliente.id]);
-
-  useEffect(() => {
-    if (mascotaIdParam && mascota.id !== mascotaIdParam) {
-      const m = db.mascotas.find((x) => x.id === mascotaIdParam);
-      if (m) setMascota({ ...m });
-    }
-  }, [db.mascotas, mascotaIdParam, mascota.id]);
+  // todavía no estaban disponibles al montar, se rellenan en cuanto llegan
+  // (ajuste de estado durante el render, sin efecto intermedio).
+  if (clienteIdParam && cliente.id !== clienteIdParam) {
+    const c = db.clientes.find((x) => x.id === clienteIdParam);
+    if (c) setCliente({ ...c });
+  }
+  if (mascotaIdParam && mascota.id !== mascotaIdParam) {
+    const m = db.mascotas.find((x) => x.id === mascotaIdParam);
+    if (m) setMascota({ ...m });
+  }
 
   const setC = (k) => (e) => { setDirty(true); setCliente({ ...cliente, [k]: e.target.value }); };
   const setM = (k) => (e) => { setDirty(true); setMascota({ ...mascota, [k]: e.target.value }); };
