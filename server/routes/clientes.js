@@ -21,6 +21,9 @@ router.post('/', async (req, res, next) => {
     if (!c.email || !c.email.trim()) {
       return res.status(400).json({ error: 'El email del cliente es obligatorio' });
     }
+    if (!c.dni_nie || !c.dni_nie.trim()) {
+      return res.status(400).json({ error: 'El DNI/NIE del cliente es obligatorio' });
+    }
     const pool = await getPool();
     const id = uid('cli');
     const result = await pool

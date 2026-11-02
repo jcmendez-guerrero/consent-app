@@ -116,6 +116,8 @@ export default function Ingreso() {
           notas_ingreso: notas,
           hora_ingreso: horaIngreso,
           clausulas_respuesta_condiciones: respuestaCondiciones,
+          firma_ingreso: { tipo: 'papel', data: null },
+          firma_tienda_ingreso: null,
           estado: 'ingresada',
         },
         clausulasIngreso: CLAUSULAS_INGRESO,

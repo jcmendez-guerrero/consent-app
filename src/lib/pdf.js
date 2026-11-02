@@ -271,31 +271,6 @@ function lineaAceptacion(doc, y, { tipoFirma, respuesta, textoAcepta, textoRecha
   return bloqueTexto(doc, y, `[X] ${textoAcepta}     [ ] ${textoRechaza}`, { bold: true, size: 8.5, color: MID });
 }
 
-// Firma: imagen digital, o recuadro en blanco si se completa en papel.
-function firmaEnPDF(doc, y, tipoFirma, dataUrl, texto) {
-  y = nuevaPaginaSi(doc, y, 45);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(DARK);
-  const lines = doc.splitTextToSize(texto, W);
-  doc.text(lines, M, y);
-  y += lines.length * 4 + 2;
-  doc.setDrawColor('#b7d9df');
-  if (tipoFirma === 'digital' && dataUrl) {
-    doc.roundedRect(M, y, 70, 30, 2, 2);
-    doc.addImage(dataUrl, 'PNG', M + 5, y + 2, 60, 26);
-  } else {
-    doc.setLineDashPattern([1.2, 1.2], 0);
-    doc.roundedRect(M, y, 70, 30, 2, 2);
-    doc.setLineDashPattern([], 0);
-    doc.setFontSize(8);
-    doc.setTextColor(MID);
-    doc.text('Firma manuscrita', M + 35, y + 16, { align: 'center' });
-  }
-  y += 34;
-  return y;
-}
-
 // Dos firmas en la misma fila: tutor (izquierda) y Mundo Mascotix (derecha).
 function firmasDualesEnPDF(doc, y, { tipoFirma, dataTutor, dataTienda, textoTutor, textoTienda }) {
   const colW = (W - 6) / 2;
@@ -432,8 +407,13 @@ export async function pdfConsentimiento({ cliente, mascota, consentimiento, clau
   const fechaTexto = esPapel
     ? `En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`
     : `En ${RESPONSABLE.localidad}, a ${fechaLarga(consentimiento.fecha.slice(0, 10))}.`;
-  y = firmaEnPDF(doc, y + 6, consentimiento.firma_tipo, consentimiento.firma,
-    `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. ${fechaTexto}`);
+  y = firmasDualesEnPDF(doc, y + 6, {
+    tipoFirma: consentimiento.firma_tipo,
+    dataTutor: consentimiento.firma,
+    dataTienda: consentimiento.firma_tienda,
+    textoTutor: `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. ${fechaTexto}`,
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
   const pieFirma =
     consentimiento.firma_tipo === 'papel'
       ? `Documento generado en blanco para firma manual el ${new Date(consentimiento.fecha).toLocaleString('es-ES')}`
@@ -667,13 +647,13 @@ export async function pdfBlankConsentimiento() {
     { bold: true, size: 8.5, color: DARK },
   );
 
-  y = firmaEnPDF(
-    doc,
-    y + 6,
-    'papel',
-    null,
-    `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`,
-  );
+  y = firmasDualesEnPDF(doc, y + 6, {
+    tipoFirma: 'papel',
+    dataTutor: null,
+    dataTienda: null,
+    textoTutor: `El/La tutor/a firmante acepta todas las cláusulas arriba expuestas. En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`,
+    textoTienda: 'Por Mundo Mascotix (representante):',
+  });
   y = bloqueTexto(doc, y + 2, `Documento generado en blanco para firma manual el ${new Date().toLocaleString('es-ES')}`, {
     size: 7.5,
     color: MID,

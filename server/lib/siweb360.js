@@ -89,9 +89,22 @@ export async function searchContacto(cliente) {
   return { type: 'ambiguous', candidates: list };
 }
 
+// Los ids de contacto acaban en la ruta de la petición: solo se aceptan ids simples
+// para que un valor manipulado no pueda alterar el endpoint de SiWeb360 que se invoca.
+const CONTACT_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function isValidContactId(id) {
+  return typeof id === 'string' && CONTACT_ID_RE.test(id);
+}
+
+function contactPath(id) {
+  if (!isValidContactId(String(id))) throw new Error('SiWeb360: id de contacto no válido');
+  return `/contacts/${encodeURIComponent(id)}`;
+}
+
 /** Fetch existing notas for a known SiWeb360 contact ID. */
 export async function getContactNotas(contactId) {
-  const data = await siGet(`/contacts/${contactId}`);
+  const data = await siGet(contactPath(contactId));
   return data?.data?.notas ?? null;
 }
 
@@ -122,7 +135,7 @@ export async function completeSync(searchResult, cliente, mascotas) {
   if (mascotas.length === 0 && !faltaCif) return;
 
   const notas = mascotas.length > 0 ? mergeNotas(contact.notas ?? null, mascotas) : contact.notas;
-  await siPut(`/contacts/${contact.id}`, {
+  await siPut(contactPath(contact.id), {
     ...(faltaCif && { cif: cliente.dni_nie }),
     notas,
   });

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getPool, sql } from '../db/pool.js';
-import { completeSync, getContactNotas } from '../lib/siweb360.js';
+import { completeSync, getContactNotas, isValidContactId } from '../lib/siweb360.js';
 
 const router = Router();
 
@@ -16,6 +16,9 @@ router.post('/resolve', async (req, res, next) => {
     }
     if (action === 'select' && !contact_id) {
       return res.status(400).json({ error: 'contact_id es obligatorio para action="select"' });
+    }
+    if (action === 'select' && !isValidContactId(contact_id)) {
+      return res.status(400).json({ error: 'contact_id no válido' });
     }
 
     const pool = await getPool();

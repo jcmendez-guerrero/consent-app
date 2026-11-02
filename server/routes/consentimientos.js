@@ -78,19 +78,29 @@ router.post('/', async (req, res, next) => {
 
     const responseBody = { id };
     if (siwebSearchResult.type === 'ambiguous') {
-      responseBody.siweb360_candidates = siwebSearchResult.candidates;
+      // Solo los campos que necesita el modal de desambiguación (sin notas ni otros datos del contacto).
+      responseBody.siweb360_candidates = siwebSearchResult.candidates.map((cand) => ({
+        id: cand.id,
+        nombre: cand.nombre || cand.name || null,
+        email: cand.email || null,
+        telefono: cand.telefono || null,
+      }));
     }
 
     res.status(201).json(responseBody);
 
     // Phase 2: fire-and-forget sync (only when not ambiguous — ambiguous requires /resolve)
     if (siwebSearchResult.type !== 'ambiguous' && siwebCliente) {
-      const mascotasRow = await pool
-        .request()
-        .input('mascota_id', sql.NVarChar, c.mascota_id)
-        .query('SELECT nombre, especie, raza, edad, peso_aprox_kg, microchip FROM dbo.mascotas WHERE id = @mascota_id');
-      completeSync(siwebSearchResult, siwebCliente, mascotasRow.recordset)
-        .catch((err) => console.error('[siweb360] completeSync error:', err));
+      // FR-004: las notas listan todas las mascotas del cliente, no solo la de este consentimiento.
+      try {
+        const mascotasRow = await pool
+          .request()
+          .input('cliente_id', sql.NVarChar, c.cliente_id)
+          .query('SELECT nombre, especie, raza, edad, peso_aprox_kg, microchip FROM dbo.mascotas WHERE cliente_id = @cliente_id');
+        await completeSync(siwebSearchResult, siwebCliente, mascotasRow.recordset);
+      } catch (err) {
+        console.error('[siweb360] completeSync error:', err);
+      }
     }
   } catch (err) {
     next(err);
