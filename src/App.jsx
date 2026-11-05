@@ -9,6 +9,8 @@ import Entrega from "./pages/Entrega.jsx";
 import Clientes from "./pages/Clientes.jsx";
 import Documentacion from "./pages/Documentacion.jsx";
 import Login from "./pages/Login.jsx";
+import VisitaIncidencias from "./pages/VisitaIncidencias.jsx";
+import FirmaRemota from "./pages/FirmaRemota.jsx";
 import LogoutButton from "./components/LogoutButton.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
@@ -21,10 +23,6 @@ const tabs = [
   { to: "/documentacion", label: "Documentación" },
 ];
 
-// React Router no restaura el scroll al navegar entre páginas (a diferencia de
-// una navegación normal del navegador): sin esto, cambiar de página conserva la
-// posición de scroll de la página anterior, dando la sensación de "aterrizar"
-// en medio del contenido en vez de al principio.
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -34,6 +32,32 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  const esRutaFirma = pathname.startsWith("/firmar/");
+
+  if (esRutaFirma) {
+    try {
+      sessionStorage.setItem("pending_sign_url", pathname);
+    } catch (_) {
+      // Ignorar fallo de almacenamiento
+    }
+    return (
+      <div className="min-h-screen bg-brand-50/40">
+        <ScrollToTop />
+        <Routes>
+          <Route
+            path="/firmar/:token"
+            element={
+              <ProtectedRoute>
+                <FirmaRemota />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <ScrollToTop />
@@ -139,6 +163,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Entrega />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/visita/:visitaId/incidencias"
+            element={
+              <ProtectedRoute>
+                <VisitaIncidencias />
               </ProtectedRoute>
             }
           />

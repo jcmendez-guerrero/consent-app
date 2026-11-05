@@ -22,12 +22,20 @@ function VisitaFila({ visita, mascota, cliente }) {
         </div>
       </div>
       {abierta ? (
-        <Link
-          to={`/entrega/${visita.id}`}
-          className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700"
-        >
-          Entregar →
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/visita/${visita.id}/incidencias`}
+            className="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100"
+          >
+            Incidencias
+          </Link>
+          <Link
+            to={`/entrega/${visita.id}`}
+            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700"
+          >
+            Entregar →
+          </Link>
+        </div>
       ) : (
         <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
           Entregada

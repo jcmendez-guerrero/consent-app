@@ -9,7 +9,12 @@ import {
   COMPORTAMIENTO_OPCIONES,
   URL_RESENA,
 } from "../lib/legal";
-import { horaAhora, calcularRecargo, fmtFecha } from "../lib/utils";
+import {
+  horaAhora,
+  calcularRecargo,
+  calcularTotalVisita,
+  fmtFecha,
+} from "../lib/utils";
 import { pdfVisita, pdfBlankEntrega } from "../lib/pdf";
 import {
   Card,
@@ -66,6 +71,14 @@ export default function Entrega() {
   }, []);
 
   const { minutosExtra, recargo } = calcularRecargo(horaAviso, horaRecogida);
+  const desglose = actual
+    ? calcularTotalVisita({
+        ...actual.visita,
+        hora_aviso_recogida: horaAviso,
+        hora_recogida: horaRecogida,
+        recargo_demora: recargo,
+      })
+    : { base: 0, recargoDemora: 0, cargos: 0, total: 0 };
   const puedeGuardar = confirmPapel;
 
   function toggleCuidado(c) {
@@ -429,6 +442,48 @@ export default function Entrega() {
             )}
           </div>
         </div>
+
+        {/* Desglose total inline (Constitution III & SC-008) */}
+        {actual && (
+          <div className="mt-5 border-t border-brand-200 pt-4">
+            <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wide mb-2">
+              Desglose contractual del importe final
+            </h4>
+            <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-brand-700">
+                  {actual.visita.interrumpida
+                    ? `Base retenida (interrupción: ${actual.visita.interrupcion_motivo || "servicio interrumpido"}):`
+                    : "Precio base acordado:"}
+                </span>
+                <span className="font-semibold text-brand-900">{desglose.base.toFixed(2)} €</span>
+              </div>
+
+              {(actual.visita.cargos || [])
+                .filter((c) => c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado")
+                .map((c) => (
+                  <div key={c.id} className="flex justify-between text-xs text-brand-700">
+                    <span>
+                      + {c.tipo === "manipulacion" ? "Recargo manipulación difícil" : c.tipo === "parasitos" ? `Tratamiento antiparasitario (${c.descripcion})` : `Tratamiento médico (${c.descripcion})`}:
+                    </span>
+                    <span className="font-semibold text-brand-800">{Number(c.importe).toFixed(2)} €</span>
+                  </div>
+                ))}
+
+              {recargo > 0 && (
+                <div className="flex justify-between text-xs text-amber-800 font-semibold">
+                  <span>+ Recargo por demora ({minutosExtra} min extra):</span>
+                  <span>{recargo.toFixed(2)} €</span>
+                </div>
+              )}
+
+              <div className="flex justify-between pt-2 border-t border-brand-200 text-base font-bold text-brand-900">
+                <span>TOTAL A COBRAR:</span>
+                <span>{desglose.total.toFixed(2)} €</span>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card title="Imprimir ficha con los datos ya rellenados">

@@ -11,76 +11,103 @@ import { Card, PrimaryButton } from "../components/ui";
 // con <img src="/docs/..."> (mantenimiento manual; ver spec 002).
 const FLUJOS = [
   {
-    titulo: "Flujo de consentimiento (firma en papel)",
+    titulo: "Firma digital en tablet / dispositivo de la tienda (recomendado)",
+    pasos: [
+      'En la pantalla de "Consentimiento" o "Ingreso", pulsar el botón "📱 Firmar en dispositivo de la tienda".',
+      'Aparecerá en el mostrador un código QR con enlace seguro a `/firmar/:token` (expira en 10 minutos de inactividad con actualización en tiempo real).',
+      "Escanear el QR con la cámara del dispositivo de la tienda (tablet o teléfono del mostrador).",
+      "El tutor revisa los bloques de aceptación simplificados (términos contractuales, RGPD, y autorizaciones opcionales de fotos o avisos comerciales) y firma en pantalla con el dedo o puntero.",
+      "A continuación, el tutor devuelve el dispositivo al personal de Mundo Mascotix para su firma manuscrita digital.",
+      "Al enviar, el mostrador detecta la firma automáticamente mediante polling seguro, valida versión legal y hashes criptográficos, archiva el documento y genera el PDF firmado.",
+    ],
+  },
+  {
+    titulo: "Flujo de consentimiento en papel (físico / contingencia)",
     pasos: [
       'Ir a la pestaña "1 · Consentimiento".',
       "Rellenar los datos del tutor y de la mascota.",
-      'Marcar "Acepta" o "No acepta" en cada cláusula junto al tutor.',
-      'Pulsar "Generar e imprimir consentimiento".',
-      "Imprimir el documento y entregarlo al tutor para que lo firme a mano.",
-      "En la pantalla de confirmación, verificar que los datos coinciden con el formulario firmado.",
-      'Pulsar "Confirmar y proceder al ingreso".',
+      'Pulsar "Generar e imprimir consentimiento en papel".',
+      "Imprimir el documento y entregarlo al tutor para que lo lea y marque a mano sus decisiones en los recuadros de firma única.",
+      "En la pantalla de confirmación, transcribir las respuestas de los bloques marcados en el formulario físico.",
+      'Pulsar "Confirmar y proceder al ingreso" (o "Confirmar y registrar rechazado" si rechazó términos).',
     ],
   },
   {
-    titulo: "Registro de ingreso",
+    titulo: "Registro de ingreso y condiciones del servicio",
     pasos: [
-      'Ir a la pestaña "2 · Ingreso".',
-      "Seleccionar la mascota con consentimiento vigente.",
-      "Indicar los servicios contratados, el tratamiento y el precio acordado.",
-      "Registrar la hora de ingreso y los hallazgos sobre el esquema del animal.",
-      "Recoger la aceptación de las condiciones del servicio y confirmar la firma en papel.",
-      "Guardar la ficha de ingreso.",
+      'Ir a la pestaña "2 · Ingreso" y seleccionar la mascota con consentimiento vigente.',
+      "Indicar servicios contratados, tratamiento y precio base acordado.",
+      "Introducir la duración estimada en minutos (> 0) y declarar si el tutor comunicó alguna condición o comportamiento especial.",
+      "Si el tutor aporta tratamientos veterinarios o prescripciones previas, añadirlos indicando descripción, importe (> 0) y origen (tutor o prescripción veterinaria).",
+      "Marcar hallazgos previos sobre el esquema anatómico y anotar observaciones.",
+      'Firmar digitalmente en la tablet del mostrador ("Firmar en dispositivo de la tienda") o marcar la confirmación de firma física en papel.',
     ],
   },
   {
-    titulo: "Registro de entrega",
+    titulo: "Gestión de incidencias durante el servicio (recargo, parásitos e interrupción)",
     pasos: [
-      'Ir a la pestaña "3 · Entrega".',
-      "Abrir la visita en curso de la mascota.",
-      "Registrar los hallazgos de la entrega y los cuidados recomendados.",
-      'Anotar la hora de aviso de "mascota lista" y la hora de recogida.',
-      "Revisar el recargo por demora si aplica (60 min de margen, 15 €/hora o fracción).",
-      'Confirmar la firma en papel de "recibí conforme" y guardar la entrega.',
+      'Desde el Dashboard, pulsar el botón "Incidencias" de la visita en curso.',
+      'Pulsar "Iniciar servicio" en cuanto empiece el trabajo para fijar la hora de inicio oficial.',
+      'Recargo de manipulación (10 €): si el perro presenta dificultades de manejo no habituales, registrar primero un contacto telefónico o presencial con el tutor ("acepta", "rechaza" o "no localizado") y asociar dicho contacto para aplicar el recargo contractual único de 10 €.',
+      'Detección de parásitos: si se detectan pulgas o garrapatas, marcar el hallazgo y registrar la decisión (tratamiento especial acordado con contacto del tutor, desparasitación veterinaria urgente o derivación sanitaria).',
+      'Interrupción del servicio: si resulta imposible o peligroso continuar, seleccionar causa y motivo. La aplicación calcula el importe retenido según las condiciones contractuales (proporcional al tiempo invertido si el comportamiento fue declarado previamente; 100 % del importe presupuestado si no se declaró).',
+    ],
+  },
+  {
+    titulo: "Registro de entrega y desglose económico inline",
+    pasos: [
+      'Ir a la pestaña "3 · Entrega" y abrir la visita en curso.',
+      "Registrar los hallazgos de entrega y los cuidados recomendados al tutor.",
+      'Anotar la hora de aviso de "mascota lista" y la hora real de recogida.',
+      "Revisar el desglose contractual inline: base presupuestada o retenida, tratamientos veterinarios acordados en ingreso, recargo de manipulación (si fue aceptado), tratamiento antiparasitario autorizado y recargo por demora en recogida (15 €/hora tras 60 min de cortesía).",
+      'Confirmar la recepción y firma del documento de entrega.',
     ],
   },
 ];
 
 const PROBLEMAS = [
   [
-    "El PDF no se genera",
-    "Revise que el navegador permite ventanas emergentes para este sitio y vuelva a intentarlo.",
+    "La tablet muestra 'Sesión caducada'",
+    "Las sesiones de firma en dispositivo expiran tras 10 minutos de inactividad por seguridad. En el mostrador, pulse 'Reintentar' para generar un nuevo código QR inmediato.",
   ],
   [
-    "Error al guardar los datos",
-    "Verifique la conexión a internet e inténtelo de nuevo; los datos introducidos se conservan.",
+    "Error de versión o hash desactualizado al firmar en tablet",
+    "Si la tablet tenía abierta una versión en caché de la aplicación, el mostrador rechaza la firma para evitar desfases legales. Recargue la página en el navegador de la tablet para cargar la versión legal activa.",
   ],
   [
-    "La página no carga",
-    "Recargue el navegador; si el problema continúa, consulte con el administrador.",
+    "No se puede aplicar el recargo de manipulación de 10 €",
+    "Por requisito legal y de las condiciones del servicio, es obligatorio registrar previamente un contacto con el tutor ('acepta', 'rechaza' o 'no localizado') antes de asociarlo al cargo.",
+  ],
+  [
+    "El PDF no se genera o no se descarga",
+    "Revise que el navegador del mostrador permite ventanas emergentes o descargas para este sitio y vuelva a intentarlo.",
+  ],
+  [
+    "Error al conectar con la base de datos",
+    "Verifique la conexión de red local. Si hay un corte temporal, use las plantillas en papel en blanco descargables abajo y transcríbalas al restablecerse la red.",
   ],
 ];
 
 const FAQ = [
   [
-    "¿Qué pasa si el tutor rechaza una cláusula?",
-    "Si la cláusula es obligatoria, el servicio no puede prestarse y la aplicación bloquea la continuación al ingreso. Las cláusulas opcionales (imágenes, comunicaciones) pueden rechazarse sin bloquear el servicio.",
+    "¿Qué diferencia hay entre la aceptación por bloques y el consentimiento tradicional?",
+    "En lugar de obligar al tutor a marcar individualmente cada párrafo legal, las cláusulas se agrupan en bloques con resumen legible y lenguaje claro: Términos del servicio, RGPD, Fotos y Redes, y Comunicaciones comerciales. Una sola aceptación o firma cubre todo el bloque contractual.",
   ],
   [
-    "¿Puedo usar la aplicación sin conexión a internet?",
-    "La página de documentación y las plantillas en blanco funcionan sin conexión. El guardado de fichas requiere conexión; en caso de corte, use las plantillas en papel y regístrelas después.",
+    "¿Qué ocurre si el tutor rechaza el bloque de Términos o el de RGPD?",
+    "El RGPD es obligatorio para nuevos clientes para poder prestar el servicio. Si el tutor rechaza los Términos del servicio, la aplicación registra el consentimiento como 'rechazado' y bloquea el paso al ingreso de la mascota.",
   ],
   [
-    "¿Cómo revoco el consentimiento de un cliente?",
-    'En la pestaña "Clientes", localice la mascota y utilice la opción de revocar consentimiento. La revocación queda registrada con su fecha.',
+    "¿Es obligatorio el dispositivo de la tienda (tablet) o se puede seguir usando papel?",
+    "Ambos métodos son 100 % válidos y equivalentes. La firma en tablet es más rápida y ahorra papel, pero ante cualquier problema técnico o preferencia del tutor, el mostrador cuenta con el botón de contingencia en papel.",
   ],
   [
-    "¿Qué datos se almacenan y durante cuánto tiempo?",
-    "Se almacenan los datos del tutor y la mascota, las respuestas a las cláusulas, la versión del texto legal y el resguardo de la firma, durante el tiempo imprescindible para gestionar la relación con el cliente.",
+    "¿Cómo se calcula el importe retenido si se interrumpe el servicio?",
+    "Si el tutor declaró al ingreso condiciones o comportamientos especiales de la mascota, se retiene únicamente el coste proporcional a los minutos invertidos (hora de interrupción menos hora de inicio). Si no lo declaró, se retiene el 100 % del importe presupuestado según la cláusula 3 de las condiciones de ingreso.",
   ],
   [
-    "¿Cómo obtengo una copia de los datos de un cliente (portabilidad)?",
-    'En la pestaña "Clientes" puede exportar en formato JSON todos los datos asociados a un cliente para ejercer el derecho de portabilidad.',
+    "¿El recargo de manipulación puede aplicarse más de una vez por visita?",
+    "No. El recargo de manipulación por dificultad de manejo está fijado contractualmente en 10,00 € exactos y la base de datos restringe su aplicación a un máximo de 1 vez por visita.",
   ],
 ];
 

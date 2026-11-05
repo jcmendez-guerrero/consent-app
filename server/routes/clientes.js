@@ -5,6 +5,8 @@ import {
   mapMascota,
   mapConsentimiento,
   mapVisita,
+  mapCargo,
+  mapContacto,
 } from "../lib/mappers.js";
 import { uid } from "../lib/id.js";
 
@@ -156,7 +158,46 @@ router.get("/:id/export", async (req, res, next) => {
           INNER JOIN dbo.mascotas m ON m.id = v.mascota_id
           WHERE m.cliente_id = @clienteId
         `);
-      visitas = visitasResult.recordset.map(mapVisita);
+      const vRows = visitasResult.recordset;
+      if (vRows.length) {
+        const vIds = vRows.map((r) => r.id);
+        const cargosReq = pool.request();
+        const contactosReq = pool.request();
+        const inParams = vIds
+          .map((id, idx) => {
+            const p = `v${idx}`;
+            cargosReq.input(p, sql.NVarChar, id);
+            contactosReq.input(p, sql.NVarChar, id);
+            return `@${p}`;
+          })
+          .join(",");
+        const [cargosRes, contactosRes] = await Promise.all([
+          cargosReq.query(
+            `SELECT * FROM dbo.visita_cargos WHERE visita_id IN (${inParams}) ORDER BY creado_en ASC`,
+          ),
+          contactosReq.query(
+            `SELECT * FROM dbo.visita_contactos WHERE visita_id IN (${inParams}) ORDER BY fecha_hora ASC`,
+          ),
+        ]);
+        const cMap = new Map();
+        for (const row of cargosRes.recordset) {
+          const l = cMap.get(row.visita_id) || [];
+          l.push(mapCargo(row));
+          cMap.set(row.visita_id, l);
+        }
+        const ctcMap = new Map();
+        for (const row of contactosRes.recordset) {
+          const l = ctcMap.get(row.visita_id) || [];
+          l.push(mapContacto(row));
+          ctcMap.set(row.visita_id, l);
+        }
+        visitas = vRows.map((r) => {
+          const mapped = mapVisita(r);
+          mapped.cargos = cMap.get(r.id) || [];
+          mapped.contactos = ctcMap.get(r.id) || [];
+          return mapped;
+        });
+      }
     }
 
     res.json({

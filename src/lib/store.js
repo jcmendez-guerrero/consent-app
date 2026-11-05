@@ -228,3 +228,99 @@ export async function guardarVisita(visita) {
   await refetch();
   return id;
 }
+
+// ---- Incidencias, contactos, cargos e interrupción (Feature 007) ----
+
+export async function iniciarServicio(visitaId, hora) {
+  await fetchJSON(`/api/visitas/${visitaId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hora_inicio_servicio: hora }),
+  });
+  await refetch();
+}
+
+export async function registrarContacto(visitaId, datos) {
+  const res = await fetchJSON(`/api/visitas/${visitaId}/contactos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+  return res.id;
+}
+
+export async function aplicarCargo(visitaId, datos) {
+  const res = await fetchJSON(`/api/visitas/${visitaId}/cargos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+  return res.id;
+}
+
+export async function registrarParasitos(visitaId, datos) {
+  await fetchJSON(`/api/visitas/${visitaId}/parasitos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+}
+
+export async function interrumpirVisita(visitaId, datos) {
+  const res = await fetchJSON(`/api/visitas/${visitaId}/interrupcion`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  await refetch();
+  return res.importe_retenido;
+}
+
+// ---- Sesiones de firma en dispositivo tienda (Feature 007 US5) ----
+
+export async function crearSesionFirma(datos) {
+  return fetchJSON("/api/firma/sesiones", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+}
+
+export async function consultarSesionFirma(id) {
+  return fetchJSON(`/api/firma/sesiones/${id}`);
+}
+
+export async function consumirSesionFirma(id, datos = {}) {
+  await fetchJSON(`/api/firma/sesiones/${id}/consumir`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+}
+
+export async function cancelarSesionFirma(id) {
+  await fetchJSON(`/api/firma/sesiones/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function obtenerSesionTablet(token) {
+  return fetchJSON(`/api/firma/tablet/${token}`);
+}
+
+export async function enviarFirmaTablet(token, datos) {
+  return fetchJSON(`/api/firma/tablet/${token}/enviar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+}
+
+export async function cancelarFirmaTablet(token) {
+  await fetchJSON(`/api/firma/tablet/${token}/cancelar`, {
+    method: "POST",
+  });
+}

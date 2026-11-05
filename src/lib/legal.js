@@ -3,9 +3,23 @@
 // guarda la versión y el hash SHA-256 del texto aceptado (requisito RGPD de
 // poder demostrar qué texto exacto se aceptó).
 
-export const LEGAL_VERSION = "2026-07-31.1";
+export const LEGAL_VERSION = "2026-11-05.1";
 
 export const URL_RESENA = "https://g.page/r/CXhutFfZILZTEBM/review";
+
+export const RECARGO_MANIPULACION_EUR = 10;
+
+export const RESUMEN_TERMINOS =
+  "Autorización de los servicios de peluquería, declaración de salud y factores de riesgo, exoneración de responsabilidad por incidentes no derivados de dolo o negligencia grave, autorización de actuación en emergencias veterinarias y vigencia indefinida del documento.";
+
+export const RESUMEN_CONDICIONES_INGRESO =
+  "Condiciones de entrega, recogida y posible custodia por abandono; aviso previo para el recargo de manipulación (10 €); tratamientos acordados y gestión de parásitos; y regla de interrupción del servicio por seguridad reteniendo el importe proporcional o íntegro según declaración previa.";
+
+export const RESUMEN_RGPD =
+  "Información sobre protección de datos personales y ejercicio de derechos ARCO+ ante Mundo Mascotix conforme al RGPD y LOPDGDD para la gestión de los servicios contratados.";
+
+export const RESUMEN_IMAGENES =
+  "Autorización opcional para la toma y difusión de fotografías o vídeos de la mascota en redes sociales y medios promocionales de Mundo Mascotix sin identificar al tutor.";
 
 export const RESPONSABLE = {
   nombre: "DANIELA CECILIA ANTEZANA CUEVAS (MUNDO MASCOTIX)",
@@ -61,6 +75,10 @@ export const CLAUSULAS_CONSENTIMIENTO = [
   },
 ];
 
+export function clausulasTerminos() {
+  return CLAUSULAS_CONSENTIMIENTO.slice(0, 5);
+}
+
 // Condiciones preexistentes declaradas por el tutor, ligadas al momento de la firma.
 export const CONDICIONES_PREEXISTENTES_OPCIONES = [
   "Cardiopatía",
@@ -108,16 +126,22 @@ export const CLAUSULAS_INGRESO = [
       "Si el tutor no recoge a la mascota antes del cierre del establecimiento el mismo día del servicio, esta se considerará abandonada. Mundo Mascotix podrá ponerla a disposición de las autoridades locales competentes (protectora o servicio municipal de recogida de animales), sin perjuicio de reclamar los gastos de custodia y cuidado generados.",
   },
   {
+    id: "recargo_manipulacion",
+    titulo: "Recargo por manipulación difícil",
+    texto:
+      "Si el animal presenta un comportamiento que dificulte gravemente el servicio o requiera personal adicional, se informará al tutor para autorizar un recargo fijo de 10 €. La firma de este documento no implica la aceptación anticipada de dicho recargo, requiriéndose comunicación previa. Si el tutor rechaza el recargo o no es localizado tras varios intentos, Mundo Mascotix podrá interrumpir el servicio conforme a las condiciones de interrupción.",
+  },
+  {
+    id: "tratamientos_parasitos",
+    titulo: "Tratamientos médicos y parásitos",
+    texto:
+      "Los tratamientos médicos acordados previamente en esta ficha (por solicitud del tutor, recomendación veterinaria del centro o prescripción veterinaria) forman parte del servicio presupuestado. En caso de detectarse parásitos durante el servicio, se comunicará al tutor para su aprobación antes de aplicar un tratamiento específico; en caso de no autorizarse o no localizarse al tutor, el personal podrá decidir continuar el servicio normal o detenerlo por motivos sanitarios.",
+  },
+  {
     id: "rechazo",
     titulo: "Derecho a rechazar o interrumpir el servicio",
     texto:
-      "Mundo Mascotix se reserva el derecho a rechazar o interrumpir el servicio si la mascota presenta un estado de salud, agresividad o parásitos que pongan en riesgo al personal o a otros animales, sin derecho a reembolso íntegro si el servicio ya se ha iniciado parcialmente.",
-  },
-  {
-    id: "derivacion",
-    titulo: "Tratamientos adicionales",
-    texto:
-      "Cualquier tratamiento veterinario adicional detectado durante el servicio (p. ej. vaciado de glándulas con signos de infección) que requiera derivación se comunicará al tutor antes de aplicarlo, salvo urgencia.",
+      "Mundo Mascotix se reserva el derecho a rechazar o interrumpir el servicio por razones de salud, seguridad, parásitos o comportamiento del animal. En caso de interrupción del servicio iniciado, se calculará el importe retenido de forma proporcional al tiempo invertido sobre la duración estimada si el comportamiento o condición relevante fue comunicado al inicio; si dicha circunstancia no fue advertida previamente por el tutor, se retendrá el importe íntegro del servicio presupuestado.",
   },
   {
     id: "precio",
@@ -164,4 +188,17 @@ export async function hashTexto(texto) {
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+export async function hashesConsentimiento({ excluyeRgpd = false } = {}) {
+  const rgpdClause = CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd");
+  const hashes = {
+    terminos: await hashTexto(textoLegalCompleto(clausulasTerminos())),
+    imagenes: await hashTexto(textoLegalCompleto([CLAUSULA_IMAGENES])),
+    comunicaciones: await hashTexto(textoLegalCompleto([CLAUSULA_COMUNICACIONES])),
+  };
+  if (!excluyeRgpd && rgpdClause) {
+    hashes.rgpd = await hashTexto(textoLegalCompleto([rgpdClause]));
+  }
+  return hashes;
 }

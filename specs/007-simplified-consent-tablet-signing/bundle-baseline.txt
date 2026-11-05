@@ -1,0 +1,10 @@
+Baseline build (vite build) before 007 changes:
+Date: 2026-11-05
+ESLint: passed (0 errors, 0 warnings)
+
+dist/index.html                            0.77 kB │ gzip:   0.42 kB
+dist/assets/index-CHQZMGH_.css            26.38 kB │ gzip:   5.70 kB
+dist/assets/purify.es-CAi2OJFm.js         30.47 kB │ gzip:  11.73 kB
+dist/assets/index.es-BkPa4Vnl.js         159.60 kB │ gzip:  53.51 kB
+dist/assets/html2canvas.esm-QH1iLAAe.js  202.38 kB │ gzip:  48.04 kB
+dist/assets/index-UP_esw1f.js            720.28 kB │ gzip: 231.86 kB
