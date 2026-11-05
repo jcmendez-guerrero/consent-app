@@ -339,9 +339,7 @@ export default function Ingreso() {
         hallazgos_entrega: [],
         notas_ingreso: notas,
         hora_ingreso: horaIngreso,
-        clausulas_respuesta_condiciones: {
-          condiciones_generales: decisionCondiciones,
-        },
+        clausulas_respuesta_condiciones: decisionCondiciones,
         firma_ingreso: { tipo: "digital", data: resultado.firma_tutor },
         firma_tienda_ingreso: resultado.firma_tienda,
         autoriza_fotos_redes: !!consentimientoActual?.autoriza_fotos,

@@ -116,6 +116,14 @@ router.post("/", async (req, res, next) => {
       }
     }
 
+    const clausulasResp =
+      typeof v.clausulas_respuesta_condiciones === "object" &&
+      v.clausulas_respuesta_condiciones !== null
+        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
+          v.clausulas_respuesta_condiciones.condiciones ||
+          "acepta"
+        : v.clausulas_respuesta_condiciones || null;
+
     await transaction.begin();
 
     await new sql.Request(transaction)
@@ -144,8 +152,8 @@ router.post("/", async (req, res, next) => {
       .input("hora_ingreso", sql.Char(5), v.hora_ingreso || null)
       .input(
         "clausulas_respuesta_condiciones",
-        sql.NVarChar,
-        v.clausulas_respuesta_condiciones || null,
+        sql.NVarChar(10),
+        clausulasResp,
       )
       .input("firma_ingreso_tipo", sql.NVarChar, v.firma_ingreso?.tipo || null)
       .input(
@@ -239,6 +247,14 @@ router.put("/:id", async (req, res, next) => {
       });
     }
 
+    const clausulasResp =
+      typeof v.clausulas_respuesta_condiciones === "object" &&
+      v.clausulas_respuesta_condiciones !== null
+        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
+          v.clausulas_respuesta_condiciones.condiciones ||
+          "acepta"
+        : v.clausulas_respuesta_condiciones || null;
+
     await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
@@ -264,8 +280,8 @@ router.put("/:id", async (req, res, next) => {
       .input("hora_ingreso", sql.Char(5), v.hora_ingreso || null)
       .input(
         "clausulas_respuesta_condiciones",
-        sql.NVarChar,
-        v.clausulas_respuesta_condiciones || null,
+        sql.NVarChar(10),
+        clausulasResp,
       )
       .input("firma_ingreso_tipo", sql.NVarChar, v.firma_ingreso?.tipo || null)
       .input(
