@@ -6,9 +6,19 @@ import { inputCls } from "./ui";
  * Buscador de mascota por nombre de mascota, nombre del tutor, DNI o microchip.
  * onSelect({cliente, mascota, consentimiento}) — consentimiento puede ser null.
  */
-export default function MascotaPicker({ onSelect, seleccionada }) {
+export default function MascotaPicker({
+  onSelect,
+  onChange,
+  seleccionada,
+  placeholder = "Buscar por mascota, tutor, DNI/NIE o microchip…",
+}) {
   const db = useDB();
   const [q, setQ] = useState("");
+  const handleSelect = onSelect || onChange;
+  const selId =
+    typeof seleccionada === "object" && seleccionada !== null
+      ? seleccionada.mascota?.id || seleccionada.id
+      : seleccionada;
 
   const resultados = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -40,7 +50,7 @@ export default function MascotaPicker({ onSelect, seleccionada }) {
     <div>
       <input
         className={inputCls}
-        placeholder="Buscar por mascota, tutor, DNI/NIE o microchip…"
+        placeholder={placeholder}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         aria-label="Buscar mascota"
@@ -50,9 +60,9 @@ export default function MascotaPicker({ onSelect, seleccionada }) {
           <li key={r.mascota.id}>
             <button
               type="button"
-              onClick={() => onSelect(r)}
+              onClick={() => handleSelect?.(r)}
               className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                seleccionada === r.mascota.id
+                selId === r.mascota.id
                   ? "border-brand-600 bg-brand-100"
                   : "border-brand-200 bg-white hover:bg-brand-50"
               }`}

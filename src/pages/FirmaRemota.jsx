@@ -105,6 +105,11 @@ export default function FirmaRemota() {
           fotos: autorizaFotos,
           comunicaciones: autorizaComunicaciones,
         };
+      } else if (sesion.tipo === "entrega") {
+        legalHashes = { entrega: "conforme" };
+        decisiones = {
+          entrega_conforme: decisionTerminos || "acepta",
+        };
       } else {
         // Ingreso
         const condicionesHash = await hashTexto(
@@ -175,6 +180,7 @@ export default function FirmaRemota() {
 
   const payload = sesion.payload || {};
   const esConsentimiento = sesion.tipo === "consentimiento";
+  const esEntrega = sesion.tipo === "entrega";
   const todasRespondidas = esConsentimiento
     ? !!decisionTerminos && (payload.excluyeRgpd || !!decisionRgpd)
     : !!decisionTerminos;
@@ -188,7 +194,9 @@ export default function FirmaRemota() {
             <h1 className="text-base font-bold text-brand-800">
               {esConsentimiento
                 ? "Consentimiento informado · DermoSpa"
-                : "Ficha de ingreso · DermoSpa"}
+                : esEntrega
+                  ? "Ficha de entrega y salida · DermoSpa"
+                  : "Ficha de ingreso · DermoSpa"}
             </h1>
             <p className="text-xs text-brand-500">
               Tutor: <strong>{payload.cliente?.nombre_apellidos || "—"}</strong> · Mascota:{" "}
@@ -263,6 +271,68 @@ export default function FirmaRemota() {
                     opcional={true}
                   />
                 </div>
+              </>
+            ) : esEntrega ? (
+              <>
+                <div className="rounded-xl border border-brand-200 bg-white p-4 text-xs space-y-1.5">
+                  <div className="font-bold text-sm text-brand-800">
+                    Resumen del servicio y recogida
+                  </div>
+                  <p>
+                    <strong>Servicios:</strong> {(payload.servicios || []).join(", ") || "DermoSpa"}
+                  </p>
+                  {payload.hora_aviso_listo && (
+                    <p>
+                      <strong>Aviso &quot;mascota lista&quot;:</strong> {payload.hora_aviso_listo} · <strong>Hora de recogida:</strong> {payload.hora_recogida || "En curso"}
+                    </p>
+                  )}
+                  {payload.recargo_por_demora > 0 && (
+                    <p className="text-amber-700 font-semibold">
+                      ⚠️ Demora de recogida: recargo de {payload.recargo_por_demora} € aplicado.
+                    </p>
+                  )}
+                  <p className="text-sm font-bold text-brand-800 pt-1 border-t border-brand-100">
+                    Total a abonar: {payload.total ?? payload.precio} €
+                  </p>
+                </div>
+
+                {((payload.cuidados_checklist && payload.cuidados_checklist.length > 0) ||
+                  payload.notas_cuidado_entrega) && (
+                  <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 text-xs space-y-2">
+                    <div className="font-bold text-brand-800">Cuidados posteriores recomendados</div>
+                    {payload.cuidados_checklist && payload.cuidados_checklist.length > 0 && (
+                      <ul className="space-y-1">
+                        {payload.cuidados_checklist.map((c) => (
+                          <li key={c} className="flex items-center gap-1.5 text-brand-700">
+                            <span className="text-emerald-600 font-bold">✓</span> {c}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {payload.notas_cuidado_entrega && (
+                      <p className="text-brand-600 italic">
+                        Indicaciones: {payload.notas_cuidado_entrega}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <BloqueAceptacion
+                  titulo="Recibí conforme y cuidados posteriores"
+                  resumen="Declaro recibir a mi mascota conforme con los servicios prestados y haber sido informado/a de las recomendaciones de cuidado."
+                  clausulas={[
+                    {
+                      id: "recibi_conforme",
+                      titulo: "Recepción de la mascota y conformidad del servicio",
+                      texto:
+                        "El/La tutor/a declara recibir al animal en perfecto estado aparente y en conformidad con los servicios de peluquería y spa realizados, habiendo recibido las indicaciones y pautas de cuidado recomendadas.",
+                    },
+                  ]}
+                  valor={decisionTerminos}
+                  onChange={setDecisionTerminos}
+                  textoAcepta="Acepto y recibo conforme"
+                  textoRechaza="No conforme"
+                />
               </>
             ) : (
               <>

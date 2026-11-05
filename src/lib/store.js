@@ -10,7 +10,16 @@ const EMPTY = { clientes: [], mascotas: [], consentimientos: [], visitas: [] };
 
 let cache = { ...EMPTY };
 let loadPromise = null;
+let isLoading = true;
+let loadError = null;
+let statusSnapshot = { isLoading: true, loadError: null };
 const listeners = new Set();
+
+function updateStatus(loading, error) {
+  isLoading = loading;
+  loadError = error;
+  statusSnapshot = { isLoading, loadError };
+}
 
 function notify() {
   listeners.forEach((l) => l());
@@ -27,14 +36,23 @@ async function fetchJSON(url, options) {
 }
 
 async function fetchAll() {
-  const [clientes, mascotas, consentimientos, visitas] = await Promise.all([
-    fetchJSON("/api/clientes"),
-    fetchJSON("/api/mascotas"),
-    fetchJSON("/api/consentimientos"),
-    fetchJSON("/api/visitas"),
-  ]);
-  cache = { clientes, mascotas, consentimientos, visitas };
+  updateStatus(true, null);
   notify();
+  try {
+    const [clientes, mascotas, consentimientos, visitas] = await Promise.all([
+      fetchJSON("/api/clientes"),
+      fetchJSON("/api/mascotas"),
+      fetchJSON("/api/consentimientos"),
+      fetchJSON("/api/visitas"),
+    ]);
+    cache = { clientes, mascotas, consentimientos, visitas };
+    updateStatus(false, null);
+  } catch (err) {
+    updateStatus(false, err.message || "Error al conectar con la base de datos");
+    throw err;
+  } finally {
+    notify();
+  }
 }
 
 function ensureLoaded() {
@@ -47,7 +65,7 @@ function ensureLoaded() {
   return loadPromise;
 }
 
-async function refetch() {
+export async function refetch() {
   loadPromise = null;
   await ensureLoaded();
 }
@@ -66,6 +84,19 @@ export function useDB() {
       return () => listeners.delete(cb);
     },
     () => cache,
+  );
+}
+
+export function useDBStatus() {
+  useEffect(() => {
+    ensureLoaded();
+  }, []);
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    () => statusSnapshot,
   );
 }
 

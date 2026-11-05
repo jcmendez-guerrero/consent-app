@@ -3,6 +3,7 @@ import { useDirty } from "../contexts/DirtyContext";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   useDB,
+  useDBStatus,
   consentimientoVigente,
   guardarVisita,
   consumirSesionFirma,
@@ -33,6 +34,7 @@ import DispositivoFirma from "../components/DispositivoFirma";
 
 export default function Ingreso() {
   const db = useDB();
+  const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { setDirty } = useDirty();
@@ -47,7 +49,19 @@ export default function Ingreso() {
     };
   }, [db, params]);
 
-  const [sel, setSel] = useState(preseleccion);
+  const [selManual, setSelManual] = useState(null);
+  const sel = selManual || preseleccion;
+
+  const clienteActual = useMemo(() => {
+    if (!sel?.mascota) return null;
+    return db.clientes.find((c) => c.id === sel.mascota.cliente_id) || sel.cliente;
+  }, [db, sel]);
+
+  const consentimientoActual = useMemo(() => {
+    if (!sel?.mascota) return null;
+    return consentimientoVigente(db, sel.mascota.id) || sel.consentimiento;
+  }, [db, sel]);
+
   const [servicios, setServicios] = useState(SERVICIOS.slice(0, 1));
   const [tratamiento, setTratamiento] = useState("");
   const [precio, setPrecio] = useState("");
@@ -72,7 +86,7 @@ export default function Ingreso() {
   const [errorImpresion, setErrorImpresion] = useState("");
 
   const visitaAbierta =
-    sel &&
+    sel?.mascota &&
     db.visitas.find(
       (v) => v.mascota_id === sel.mascota.id && v.estado === "ingresada",
     );
@@ -88,7 +102,7 @@ export default function Ingreso() {
     Number(duracionEstimadaMin) > 0 && Number.isInteger(Number(duracionEstimadaMin));
 
   const puedeGuardar =
-    sel?.consentimiento &&
+    consentimientoActual &&
     servicios.length > 0 &&
     !visitaAbierta &&
     duracionOk &&
@@ -96,8 +110,11 @@ export default function Ingreso() {
     confirmPapel;
 
   const puedeFirmarDigital =
-    sel?.consentimiento &&
+    consentimientoActual &&
     servicios.length > 0 &&
+    !visitaAbierta &&
+    duracionOk &&
+    !guardando;
     !visitaAbierta &&
     duracionOk &&
     !guardando;
@@ -111,7 +128,7 @@ export default function Ingreso() {
 
   function handleSelChange(mascota) {
     setDirty(true);
-    setSel(mascota);
+    setSelManual(mascota);
   }
 
   function handleTratamientoChange(e) {
@@ -181,7 +198,7 @@ export default function Ingreso() {
     setErrorImpresion("");
     try {
       await pdfVisita({
-        cliente: sel.cliente,
+        cliente: clienteActual,
         mascota: sel.mascota,
         visita: {
           mascota_id: sel.mascota.id,
@@ -241,7 +258,7 @@ export default function Ingreso() {
         clausulas_respuesta_condiciones: respuestaCondiciones,
         firma_ingreso: { tipo: "papel", data: null },
         firma_tienda_ingreso: null,
-        autoriza_fotos_redes: !!sel.consentimiento.autoriza_fotos,
+        autoriza_fotos_redes: !!consentimientoActual?.autoriza_fotos,
         condiciones_version: LEGAL_VERSION,
         condiciones_hash: condicionesHash,
         condiciones_con_recargos: true,
@@ -249,7 +266,7 @@ export default function Ingreso() {
 
       if (hayRechazo) {
         await pdfVisita({
-          cliente: sel.cliente,
+          cliente: clienteActual,
           mascota: sel.mascota,
           visita: { ...visitaBase, id: "rechazo_tmp", estado: "ingresada" },
           clausulasIngreso: CLAUSULAS_INGRESO,
@@ -259,7 +276,7 @@ export default function Ingreso() {
         const visita = { ...visitaBase, estado: "ingresada" };
         const id = await guardarVisita(visita);
         await pdfVisita({
-          cliente: sel.cliente,
+          cliente: clienteActual,
           mascota: sel.mascota,
           visita: {
             ...visita,
@@ -327,7 +344,7 @@ export default function Ingreso() {
         },
         firma_ingreso: { tipo: "digital", data: resultado.firma_tutor },
         firma_tienda_ingreso: resultado.firma_tienda,
-        autoriza_fotos_redes: !!sel.consentimiento.autoriza_fotos,
+        autoriza_fotos_redes: !!consentimientoActual?.autoriza_fotos,
         condiciones_version: LEGAL_VERSION,
         condiciones_hash: condicionesHash,
         condiciones_con_recargos: true,
@@ -337,7 +354,7 @@ export default function Ingreso() {
 
       if (hayRechazoDigital) {
         await pdfVisita({
-          cliente: sel.cliente,
+          cliente: clienteActual,
           mascota: sel.mascota,
           visita: { ...visitaBase, id: "rechazo_tmp", estado: "ingresada" },
           clausulasIngreso: CLAUSULAS_INGRESO,
@@ -347,7 +364,7 @@ export default function Ingreso() {
         const visita = { ...visitaBase, estado: "ingresada" };
         const id = await guardarVisita(visita);
         await pdfVisita({
-          cliente: sel.cliente,
+          cliente: clienteActual,
           mascota: sel.mascota,
           visita: {
             ...visita,
@@ -389,13 +406,28 @@ export default function Ingreso() {
         </p>
       </div>
 
+      {cargandoDB && (
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <span className="text-sm font-semibold">
+            Cargando datos e inicializando la base de datos… Por favor, espera un momento.
+          </span>
+        </div>
+      )}
+
+      {errorDB && (
+        <Aviso tipo="error">
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu conexión o recarga la página.
+        </Aviso>
+      )}
+
       <Card title="Mascota">
         <MascotaPicker
           seleccionada={sel}
           onChange={handleSelChange}
           placeholder="Buscar mascota por nombre, tutor, teléfono o microchip…"
         />
-        {sel && !sel.consentimiento && (
+        {sel && !consentimientoActual && !cargandoDB && (
           <div className="mt-4">
             <Aviso tipo="error">
               Esta mascota no tiene un consentimiento informado válido o está
@@ -404,7 +436,7 @@ export default function Ingreso() {
             </Aviso>
             <div className="mt-3">
               <Link
-                to={`/consentimiento?cliente=${sel.cliente?.id || ""}&mascota=${sel.mascota.id}`}
+                to={`/consentimiento?cliente=${clienteActual?.id || ""}&mascota=${sel.mascota.id}`}
                 className="inline-block rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-brand-700"
               >
                 Firmar consentimiento ahora →
@@ -423,7 +455,7 @@ export default function Ingreso() {
         )}
       </Card>
 
-      {sel && sel.consentimiento && !visitaAbierta && (
+      {sel && consentimientoActual && !visitaAbierta && (
         <>
           {avisoRechazo && (
             <Aviso tipo="error">
@@ -680,7 +712,7 @@ export default function Ingreso() {
                 onClick={() => setMostrarModalFirma(true)}
                 disabled={!puedeFirmarDigital}
               >
-                📱 Firmar en dispositivo de la tienda
+                📱 Firmar en móvil o tablet (código QR)
               </PrimaryButton>
               <button
                 type="button"
@@ -722,7 +754,7 @@ export default function Ingreso() {
         <DispositivoFirma
           tipo="ingreso"
           payload={{
-            cliente: sel.cliente,
+            cliente: clienteActual,
             mascota: sel.mascota,
             servicios,
             tratamiento,

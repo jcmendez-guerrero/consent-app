@@ -37,7 +37,7 @@ router.post("/sesiones", async (req, res, next) => {
     await lazyCleanup(pool);
 
     const { tipo, payload } = req.body;
-    if (!["consentimiento", "ingreso"].includes(tipo)) {
+    if (!["consentimiento", "ingreso", "entrega"].includes(tipo)) {
       return res.status(400).json({ error: "Tipo de sesión inválido" });
     }
     if (!payload || typeof payload !== "object") {
