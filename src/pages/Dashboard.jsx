@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useDB } from "../lib/store";
+import { useDB, useDBStatus } from "../lib/store";
 import { fmtFecha } from "../lib/utils";
 import { Card, Aviso } from "../components/ui";
 
@@ -22,12 +22,20 @@ function VisitaFila({ visita, mascota, cliente }) {
         </div>
       </div>
       {abierta ? (
-        <Link
-          to={`/entrega/${visita.id}`}
-          className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700"
-        >
-          Entregar →
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/visita/${visita.id}/incidencias`}
+            className="rounded-full border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100"
+          >
+            Incidencias
+          </Link>
+          <Link
+            to={`/entrega/${visita.id}`}
+            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700"
+          >
+            Entregar →
+          </Link>
+        </div>
       ) : (
         <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
           Entregada
@@ -39,6 +47,7 @@ function VisitaFila({ visita, mascota, cliente }) {
 
 export default function Dashboard() {
   const db = useDB();
+  const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const conDatos = (v) => ({
     visita: v,
     mascota: db.mascotas.find((m) => m.id === v.mascota_id),
@@ -58,6 +67,23 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      {cargandoDB && (
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <span className="text-sm font-semibold">
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
+          </span>
+        </div>
+      )}
+
+      {errorDB && (
+        <Aviso tipo="error">
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
+        </Aviso>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Link
           to="/consentimiento"

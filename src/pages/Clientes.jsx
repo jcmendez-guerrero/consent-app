@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   useDB,
+  useDBStatus,
   consentimientoVigente,
   ultimoConsentimiento,
   revocarConsentimiento,
@@ -21,6 +22,7 @@ import { Card, Aviso } from "../components/ui";
 
 export default function Clientes() {
   const db = useDB();
+  const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const navigate = useNavigate();
   const [confirmando, setConfirmando] = useState(null);
   const [historial, setHistorial] = useState({}); // mascota_id → TratamientoRecord[]
@@ -94,7 +96,24 @@ export default function Clientes() {
         </p>
       </div>
 
-      {clientes.length === 0 && (
+      {cargandoDB && (
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <span className="text-sm font-semibold">
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
+          </span>
+        </div>
+      )}
+
+      {errorDB && (
+        <Aviso tipo="error">
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
+        </Aviso>
+      )}
+
+      {!cargandoDB && clientes.length === 0 && (
         <Aviso tipo="info">
           Todavía no hay clientes. El alta se hace firmando el{" "}
           <Link to="/consentimiento" className="font-bold underline">

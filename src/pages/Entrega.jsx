@@ -2,14 +2,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useDirty } from "../contexts/DirtyContext";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import QRCode from "qrcode";
-import { useDB, guardarVisita } from "../lib/store";
+import {
+  useDB,
+  useDBStatus,
+  guardarVisita,
+  consumirSesionFirma,
+} from "../lib/store";
 import {
   CLAUSULAS_INGRESO,
   CUIDADOS_CHECKLIST,
   COMPORTAMIENTO_OPCIONES,
   URL_RESENA,
 } from "../lib/legal";
-import { horaAhora, calcularRecargo, fmtFecha } from "../lib/utils";
+import {
+  horaAhora,
+  calcularRecargo,
+  calcularTotalVisita,
+  fmtFecha,
+} from "../lib/utils";
 import { pdfVisita, pdfBlankEntrega } from "../lib/pdf";
 import {
   Card,
@@ -22,9 +32,11 @@ import {
 } from "../components/ui";
 import PetSchematic from "../components/PetSchematic";
 import TratamientoEntry from "../components/TratamientoEntry";
+import DispositivoFirma from "../components/DispositivoFirma";
 
 export default function Entrega() {
   const db = useDB();
+  const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const navigate = useNavigate();
   const { visitaId } = useParams();
   const { setDirty } = useDirty();
@@ -53,6 +65,7 @@ export default function Entrega() {
   const [comportamientoChips, setComportamientoChips] = useState([]);
   const [comportamientoNotas, setComportamientoNotas] = useState("");
   const [confirmPapel, setConfirmPapel] = useState(false);
+  const [mostrarModalFirma, setMostrarModalFirma] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState(null);
@@ -66,6 +79,14 @@ export default function Entrega() {
   }, []);
 
   const { minutosExtra, recargo } = calcularRecargo(horaAviso, horaRecogida);
+  const desglose = actual
+    ? calcularTotalVisita({
+        ...actual.visita,
+        hora_aviso_recogida: horaAviso,
+        hora_recogida: horaRecogida,
+        recargo_demora: recargo,
+      })
+    : { base: 0, recargoDemora: 0, cargos: 0, total: 0 };
   const puedeGuardar = confirmPapel;
 
   function toggleCuidado(c) {
@@ -203,6 +224,48 @@ export default function Entrega() {
     }
   }
 
+  async function handleFirmaDigitalCompletada(resultado, sesionId) {
+    if (!actual || guardando) return;
+    setGuardando(true);
+    setError("");
+    try {
+      const visita = {
+        ...actual.visita,
+        estado: "entregada",
+        hallazgos_entrega: hallazgos,
+        cuidados_checklist: cuidados,
+        notas_cuidado_entrega: notasCuidado,
+        hora_aviso_listo: horaAviso,
+        hora_recogida: horaRecogida,
+        recargo_por_demora: recargo,
+        comportamiento_chips: comportamientoChips,
+        comportamiento_notas: comportamientoNotas,
+        firma_entrega: { tipo: "digital", data: resultado.firma_tutor },
+        firma_tienda_entrega: resultado.firma_tienda,
+      };
+
+      await consumirSesionFirma(sesionId);
+      await guardarVisita(visita);
+      await pdfVisita({
+        cliente: actual.cliente,
+        mascota: actual.mascota,
+        visita,
+        clausulasIngreso: CLAUSULAS_INGRESO,
+      });
+      setDirty(false);
+      navigate("/");
+    } catch (e) {
+      console.error(e);
+      setError(
+        "No se pudo cerrar la visita tras la firma digital: " +
+          (e.message || e),
+      );
+    } finally {
+      setGuardando(false);
+      setMostrarModalFirma(false);
+    }
+  }
+
   if (!actual) {
     return (
       <div className="space-y-5">
@@ -214,6 +277,23 @@ export default function Entrega() {
             Selecciona la visita abierta que quieres cerrar.
           </p>
         </div>
+
+        {cargandoDB && (
+          <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+            <span className="text-sm font-semibold">
+              Cargando datos e inicializando la base de datos… Por favor, espera
+              un momento.
+            </span>
+          </div>
+        )}
+
+        {errorDB && (
+          <Aviso tipo="error">
+            Error al conectar con la base de datos: {errorDB}. Comprueba tu
+            conexión o recarga la página.
+          </Aviso>
+        )}
         <Card
           title="Imprimir ficha en blanco"
           subtitle="Para rellenar la entrega a mano cuando aún no hay una visita abierta que cerrar."
@@ -286,6 +366,23 @@ export default function Entrega() {
           acordado: {actual.visita.precio ? `${actual.visita.precio} €` : "—"}
         </p>
       </div>
+
+      {cargandoDB && (
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <span className="text-sm font-semibold">
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
+          </span>
+        </div>
+      )}
+
+      {errorDB && (
+        <Aviso tipo="error">
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
+        </Aviso>
+      )}
 
       <Card title="Imprimir ficha">
         <Aviso tipo="info">
@@ -429,6 +526,65 @@ export default function Entrega() {
             )}
           </div>
         </div>
+
+        {/* Desglose total inline (Constitution III & SC-008) */}
+        {actual && (
+          <div className="mt-5 border-t border-brand-200 pt-4">
+            <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wide mb-2">
+              Desglose contractual del importe final
+            </h4>
+            <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-brand-700">
+                  {actual.visita.interrumpida
+                    ? `Base retenida (interrupción: ${actual.visita.interrupcion_motivo || "servicio interrumpido"}):`
+                    : "Precio base acordado:"}
+                </span>
+                <span className="font-semibold text-brand-900">
+                  {desglose.base.toFixed(2)} €
+                </span>
+              </div>
+
+              {(actual.visita.cargos || [])
+                .filter(
+                  (c) =>
+                    c.respuesta === "acordado_ingreso" ||
+                    c.respuesta === "aceptado",
+                )
+                .map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex justify-between text-xs text-brand-700"
+                  >
+                    <span>
+                      +{" "}
+                      {c.tipo === "manipulacion"
+                        ? "Recargo manipulación difícil"
+                        : c.tipo === "parasitos"
+                          ? `Tratamiento antiparasitario (${c.descripcion})`
+                          : `Tratamiento médico (${c.descripcion})`}
+                      :
+                    </span>
+                    <span className="font-semibold text-brand-800">
+                      {Number(c.importe).toFixed(2)} €
+                    </span>
+                  </div>
+                ))}
+
+              {recargo > 0 && (
+                <div className="flex justify-between text-xs text-amber-800 font-semibold">
+                  <span>+ Recargo por demora ({minutosExtra} min extra):</span>
+                  <span>{recargo.toFixed(2)} €</span>
+                </div>
+              )}
+
+              <div className="flex justify-between pt-2 border-t border-brand-200 text-base font-bold text-brand-900">
+                <span>TOTAL A COBRAR:</span>
+                <span>{desglose.total.toFixed(2)} €</span>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card title="Imprimir ficha con los datos ya rellenados">
@@ -454,8 +610,8 @@ export default function Entrega() {
         subtitle="Firma del tutor al recoger la mascota, como constancia de la entrega y de haber recibido las indicaciones de cuidado."
       >
         <Aviso tipo="info">
-          Se genera el documento con la línea de firma en blanco para completar
-          a mano. Al guardar, la visita quedará cerrada.
+          Puedes solicitar la firma digital con el móvil del tutor o en la
+          tablet de la tienda, o registrar la firma manual en papel.
         </Aviso>
         <div className="mt-4">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
@@ -466,7 +622,7 @@ export default function Entrega() {
               className="h-6 w-6 accent-[#016581]"
             />
             Confirmo que el tutor firmará la ficha impresa de forma manual al
-            recoger a la mascota.
+            recoger a la mascota (solo para flujo en papel).
           </label>
         </div>
         {error && (
@@ -474,18 +630,26 @@ export default function Entrega() {
             <Aviso tipo="error">{error}</Aviso>
           </div>
         )}
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <PrimaryButton
+            onClick={() => setMostrarModalFirma(true)}
+            disabled={guardando}
+          >
+            📱 Firmar en móvil o tablet (código QR)
+          </PrimaryButton>
+          <button
+            type="button"
             onClick={guardar}
             disabled={!puedeGuardar || guardando}
+            className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
           >
             {guardando
               ? "Guardando…"
-              : "Generar documento en blanco y cerrar visita"}
-          </PrimaryButton>
+              : "Registrar entrega en papel y generar PDF"}
+          </button>
           {!confirmPapel && (
-            <span className="ml-3 text-sm text-brand-500">
-              Confirma la firma en papel.
+            <span className="text-sm text-brand-500">
+              Confirma la firma en papel si usas el formato impreso.
             </span>
           )}
         </div>
@@ -521,6 +685,28 @@ export default function Entrega() {
           <p className="text-sm text-brand-400">Generando código QR…</p>
         )}
       </Card>
+
+      {mostrarModalFirma && (
+        <DispositivoFirma
+          tipo="entrega"
+          payload={{
+            cliente: actual.cliente,
+            mascota: actual.mascota,
+            servicios: actual.visita.servicios,
+            precio: actual.visita.precio,
+            hora_aviso_listo: horaAviso,
+            hora_recogida: horaRecogida,
+            minutos_demora: minutosExtra,
+            recargo_por_demora: recargo,
+            total: desglose.total,
+            cuidados_checklist: cuidados,
+            notas_cuidado_entrega: notasCuidado,
+          }}
+          onFirmada={handleFirmaDigitalCompletada}
+          onUsarPapel={() => setMostrarModalFirma(false)}
+          onCerrar={() => setMostrarModalFirma(false)}
+        />
+      )}
     </div>
   );
 }

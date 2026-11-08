@@ -46,6 +46,70 @@ export function calcularRecargo(horaAviso, horaRecogida) {
   return { minutosExtra, recargo };
 }
 
+export function minutosInvertidos(horaInicio, horaInterrupcion) {
+  if (!horaInicio || !horaInterrupcion) return 0;
+  const [h1, m1] = horaInicio.split(":").map(Number);
+  const [h2, m2] = horaInterrupcion.split(":").map(Number);
+  let diff = h2 * 60 + m2 - (h1 * 60 + m1);
+  if (diff < 0) diff += 24 * 60; // cruza la medianoche
+  return diff;
+}
+
+export function calcularImporteRetenido({
+  precio,
+  duracionEstimadaMin,
+  horaInicio,
+  horaInterrupcion,
+  comportamientoDeclarado,
+}) {
+  const p = Number(precio) || 0;
+  if (!comportamientoDeclarado) {
+    return Math.round((p + Number.EPSILON) * 100) / 100;
+  }
+  const duracion = Number(duracionEstimadaMin) || 0;
+  if (duracion <= 0) {
+    return Math.round((p + Number.EPSILON) * 100) / 100;
+  }
+  const minutos = minutosInvertidos(horaInicio, horaInterrupcion);
+  const proporcion = Math.min(1, minutos / duracion);
+  const retenido = p * proporcion;
+  return Math.round((retenido + Number.EPSILON) * 100) / 100;
+}
+
+export function calcularTotalVisita(visita = {}) {
+  const base = visita.interrumpida
+    ? Math.round(
+        ((Number(visita.importe_retenido) || 0) + Number.EPSILON) * 100,
+      ) / 100
+    : Math.round(((Number(visita.precio) || 0) + Number.EPSILON) * 100) / 100;
+
+  let recargoDemora = 0;
+  if (visita.recargo_demora != null) {
+    recargoDemora = Number(visita.recargo_demora) || 0;
+  } else if (visita.recargoDemora != null) {
+    recargoDemora = Number(visita.recargoDemora) || 0;
+  } else if (visita.hora_aviso_recogida && visita.hora_recogida) {
+    recargoDemora = calcularRecargo(
+      visita.hora_aviso_recogida,
+      visita.hora_recogida,
+    ).recargo;
+  }
+
+  const cargosList = Array.isArray(visita.cargos) ? visita.cargos : [];
+  const cargosSum = cargosList
+    .filter(
+      (c) =>
+        c && (c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado"),
+    )
+    .reduce((sum, c) => sum + (Number(c.importe) || 0), 0);
+  const cargos = Math.round((cargosSum + Number.EPSILON) * 100) / 100;
+
+  const total =
+    Math.round((base + recargoDemora + cargos + Number.EPSILON) * 100) / 100;
+
+  return { base, recargoDemora, cargos, total };
+}
+
 export function descargarJSON(obj, nombre) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], {
     type: "application/json",

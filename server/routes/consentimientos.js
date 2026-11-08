@@ -40,6 +40,48 @@ router.post("/", async (req, res, next) => {
     const c = req.body;
     const id = uid("con");
 
+    if (c.firma_tipo === "digital" && (!c.firma || !c.firma_tienda)) {
+      return res.status(400).json({
+        error:
+          "La firma digital requiere tanto la firma del tutor como la firma de la tienda",
+      });
+    }
+
+    const formatoAceptacion = c.formato_aceptacion || "clausulas";
+    if (formatoAceptacion === "bloques") {
+      if (!c.legal_hashes || typeof c.legal_hashes !== "object") {
+        return res.status(400).json({
+          error:
+            "Se requieren las huellas de los textos legales (legal_hashes)",
+        });
+      }
+      if (
+        !c.legal_hashes.terminos ||
+        !c.legal_hashes.imagenes ||
+        !c.legal_hashes.comunicaciones
+      ) {
+        return res.status(400).json({
+          error:
+            "Faltan huellas requeridas (terminos, imagenes, comunicaciones)",
+        });
+      }
+
+      // Comprobar si el cliente ya tenía consentimiento previo activo para omitir rgpd
+      const earlier = await pool
+        .request()
+        .input("cliente_id", sql.NVarChar, c.cliente_id)
+        .query(
+          "SELECT TOP 1 id FROM dbo.consentimientos WHERE cliente_id = @cliente_id AND estado = 'aceptado' AND revocado IS NULL",
+        );
+      const tieneConsentimientoPrevio = earlier.recordset.length > 0;
+      if (!tieneConsentimientoPrevio && !c.legal_hashes.rgpd) {
+        return res.status(400).json({
+          error:
+            "Falta la huella de protección de datos (rgpd) para un nuevo cliente",
+        });
+      }
+    }
+
     // Phase 1: blocking SiWeb360 search (must complete before response so we can return candidates)
     let siwebSearchResult = { type: "none" };
     let siwebCliente = null;
@@ -87,15 +129,22 @@ router.post("/", async (req, res, next) => {
       .input("autoriza_comunicaciones", sql.Bit, !!c.autoriza_comunicaciones)
       .input("legal_version", sql.NVarChar, c.legal_version)
       .input("legal_hash", sql.Char(64), c.legal_hash)
+      .input("formato_aceptacion", sql.NVarChar, formatoAceptacion)
+      .input(
+        "legal_hashes",
+        sql.NVarChar(sql.MAX),
+        c.legal_hashes ? JSON.stringify(c.legal_hashes) : null,
+      )
+      .input("firma_sesion_id", sql.NVarChar, c.firma_sesion_id || null)
       .input("creado_por", sql.NVarChar, currentUser(req)).query(`
         INSERT INTO dbo.consentimientos
           (id, cliente_id, mascota_id, fecha, firma_tipo, firma, firma_tienda, clausulas_respuestas, estado,
            condiciones_preexistentes, condiciones_preexistentes_otras, autoriza_fotos,
-           autoriza_comunicaciones, legal_version, legal_hash, creado_por)
+           autoriza_comunicaciones, legal_version, legal_hash, formato_aceptacion, legal_hashes, firma_sesion_id, creado_por)
         VALUES
           (@id, @cliente_id, @mascota_id, @fecha, @firma_tipo, @firma, @firma_tienda, @clausulas_respuestas, @estado,
            @condiciones_preexistentes, @condiciones_preexistentes_otras, @autoriza_fotos,
-           @autoriza_comunicaciones, @legal_version, @legal_hash, @creado_por)
+           @autoriza_comunicaciones, @legal_version, @legal_hash, @formato_aceptacion, @legal_hashes, @firma_sesion_id, @creado_por)
       `);
 
     const responseBody = { id };

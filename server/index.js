@@ -8,8 +8,9 @@ import consentimientosRouter from "./routes/consentimientos.js";
 import visitasRouter from "./routes/visitas.js";
 import tratamientosRouter from "./routes/tratamientos.js";
 import siweb360Router from "./routes/siweb360.js";
+import firmaRouter from "./routes/firma.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { rateLimiter } from "./middleware/rateLimiter.js";
+import { rateLimiter, firmaRateLimiter } from "./middleware/rateLimiter.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -17,6 +18,10 @@ const app = express();
 // Las firmas van como PNG en base64 dentro del JSON; el límite por defecto de
 // Express (100kb) se queda corto.
 app.use(express.json({ limit: "5mb" }));
+
+// Rate limiter específico para firma antes del rate limiter global
+app.use("/api/firma", firmaRateLimiter, firmaRouter);
+
 app.use(rateLimiter);
 
 app.use("/api/me", authRouter);

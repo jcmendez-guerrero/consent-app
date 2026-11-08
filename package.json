@@ -12,6 +12,7 @@
     "postinstall": "npm run build",
     "preview": "vite preview",
     "start": "node server/index.js",
+    "test": "node --test tests/unit",
     "db:migrate": "node server/db/migrate.js"
   },
   "dependencies": {

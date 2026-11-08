@@ -12,14 +12,14 @@ import {
   LEGAL_VERSION,
   textoLegalCompleto,
   hashTexto,
+  hashesConsentimiento,
+  RESUMEN_TERMINOS,
+  RESUMEN_RGPD,
+  RESUMEN_IMAGENES,
+  clausulasTerminos,
 } from "../lib/legal";
-import {
-  Card,
-  PrimaryButton,
-  Aviso,
-  ClauseBlock,
-  CheckBlock,
-} from "../components/ui";
+import { Card, PrimaryButton, Aviso } from "../components/ui";
+import BloqueAceptacion from "../components/BloqueAceptacion";
 
 function Dato({ etiqueta, valor }) {
   return (
@@ -35,9 +35,12 @@ function Dato({ etiqueta, valor }) {
 export default function ConsentimientoConfirmar() {
   const navigate = useNavigate();
   const { state: draft } = useLocation();
-  const [respuestas, setRespuestas] = useState({});
+
+  const [decisionTerminos, setDecisionTerminos] = useState(null); // 'acepta' | 'rechaza' | null
+  const [decisionRgpd, setDecisionRgpd] = useState(null); // 'acepta' | 'rechaza' | null
   const [autorizaFotos, setAutorizaFotos] = useState(false);
   const [autorizaComunicaciones, setAutorizaComunicaciones] = useState(false);
+
   const [confirmado, setConfirmado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -48,20 +51,25 @@ export default function ConsentimientoConfirmar() {
   if (!draft?.mascota) return <Navigate to="/consentimiento" replace />;
 
   const clausulasVisibles = draft.excluyeRgpd
-    ? CLAUSULAS_CONSENTIMIENTO.filter((c) => c.id !== "rgpd")
+    ? clausulasTerminos()
     : CLAUSULAS_CONSENTIMIENTO;
-  const todasRespondidas = clausulasVisibles.every((c) => respuestas[c.id]);
-  const bloqueantes = clausulasVisibles.filter(
-    (c) => c.obligatoria && respuestas[c.id] === "rechaza",
-  );
-  const hayIncompatibilidad = bloqueantes.length > 0;
 
-  function setRespuesta(id, value) {
-    setRespuestas((prev) => ({ ...prev, [id]: value }));
-  }
+  const terminosRespondidos = !!decisionTerminos;
+  const rgpdRespondido = draft.excluyeRgpd || !!decisionRgpd;
+  const todasRespondidas = terminosRespondidos && rgpdRespondido;
+
+  const rgpdRechazado = !draft.excluyeRgpd && decisionRgpd === "rechaza";
+  const terminosRechazados = decisionTerminos === "rechaza";
 
   async function confirmarYProceder() {
     if (!todasRespondidas || !confirmado || guardando || guardado) return;
+    if (rgpdRechazado) {
+      setError(
+        "El tutor debe aceptar el tratamiento de datos personales (RGPD) para poder registrar el consentimiento.",
+      );
+      return;
+    }
+
     setGuardando(true);
     setError("");
     try {
@@ -70,12 +78,28 @@ export default function ConsentimientoConfirmar() {
         ...draft.mascota,
         cliente_id: clienteId,
       });
+
+      const respuestas = {
+        servicios: decisionTerminos,
+        veracidad: decisionTerminos,
+        exoneracion: decisionTerminos,
+        emergencias: decisionTerminos,
+        vigencia: decisionTerminos,
+      };
+      if (!draft.excluyeRgpd) {
+        respuestas.rgpd = decisionRgpd;
+      }
+
       const textoAceptado = textoLegalCompleto([
         ...clausulasVisibles,
         CLAUSULA_IMAGENES,
         CLAUSULA_COMUNICACIONES,
       ]);
-      const estado = hayIncompatibilidad ? "rechazado" : "aceptado";
+      const legalHashes = await hashesConsentimiento({
+        excluyeRgpd: draft.excluyeRgpd,
+      });
+
+      const estado = terminosRechazados ? "rechazado" : "aceptado";
       const consentimiento = {
         cliente_id: clienteId,
         mascota_id: mascotaId,
@@ -90,7 +114,11 @@ export default function ConsentimientoConfirmar() {
         autoriza_comunicaciones: autorizaComunicaciones,
         legal_version: LEGAL_VERSION,
         legal_hash: await hashTexto(textoAceptado),
+        formato_aceptacion: "bloques",
+        legal_hashes: legalHashes,
+        firma_sesion_id: null,
       };
+
       const result = await guardarConsentimiento(consentimiento);
 
       if (result.siweb360_candidates?.length > 0) {
@@ -104,97 +132,111 @@ export default function ConsentimientoConfirmar() {
         return;
       }
 
-      setGuardando(false);
       setGuardado({ estado, mascotaId });
-      if (estado === "aceptado") navigate("/ingreso?mascota=" + mascotaId);
+      if (estado === "aceptado") {
+        setTimeout(() => navigate(`/ingreso?mascota=${mascotaId}`), 1200);
+      }
     } catch (e) {
       console.error(e);
+      setError("No se pudo guardar el consentimiento. Inténtalo de nuevo.");
+    } finally {
       setGuardando(false);
-      setError("No se pudo guardar el consentimiento: " + (e.message || e));
     }
   }
 
-  async function resolverSiweb(action, contactId) {
+  async function handleResolverSiweb(contactoId) {
     if (!siwebModal || siwebResolviendo) return;
     setSiwebResolviendo(true);
     try {
-      await fetch("/api/siweb360/resolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          consentimiento_id: siwebModal.consentimientoId,
-          action,
-          contact_id: contactId,
-        }),
-      });
-    } catch (e) {
-      console.error("[siweb360] resolve failed:", e);
-    } finally {
+      const res = await fetch(
+        `/api/siweb360/resolve/${siwebModal.consentimientoId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contactoId }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
       const { mascotaId, estado } = siwebModal;
       setSiwebModal(null);
-      setSiwebResolviendo(false);
       setGuardado({ estado, mascotaId });
-      if (estado === "aceptado") navigate("/ingreso?mascota=" + mascotaId);
+      if (estado === "aceptado") {
+        setTimeout(() => navigate(`/ingreso?mascota=${mascotaId}`), 800);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(
+        "No se pudo resolver la vinculación con SiWeb360: " + err.message,
+      );
+    } finally {
+      setSiwebResolviendo(false);
     }
   }
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-brand-700">
-          Confirmación — Consentimiento en papel
+        <h1 className="text-2xl font-bold text-brand-800">
+          Confirmar consentimiento firmado en papel
         </h1>
-        <p className="text-sm text-brand-400">
-          El tutor ya ha leído y firmado el documento a mano. Marca aquí,
-          cláusula por cláusula, lo que aceptó o rechazó en el papel.
+        <p className="text-sm text-brand-500">
+          Revisa los datos y marca las decisiones que el tutor indicó en el
+          documento impreso.
         </p>
       </div>
 
       {siwebModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="mb-2 text-lg font-bold text-brand-800">
-              Contacto ambiguo en SiWeb360
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-brand-800">
+              Coincidencias encontradas en SiWeb360
             </h2>
-            <p className="mb-4 text-sm text-brand-600">
-              Se encontraron varios contactos con el mismo nombre. Selecciona el
-              correcto o crea uno nuevo.
+            <p className="mt-1 text-sm text-brand-600">
+              Existen varios contactos en SiWeb360 que coinciden con los datos
+              del cliente. Selecciona el contacto adecuado para vincularlo o
+              crea uno nuevo:
             </p>
-            <div className="mb-4 space-y-2">
-              {siwebModal.candidates.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50 px-4 py-3"
+            <div className="mt-4 max-h-60 space-y-2 overflow-y-auto">
+              {siwebModal.candidates.map((cand) => (
+                <button
+                  key={cand.id}
+                  type="button"
+                  onClick={() => handleResolverSiweb(cand.id)}
+                  disabled={siwebResolviendo}
+                  className="w-full rounded-xl border border-brand-200 p-3 text-left transition hover:border-brand-500 hover:bg-brand-50"
                 >
-                  <div>
-                    <p className="font-semibold text-brand-800">
-                      {c.nombre || c.name}
-                    </p>
-                    {(c.email || c.telefono) && (
-                      <p className="text-xs text-brand-500">
-                        {[c.email, c.telefono].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={siwebResolviendo}
-                    onClick={() => resolverSiweb("select", c.id)}
-                    className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-50"
-                  >
-                    Seleccionar
-                  </button>
-                </div>
+                  <p className="font-semibold text-brand-800">
+                    {cand.nombre || "Sin nombre"}
+                  </p>
+                  <p className="text-xs text-brand-500">
+                    ID: {cand.id} · Tel: {cand.telefono || "—"} · Email:{" "}
+                    {cand.email || "—"}
+                  </p>
+                </button>
               ))}
             </div>
-            <button
-              type="button"
-              disabled={siwebResolviendo}
-              onClick={() => resolverSiweb("create", null)}
-              className="w-full rounded-xl border border-brand-300 bg-white py-2.5 text-sm font-bold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
-            >
-              Crear nuevo contacto en SiWeb360
-            </button>
+            <div className="mt-4 flex justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => handleResolverSiweb(null)}
+                disabled={siwebResolviendo}
+                className="rounded-xl border border-brand-300 px-4 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+              >
+                Crear contacto nuevo
+              </button>
+              {siwebResolviendo && (
+                <span className="self-center text-xs text-brand-500">
+                  Sincronizando…
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -222,48 +264,73 @@ export default function ConsentimientoConfirmar() {
       </Card>
 
       <Card
-        title="Cláusulas marcadas por el tutor"
-        subtitle="Marca aquí, para cada cláusula, lo que el tutor marcó a mano en el papel firmado."
+        title="1 · Condiciones de prestación del servicio"
+        subtitle="Cláusulas contractuales del servicio de peluquería (1 a 5)."
       >
-        <div className="space-y-3">
-          {clausulasVisibles.map((c) => (
-            <ClauseBlock
-              key={c.id}
-              titulo={c.titulo}
-              texto={c.texto}
-              value={respuestas[c.id] || null}
-              onChange={(v) => setRespuesta(c.id, v)}
-            />
-          ))}
-        </div>
+        <BloqueAceptacion
+          titulo="Términos y condiciones del servicio (Cláusulas 1 a 5)"
+          resumen={RESUMEN_TERMINOS}
+          clausulas={clausulasTerminos()}
+          valor={decisionTerminos}
+          onChange={setDecisionTerminos}
+        />
       </Card>
 
-      {hayIncompatibilidad && (
+      {terminosRechazados && (
         <Aviso tipo="error">
-          ⚠️ El tutor ha rechazado cláusulas obligatorias (
-          {bloqueantes.map((c) => c.titulo).join("; ")}). El consentimiento
-          quedará registrado, pero no es válido para el ingreso.
+          ⚠️ El tutor ha rechazado los términos del servicio. El consentimiento
+          quedará registrado como rechazado y no es válido para el ingreso.
         </Aviso>
       )}
 
       <Card
-        title="Autorizaciones opcionales marcadas por el tutor"
-        subtitle="Marca lo que el tutor autorizó en el papel firmado. Son independientes: el servicio se presta igual aunque no se marquen."
+        title="2 · Protección de datos (RGPD) y comunicaciones"
+        subtitle="Tratamiento de datos personales del tutor y avisos comerciales."
       >
-        <div className="space-y-3">
-          <CheckBlock
-            titulo={CLAUSULA_IMAGENES.titulo}
-            texto={CLAUSULA_IMAGENES.texto}
-            checked={autorizaFotos}
-            onChange={setAutorizaFotos}
-            labelAcepto="El tutor autoriza el uso de imágenes de su mascota"
-          />
-          <CheckBlock
+        <div className="space-y-4">
+          {!draft.excluyeRgpd && (
+            <BloqueAceptacion
+              titulo="Protección de datos (RGPD / LOPDGDD)"
+              resumen={RESUMEN_RGPD}
+              clausulas={[
+                CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd"),
+              ]}
+              valor={decisionRgpd}
+              onChange={setDecisionRgpd}
+            />
+          )}
+
+          <BloqueAceptacion
             titulo={CLAUSULA_COMUNICACIONES.titulo}
-            texto={CLAUSULA_COMUNICACIONES.texto}
-            checked={autorizaComunicaciones}
+            resumen="Consentimiento opcional para recibir comunicaciones por WhatsApp, email o SMS."
+            clausulas={[CLAUSULA_COMUNICACIONES]}
+            valor={autorizaComunicaciones}
             onChange={setAutorizaComunicaciones}
-            labelAcepto="El tutor da su consentimiento expreso para recibir comunicaciones"
+            opcional={true}
+          />
+        </div>
+      </Card>
+
+      {rgpdRechazado && (
+        <Aviso tipo="error">
+          ⚠️ El tutor ha rechazado la protección de datos (RGPD). No es posible
+          completar ni registrar el consentimiento sin la aceptación del
+          tratamiento de datos personales conforme al RGPD.
+        </Aviso>
+      )}
+
+      <Card
+        title="3 · Fotografías y redes sociales (opcional)"
+        subtitle="Marca si el tutor autorizó fotos en el papel firmado. Es independiente: el servicio se presta igual aunque no se marque."
+      >
+        <div className="space-y-4">
+          <BloqueAceptacion
+            titulo={CLAUSULA_IMAGENES.titulo}
+            resumen={RESUMEN_IMAGENES}
+            clausulas={[CLAUSULA_IMAGENES]}
+            valor={autorizaFotos}
+            onChange={setAutorizaFotos}
+            opcional={true}
           />
         </div>
       </Card>
@@ -271,7 +338,7 @@ export default function ConsentimientoConfirmar() {
       {guardado ? (
         <Aviso tipo={guardado.estado === "aceptado" ? "ok" : "error"}>
           {guardado.estado === "aceptado"
-            ? "Consentimiento guardado correctamente."
+            ? "Consentimiento guardado correctamente. Redirigiendo al ingreso…"
             : "Consentimiento registrado como rechazado. No se puede proceder al ingreso hasta resolverlo."}
         </Aviso>
       ) : (
@@ -283,7 +350,7 @@ export default function ConsentimientoConfirmar() {
               onChange={(e) => setConfirmado(e.target.checked)}
               className="mt-0.5 h-6 w-6 accent-[#016581]"
             />
-            He verificado que las cláusulas marcadas arriba coinciden con el
+            He verificado que las decisiones marcadas arriba coinciden con el
             formulario firmado por el tutor.
           </label>
         </Card>
@@ -295,11 +362,13 @@ export default function ConsentimientoConfirmar() {
         {!guardado && (
           <PrimaryButton
             onClick={confirmarYProceder}
-            disabled={!todasRespondidas || !confirmado || guardando}
+            disabled={
+              !todasRespondidas || !confirmado || guardando || rgpdRechazado
+            }
           >
             {guardando
               ? "Guardando…"
-              : hayIncompatibilidad
+              : terminosRechazados
                 ? "Confirmar y registrar (rechazado)"
                 : "Confirmar y proceder al ingreso"}
           </PrimaryButton>
@@ -315,7 +384,8 @@ export default function ConsentimientoConfirmar() {
         )}
         {!guardado && !todasRespondidas && (
           <span className="self-center text-sm text-brand-500">
-            Marca Acepto / No acepto en todas las cláusulas.
+            Marca tu respuesta en los términos
+            {!draft.excluyeRgpd ? " y la protección de datos" : ""}.
           </span>
         )}
         {guardado && guardado.estado !== "aceptado" && (

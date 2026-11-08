@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useDirty } from "../contexts/DirtyContext";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { useDB } from "../lib/store";
+import {
+  useDB,
+  useDBStatus,
+  upsertCliente,
+  upsertMascota,
+  guardarConsentimiento,
+  consumirSesionFirma,
+} from "../lib/store";
 import {
   CLAUSULAS_CONSENTIMIENTO,
   CLAUSULA_IMAGENES,
@@ -10,6 +17,11 @@ import {
   LEGAL_VERSION,
   textoLegalCompleto,
   hashTexto,
+  hashesConsentimiento,
+  RESUMEN_TERMINOS,
+  RESUMEN_RGPD,
+  RESUMEN_IMAGENES,
+  clausulasTerminos,
 } from "../lib/legal";
 import { pdfConsentimiento } from "../lib/pdf";
 import {
@@ -20,6 +32,8 @@ import {
   Chip,
   Aviso,
 } from "../components/ui";
+import BloqueAceptacion from "../components/BloqueAceptacion";
+import DispositivoFirma from "../components/DispositivoFirma";
 
 const CLIENTE_VACIO = {
   nombre_apellidos: "",
@@ -40,6 +54,7 @@ const ESPECIES = ["perro", "gato", "conejo", "hámster", "cobaya", "otro"];
 
 export default function Consentimiento() {
   const db = useDB();
+  const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const clienteIdParam = params.get("cliente");
@@ -62,6 +77,7 @@ export default function Consentimiento() {
     borrador?.condicionesOtras ?? "",
   );
   const [generando, setGenerando] = useState(false);
+  const [mostrarModalFirma, setMostrarModalFirma] = useState(false);
   const [error, setError] = useState("");
 
   // db se carga de forma asíncrona: si el cliente/mascota referenciados en la URL
@@ -179,6 +195,114 @@ export default function Consentimiento() {
     }
   }
 
+  async function handleFirmaDigitalCompletada(resultado, sesionId) {
+    if (!datosOk) return;
+    setError("");
+    try {
+      // 1. Verificación de versiones y hashes
+      const localHashes = await hashesConsentimiento({
+        excluyeRgpd: tieneConsentimientoPrevio,
+      });
+
+      if (
+        resultado.legal_version !== LEGAL_VERSION ||
+        resultado.legal_hashes?.terminos !== localHashes.terminos ||
+        (!tieneConsentimientoPrevio &&
+          resultado.legal_hashes?.rgpd !== localHashes.rgpd)
+      ) {
+        setError(
+          "La tablet tiene una versión desactualizada del texto legal. Por favor, actualiza la página en la tablet e inténtalo de nuevo.",
+        );
+        setMostrarModalFirma(false);
+        return;
+      }
+
+      if (
+        !tieneConsentimientoPrevio &&
+        resultado.decisiones?.rgpd === "rechaza"
+      ) {
+        setError(
+          "El tutor debe aceptar el tratamiento de datos personales (RGPD) para poder registrar el consentimiento.",
+        );
+        setMostrarModalFirma(false);
+        return;
+      }
+
+      // 2. Persistir cliente y mascota
+      const clienteId = await upsertCliente(cliente);
+      const mascotaId = await upsertMascota({
+        ...mascota,
+        cliente_id: clienteId,
+      });
+
+      // 3. Respuestas y estado
+      const decisionTerminos = resultado.decisiones?.terminos || "acepta";
+      const terminosRechazados = decisionTerminos === "rechaza";
+      const estado = terminosRechazados ? "rechazado" : "aceptado";
+
+      const respuestas = {
+        servicios: decisionTerminos,
+        veracidad: decisionTerminos,
+        exoneracion: decisionTerminos,
+        emergencias: decisionTerminos,
+        vigencia: decisionTerminos,
+      };
+      if (!tieneConsentimientoPrevio) {
+        respuestas.rgpd = resultado.decisiones?.rgpd || "acepta";
+      }
+
+      const textoAceptado = textoLegalCompleto([
+        ...clausulasVisibles,
+        CLAUSULA_IMAGENES,
+        CLAUSULA_COMUNICACIONES,
+      ]);
+
+      const consentimiento = {
+        cliente_id: clienteId,
+        mascota_id: mascotaId,
+        fecha: new Date().toISOString(),
+        firma_tipo: "digital",
+        firma: resultado.firma_tutor,
+        firma_tienda: resultado.firma_tienda,
+        clausulas_respuestas: respuestas,
+        estado,
+        condiciones_preexistentes: condicionesPreexistentes,
+        condiciones_preexistentes_otras: condicionesOtras,
+        autoriza_fotos: !!resultado.decisiones?.fotos,
+        autoriza_comunicaciones: !!resultado.decisiones?.comunicaciones,
+        legal_version: LEGAL_VERSION,
+        legal_hash: await hashTexto(textoAceptado),
+        formato_aceptacion: "bloques",
+        legal_hashes: resultado.legal_hashes,
+        firma_sesion_id: sesionId,
+      };
+
+      const result = await guardarConsentimiento(consentimiento);
+      await consumirSesionFirma(sesionId);
+
+      await pdfConsentimiento({
+        cliente: { ...cliente, id: clienteId },
+        mascota: { ...mascota, id: mascotaId, cliente_id: clienteId },
+        consentimiento: { ...consentimiento, id: result.id },
+        clausulas: clausulasVisibles,
+        clausulaImagenes: CLAUSULA_IMAGENES,
+        clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
+      });
+
+      setDirty(false);
+      setMostrarModalFirma(false);
+      if (estado === "aceptado") {
+        navigate(`/ingreso?mascota=${mascotaId}`);
+      } else {
+        navigate("/clientes");
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Error al registrar la firma digital: " + (e.message || e));
+      setMostrarModalFirma(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -190,6 +314,23 @@ export default function Consentimiento() {
           revocación expresa por escrito.
         </p>
       </div>
+
+      {cargandoDB && (
+        <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+          <span className="text-sm font-semibold">
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
+          </span>
+        </div>
+      )}
+
+      {errorDB && (
+        <Aviso tipo="error">
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
+        </Aviso>
+      )}
 
       <Card title="1 · Datos del tutor">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -355,15 +496,23 @@ export default function Consentimiento() {
             <Aviso tipo="error">{error}</Aviso>
           </div>
         )}
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <PrimaryButton
+            onClick={() => setMostrarModalFirma(true)}
+            disabled={!datosOk || generando}
+          >
+            📱 Firmar en dispositivo de la tienda
+          </PrimaryButton>
+          <button
+            type="button"
             onClick={generarEImprimir}
             disabled={!datosOk || generando}
+            className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
           >
             {generando
               ? "Generando…"
-              : "Generar e imprimir consentimiento en blanco"}
-          </PrimaryButton>
+              : "Generar e imprimir consentimiento en papel"}
+          </button>
           {!datosOk && (
             <span className="text-sm text-brand-500">
               Faltan datos obligatorios del tutor o la mascota.
@@ -371,24 +520,78 @@ export default function Consentimiento() {
           )}
         </div>
 
-        <div className="space-y-2.5">
-          {clausulasVisibles.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-xl border border-dashed border-brand-300 bg-white p-4"
-            >
-              <h4 className="mb-1 font-semibold text-brand-700">{c.titulo}</h4>
-              <p className="text-sm leading-relaxed text-brand-900/80">
-                {c.texto}
-              </p>
-              <p className="mt-2 text-sm font-bold text-brand-400">
-                ☐ Acepto&nbsp;&nbsp;&nbsp;☐ No acepto (a marcar en papel por el
-                tutor)
-              </p>
+        <div className="space-y-4">
+          <div>
+            <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-600">
+              A · Condiciones de prestación del servicio
+            </h4>
+            <BloqueAceptacion
+              titulo="1. Términos y condiciones del servicio (Cláusulas 1 a 5)"
+              resumen={RESUMEN_TERMINOS}
+              clausulas={clausulasTerminos()}
+              readOnly={true}
+            />
+          </div>
+
+          <div>
+            <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-600">
+              B · Protección de datos personales (RGPD) y comunicaciones
+            </h4>
+            <div className="space-y-3">
+              {!tieneConsentimientoPrevio && (
+                <BloqueAceptacion
+                  titulo="2. Protección de datos (RGPD / LOPDGDD)"
+                  resumen={RESUMEN_RGPD}
+                  clausulas={[
+                    CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd"),
+                  ]}
+                  readOnly={true}
+                />
+              )}
+
+              <BloqueAceptacion
+                titulo="3. Comunicaciones comerciales y recordatorios (opcional)"
+                resumen="Consentimiento opcional para recibir comunicaciones por WhatsApp, email o SMS."
+                clausulas={[CLAUSULA_COMUNICACIONES]}
+                readOnly={true}
+                opcional={true}
+              />
             </div>
-          ))}
+          </div>
+
+          <div>
+            <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-brand-600">
+              C · Fotografías y redes sociales (opcional)
+            </h4>
+            <BloqueAceptacion
+              titulo="4. Fotografías y redes sociales (opcional)"
+              resumen={RESUMEN_IMAGENES}
+              clausulas={[CLAUSULA_IMAGENES]}
+              readOnly={true}
+              opcional={true}
+            />
+          </div>
         </div>
       </Card>
+
+      {mostrarModalFirma && (
+        <DispositivoFirma
+          tipo="consentimiento"
+          payload={{
+            cliente,
+            mascota,
+            condicionesPreexistentes,
+            condicionesOtras,
+            excluyeRgpd: tieneConsentimientoPrevio,
+          }}
+          onFirmada={handleFirmaDigitalCompletada}
+          onUsarPapel={() => {
+            setMostrarModalFirma(false);
+            generarEImprimir();
+          }}
+          onCerrar={() => setMostrarModalFirma(false)}
+        />
+      )}
     </div>
   );
 }

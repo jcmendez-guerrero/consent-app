@@ -61,6 +61,9 @@ export function mapConsentimiento(row) {
     creado_por: row.creado_por,
     consent_blob_path: row.consent_blob_path ?? null,
     firma_tienda: row.firma_tienda ?? null,
+    formato_aceptacion: row.formato_aceptacion ?? "clausulas",
+    legal_hashes: parseJsonColumn(row.legal_hashes, null),
+    firma_sesion_id: row.firma_sesion_id ?? null,
   };
 }
 
@@ -76,7 +79,7 @@ export function mapVisita(row) {
     estado: row.estado,
     servicios: parseJsonColumn(row.servicios, []),
     tratamiento: row.tratamiento,
-    precio: row.precio,
+    precio: row.precio != null ? Number(row.precio) : 0,
     hallazgos_ingreso: parseJsonColumn(row.hallazgos_ingreso, []),
     hallazgos_entrega: parseJsonColumn(row.hallazgos_entrega, []),
     notas_ingreso: row.notas_ingreso,
@@ -101,5 +104,66 @@ export function mapVisita(row) {
     firma_tienda_ingreso: row.firma_tienda_ingreso ?? null,
     firma_tienda_entrega: row.firma_tienda_entrega ?? null,
     creado_por: row.creado_por,
+    condiciones_version: row.condiciones_version ?? null,
+    condiciones_hash: row.condiciones_hash ?? null,
+    condiciones_con_recargos: !!row.condiciones_con_recargos,
+    duracion_estimada_min:
+      row.duracion_estimada_min != null
+        ? Number(row.duracion_estimada_min)
+        : null,
+    comportamiento_declarado: !!row.comportamiento_declarado,
+    hora_inicio_servicio: row.hora_inicio_servicio ?? null,
+    parasitos_detectados: !!row.parasitos_detectados,
+    parasitos_decision: row.parasitos_decision ?? null,
+    parasitos_motivo: row.parasitos_motivo ?? null,
+    interrumpida: !!row.interrumpida,
+    interrupcion_causa: row.interrupcion_causa ?? null,
+    interrupcion_motivo: row.interrupcion_motivo ?? null,
+    hora_interrupcion: row.hora_interrupcion ?? null,
+    importe_retenido:
+      row.importe_retenido != null ? Number(row.importe_retenido) : null,
+    cargos: Array.isArray(row.cargos) ? row.cargos : [],
+    contactos: Array.isArray(row.contactos) ? row.contactos : [],
+  };
+}
+
+export function mapCargo(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    visita_id: row.visita_id,
+    tipo: row.tipo,
+    descripcion: row.descripcion,
+    importe: row.importe != null ? Number(row.importe) : 0,
+    origen: row.origen ?? null,
+    receta_referencia: row.receta_referencia ?? null,
+    respuesta: row.respuesta,
+    contacto_id: row.contacto_id ?? null,
+    creado_por: row.creado_por ?? null,
+    creado_en:
+      row.creado_en instanceof Date
+        ? row.creado_en.toISOString()
+        : row.creado_en,
+  };
+}
+
+export function mapContacto(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    visita_id: row.visita_id,
+    motivo: row.motivo,
+    canal: row.canal,
+    fecha_hora:
+      row.fecha_hora instanceof Date
+        ? row.fecha_hora.toISOString()
+        : row.fecha_hora,
+    persona: row.persona,
+    resultado: row.resultado,
+    nota: row.nota ?? null,
+    creado_en:
+      row.creado_en instanceof Date
+        ? row.creado_en.toISOString()
+        : row.creado_en,
   };
 }
