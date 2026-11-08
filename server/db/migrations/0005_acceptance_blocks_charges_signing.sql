@@ -10,8 +10,11 @@ ALTER TABLE dbo.consentimientos
 GO
 
 ALTER TABLE dbo.consentimientos
-  ADD CONSTRAINT CK_consentimientos_formato CHECK (formato_aceptacion IN ('clausulas', 'bloques')),
-      CONSTRAINT CK_consentimientos_legal_hashes CHECK (legal_hashes IS NULL OR ISJSON(legal_hashes) = 1);
+  ADD CONSTRAINT CK_consentimientos_formato CHECK (formato_aceptacion IN ('clausulas', 'bloques'));
+GO
+
+ALTER TABLE dbo.consentimientos
+  ADD CONSTRAINT CK_consentimientos_legal_hashes CHECK (legal_hashes IS NULL OR ISJSON(legal_hashes) = 1);
 GO
 
 -- 2. Alter dbo.visitas
@@ -33,9 +36,15 @@ ALTER TABLE dbo.visitas
 GO
 
 ALTER TABLE dbo.visitas
-  ADD CONSTRAINT CK_visitas_duracion_estimada CHECK (duracion_estimada_min IS NULL OR duracion_estimada_min > 0),
-      CONSTRAINT CK_visitas_parasitos_decision CHECK (parasitos_decision IS NULL OR parasitos_decision IN ('tratamiento', 'detener', 'continuar_normal')),
-      CONSTRAINT CK_visitas_interrupcion_causa CHECK (interrupcion_causa IS NULL OR interrupcion_causa IN ('comportamiento', 'parasitos'));
+  ADD CONSTRAINT CK_visitas_duracion_estimada CHECK (duracion_estimada_min IS NULL OR duracion_estimada_min > 0);
+GO
+
+ALTER TABLE dbo.visitas
+  ADD CONSTRAINT CK_visitas_parasitos_decision CHECK (parasitos_decision IS NULL OR parasitos_decision IN ('tratamiento', 'detener', 'continuar_normal'));
+GO
+
+ALTER TABLE dbo.visitas
+  ADD CONSTRAINT CK_visitas_interrupcion_causa CHECK (interrupcion_causa IS NULL OR interrupcion_causa IN ('comportamiento', 'parasitos'));
 GO
 
 -- 3. Create dbo.visita_contactos

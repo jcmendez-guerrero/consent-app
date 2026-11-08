@@ -63,7 +63,12 @@ export default function DispositivoFirma({
   }, [tipo, payload, intento]);
 
   useEffect(() => {
-    if (!sesion?.id || estado === "firmada" || estado === "expirada" || estado === "error") {
+    if (
+      !sesion?.id ||
+      estado === "firmada" ||
+      estado === "expirada" ||
+      estado === "error"
+    ) {
       return;
     }
 
@@ -152,15 +157,20 @@ export default function DispositivoFirma({
             <p className="text-base font-bold text-emerald-800">
               ¡Documento firmado!
             </p>
-            <p className="text-sm text-brand-600">Procesando y guardando datos…</p>
+            <p className="text-sm text-brand-600">
+              Procesando y guardando datos…
+            </p>
           </div>
         )}
 
         {estado === "expirada" && (
           <div className="py-6 space-y-4">
-            <p className="text-base font-bold text-amber-800">Sesión caducada</p>
+            <p className="text-base font-bold text-amber-800">
+              Sesión caducada
+            </p>
             <p className="text-xs text-brand-500">
-              Han transcurrido 10 minutos de inactividad o la sesión fue cerrada.
+              Han transcurrido 10 minutos de inactividad o la sesión fue
+              cerrada.
             </p>
             <div className="flex justify-center gap-3">
               <button

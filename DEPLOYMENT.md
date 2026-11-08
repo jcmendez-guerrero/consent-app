@@ -6,7 +6,7 @@ Database. Reflejan exactamente el despliegue ya realizado en el entorno actual.
 ## Recursos de Azure implicados
 
 | Recurso | Nombre |
-|---|---|
+| --- | --- |
 | Resource Group (app) | `azu-rg-app-consent-np-01` |
 | Resource Group (red) | `azu-rg-vnet-np-01` |
 | Región | Spain Central |
@@ -199,7 +199,13 @@ autorizada — la app pedirá el login de Microsoft antes de mostrar nada.
   app funcione — si no, las peticiones a `/api/*` fallarán con
   `Invalid object name 'dbo.clientes'`.
 - **Migración 0005 (Aceptación por bloques, recargos y firma en tablet - Feature 007)**:
-  - **Pre-condición obligatoria**: Ejecutar la migración `server/db/migrations/0005_acceptance_blocks_charges_signing.sql` conectándose con Azure AD o mediante `npm run db:migrate` (con IP autorizada en firewall) **antes** de desplegar la nueva versión del backend y frontend. Añade columnas a `dbo.consentimientos` (`formato_aceptacion`, `legal_hashes`, `firma_sesion_id`), a `dbo.visitas` (`duracion_estimada_min`, `comportamiento_declarado`, `hora_inicio_servicio`, `interrumpida`, etc.) y crea las nuevas tablas `dbo.visita_contactos`, `dbo.visita_cargos` (con índice único filtrado para recargo de manipulación) y `dbo.sesiones_firma`.
+  - **Pre-condición obligatoria**: Ejecutar la migración
+    `server/db/migrations/0005_acceptance_blocks_charges_signing.sql` conectándose con Azure AD o mediante
+    `npm run db:migrate` (con IP autorizada en firewall) **antes** de desplegar la nueva versión del backend
+    y frontend. Añade columnas a `dbo.consentimientos` (`formato_aceptacion`, `legal_hashes`, `firma_sesion_id`),
+    a `dbo.visitas` (`duracion_estimada_min`, `comportamiento_declarado`, `hora_inicio_servicio`, `interrumpida`,
+    etc.) y crea las nuevas tablas `dbo.visita_contactos`, `dbo.visita_cargos` (con índice único filtrado para
+    recargo de manipulación) y `dbo.sesiones_firma`.
   - **Refresco de dispositivos en tienda**: Tras el despliegue del App Service, se recomienda forzar un refresco (F5 / recargar pestaña) en los navegadores de las tablets o teléfonos de firma de la tienda para asegurar que cargan la versión activa del frontend (`LEGAL_VERSION = "2026-11-05.1"`), evitando alertas de desajuste de versión hash (`409 Conflict`) al transferir firmas digitales al mostrador.
 - **Acceso público a SQL**: sigue activo a propósito (ver 1.5). Desactivarlo cierra
   el acceso a cualquier herramienta que no pase por la VNet, incluido este mismo

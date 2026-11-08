@@ -151,10 +151,12 @@ export default function FirmaRemota() {
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg border border-brand-200">
           <div className="text-4xl text-amber-600 mb-2">⏱️</div>
-          <h2 className="text-lg font-bold text-brand-800">Sesión no disponible</h2>
+          <h2 className="text-lg font-bold text-brand-800">
+            Sesión no disponible
+          </h2>
           <p className="mt-2 text-xs text-brand-500">
-            Esta sesión de firma ha caducado, ha sido cancelada o ya ha sido completada.
-            Por seguridad, no se muestran datos personales.
+            Esta sesión de firma ha caducado, ha sido cancelada o ya ha sido
+            completada. Por seguridad, no se muestran datos personales.
           </p>
         </div>
       </div>
@@ -168,7 +170,8 @@ export default function FirmaRemota() {
           <div className="text-5xl text-emerald-600 mb-3">✓</div>
           <h2 className="text-xl font-bold text-brand-800">¡Muchas gracias!</h2>
           <p className="mt-2 text-sm text-brand-600">
-            El documento ha sido firmado y transferido al mostrador correctamente.
+            El documento ha sido firmado y transferido al mostrador
+            correctamente.
           </p>
           <p className="mt-4 text-xs font-semibold text-brand-400">
             Ya puedes devolver el dispositivo al personal de la tienda.
@@ -199,8 +202,8 @@ export default function FirmaRemota() {
                   : "Ficha de ingreso · DermoSpa"}
             </h1>
             <p className="text-xs text-brand-500">
-              Tutor: <strong>{payload.cliente?.nombre_apellidos || "—"}</strong> · Mascota:{" "}
-              <strong>{payload.mascota?.nombre || "—"}</strong>
+              Tutor: <strong>{payload.cliente?.nombre_apellidos || "—"}</strong>{" "}
+              · Mascota: <strong>{payload.mascota?.nombre || "—"}</strong>
             </p>
           </div>
           <button
@@ -279,16 +282,21 @@ export default function FirmaRemota() {
                     Resumen del servicio y recogida
                   </div>
                   <p>
-                    <strong>Servicios:</strong> {(payload.servicios || []).join(", ") || "DermoSpa"}
+                    <strong>Servicios:</strong>{" "}
+                    {(payload.servicios || []).join(", ") || "DermoSpa"}
                   </p>
                   {payload.hora_aviso_listo && (
                     <p>
-                      <strong>Aviso &quot;mascota lista&quot;:</strong> {payload.hora_aviso_listo} · <strong>Hora de recogida:</strong> {payload.hora_recogida || "En curso"}
+                      <strong>Aviso &quot;mascota lista&quot;:</strong>{" "}
+                      {payload.hora_aviso_listo} ·{" "}
+                      <strong>Hora de recogida:</strong>{" "}
+                      {payload.hora_recogida || "En curso"}
                     </p>
                   )}
                   {payload.recargo_por_demora > 0 && (
                     <p className="text-amber-700 font-semibold">
-                      ⚠️ Demora de recogida: recargo de {payload.recargo_por_demora} € aplicado.
+                      ⚠️ Demora de recogida: recargo de{" "}
+                      {payload.recargo_por_demora} € aplicado.
                     </p>
                   )}
                   <p className="text-sm font-bold text-brand-800 pt-1 border-t border-brand-100">
@@ -296,19 +304,29 @@ export default function FirmaRemota() {
                   </p>
                 </div>
 
-                {((payload.cuidados_checklist && payload.cuidados_checklist.length > 0) ||
+                {((payload.cuidados_checklist &&
+                  payload.cuidados_checklist.length > 0) ||
                   payload.notas_cuidado_entrega) && (
                   <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 text-xs space-y-2">
-                    <div className="font-bold text-brand-800">Cuidados posteriores recomendados</div>
-                    {payload.cuidados_checklist && payload.cuidados_checklist.length > 0 && (
-                      <ul className="space-y-1">
-                        {payload.cuidados_checklist.map((c) => (
-                          <li key={c} className="flex items-center gap-1.5 text-brand-700">
-                            <span className="text-emerald-600 font-bold">✓</span> {c}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <div className="font-bold text-brand-800">
+                      Cuidados posteriores recomendados
+                    </div>
+                    {payload.cuidados_checklist &&
+                      payload.cuidados_checklist.length > 0 && (
+                        <ul className="space-y-1">
+                          {payload.cuidados_checklist.map((c) => (
+                            <li
+                              key={c}
+                              className="flex items-center gap-1.5 text-brand-700"
+                            >
+                              <span className="text-emerald-600 font-bold">
+                                ✓
+                              </span>{" "}
+                              {c}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     {payload.notas_cuidado_entrega && (
                       <p className="text-brand-600 italic">
                         Indicaciones: {payload.notas_cuidado_entrega}
@@ -323,7 +341,8 @@ export default function FirmaRemota() {
                   clausulas={[
                     {
                       id: "recibi_conforme",
-                      titulo: "Recepción de la mascota y conformidad del servicio",
+                      titulo:
+                        "Recepción de la mascota y conformidad del servicio",
                       texto:
                         "El/La tutor/a declara recibir al animal en perfecto estado aparente y en conformidad con los servicios de peluquería y spa realizados, habiendo recibido las indicaciones y pautas de cuidado recomendadas.",
                     },
@@ -337,10 +356,22 @@ export default function FirmaRemota() {
             ) : (
               <>
                 <div className="rounded-xl border border-brand-200 bg-white p-4 text-xs space-y-1">
-                  <p><strong>Servicios:</strong> {(payload.servicios || []).join(", ") || "Dermospa"}</p>
-                  <p><strong>Precio base:</strong> {payload.precio} € · <strong>Duración estimada:</strong> {payload.duracion_estimada_min || payload.duracionEstimadaMin} min</p>
+                  <p>
+                    <strong>Servicios:</strong>{" "}
+                    {(payload.servicios || []).join(", ") || "Dermospa"}
+                  </p>
+                  <p>
+                    <strong>Precio base:</strong> {payload.precio} € ·{" "}
+                    <strong>Duración estimada:</strong>{" "}
+                    {payload.duracion_estimada_min ||
+                      payload.duracionEstimadaMin}{" "}
+                    min
+                  </p>
                   {payload.comportamiento_declarado && (
-                    <p className="text-brand-600 font-semibold">✓ El tutor ha comunicado condición o comportamiento especial.</p>
+                    <p className="text-brand-600 font-semibold">
+                      ✓ El tutor ha comunicado condición o comportamiento
+                      especial.
+                    </p>
                   )}
                 </div>
 
@@ -429,7 +460,8 @@ export default function FirmaRemota() {
               Paso 2 de 2: Firma de Mundo Mascotix
             </h3>
             <p className="text-xs text-brand-500">
-              Firma del representante del centro para validar y completar el documento:
+              Firma del representante del centro para validar y completar el
+              documento:
             </p>
             <SignaturePad
               label="Firma Mundo Mascotix (representante)"

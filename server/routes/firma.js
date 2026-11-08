@@ -214,11 +214,15 @@ router.get("/tablet/:token", async (req, res, next) => {
             WHERE id = @id
           `);
       }
-      return res.status(410).json({ error: "Sesión caducada", estado: "expirada" });
+      return res
+        .status(410)
+        .json({ error: "Sesión caducada", estado: "expirada" });
     }
 
     if (sesion.estado === ESTADOS.FIRMADA) {
-      return res.status(410).json({ error: "Sesión ya firmada", estado: "firmada" });
+      return res
+        .status(410)
+        .json({ error: "Sesión ya firmada", estado: "firmada" });
     }
 
     const ahora = new Date();
@@ -275,11 +279,15 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
     const sesion = result.recordset[0];
 
     if (esTerminal(sesion.estado) || estaExpirada(sesion)) {
-      return res.status(410).json({ error: "Sesión caducada", estado: "expirada" });
+      return res
+        .status(410)
+        .json({ error: "Sesión caducada", estado: "expirada" });
     }
 
     if (sesion.estado !== ESTADOS.CONECTADA) {
-      return res.status(409).json({ error: "La sesión no está en estado conectado" });
+      return res
+        .status(409)
+        .json({ error: "La sesión no está en estado conectado" });
     }
 
     const {
@@ -296,7 +304,8 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       (firma_tienda && firma_tienda.length > 1.5 * 1024 * 1024)
     ) {
       return res.status(400).json({
-        error: "El tamaño de la imagen de firma supera el límite permitido (1 MB)",
+        error:
+          "El tamaño de la imagen de firma supera el límite permitido (1 MB)",
       });
     }
 
@@ -304,7 +313,9 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       return res.status(400).json({ error: "Se requieren las decisiones" });
     }
     if (!legal_version || !legal_hashes) {
-      return res.status(400).json({ error: "Faltan versión y huellas legales" });
+      return res
+        .status(400)
+        .json({ error: "Faltan versión y huellas legales" });
     }
 
     const esAceptado =

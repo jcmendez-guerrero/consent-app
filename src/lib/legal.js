@@ -195,7 +195,9 @@ export async function hashesConsentimiento({ excluyeRgpd = false } = {}) {
   const hashes = {
     terminos: await hashTexto(textoLegalCompleto(clausulasTerminos())),
     imagenes: await hashTexto(textoLegalCompleto([CLAUSULA_IMAGENES])),
-    comunicaciones: await hashTexto(textoLegalCompleto([CLAUSULA_COMUNICACIONES])),
+    comunicaciones: await hashTexto(
+      textoLegalCompleto([CLAUSULA_COMUNICACIONES]),
+    ),
   };
   if (!excluyeRgpd && rgpdClause) {
     hashes.rgpd = await hashTexto(textoLegalCompleto([rgpdClause]));

@@ -38,9 +38,10 @@ export function esTerminal(estado) {
 
 export function estaExpirada(sesion, ahora = new Date()) {
   if (!sesion || !sesion.expira_en) return true;
-  const expira = sesion.expira_en instanceof Date
-    ? sesion.expira_en
-    : new Date(sesion.expira_en);
+  const expira =
+    sesion.expira_en instanceof Date
+      ? sesion.expira_en
+      : new Date(sesion.expira_en);
   const act = ahora instanceof Date ? ahora : new Date(ahora);
   return expira.getTime() <= act.getTime();
 }

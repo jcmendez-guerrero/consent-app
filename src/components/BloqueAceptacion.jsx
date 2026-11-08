@@ -35,7 +35,9 @@ export default function BloqueAceptacion({
     >
       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-sm sm:text-base font-bold text-brand-800">{titulo}</h3>
+          <h3 className="text-sm sm:text-base font-bold text-brand-800">
+            {titulo}
+          </h3>
           {resumen && (
             <p className="mt-0.5 text-xs sm:text-sm leading-snug text-brand-900/80">
               {resumen}
@@ -61,7 +63,10 @@ export default function BloqueAceptacion({
           }`}
         >
           {clausulas.map((c, i) => (
-            <div key={c.id || i} className="border-b border-brand-100/70 pb-2 last:border-0 last:pb-0">
+            <div
+              key={c.id || i}
+              className="border-b border-brand-100/70 pb-2 last:border-0 last:pb-0"
+            >
               <p className="font-semibold text-brand-800">{c.titulo}</p>
               <p className="mt-0.5 text-brand-900/80">{c.texto}</p>
             </div>
@@ -96,7 +101,9 @@ export default function BloqueAceptacion({
               </button>
               <button
                 type="button"
-                onClick={() => onChange?.(valor === "rechaza" ? null : "rechaza")}
+                onClick={() =>
+                  onChange?.(valor === "rechaza" ? null : "rechaza")
+                }
                 className={`inline-flex min-h-[44px] min-w-[100px] items-center justify-center rounded-xl border px-4 py-2 text-xs sm:text-sm font-bold transition ${
                   valor === "rechaza"
                     ? "border-red-600 bg-red-600 text-white shadow-sm"
@@ -110,7 +117,9 @@ export default function BloqueAceptacion({
 
           {error && (
             <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
-              <span aria-hidden="true" className="font-bold">⚠️</span>
+              <span aria-hidden="true" className="font-bold">
+                ⚠️
+              </span>
               <span>{error}</span>
             </div>
           )}

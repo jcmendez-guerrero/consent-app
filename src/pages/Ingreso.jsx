@@ -54,7 +54,9 @@ export default function Ingreso() {
 
   const clienteActual = useMemo(() => {
     if (!sel?.mascota) return null;
-    return db.clientes.find((c) => c.id === sel.mascota.cliente_id) || sel.cliente;
+    return (
+      db.clientes.find((c) => c.id === sel.mascota.cliente_id) || sel.cliente
+    );
   }, [db, sel]);
 
   const consentimientoActual = useMemo(() => {
@@ -99,7 +101,8 @@ export default function Ingreso() {
   const totalPresupuestado = (Number(precio) || 0) + totalTratamientos;
 
   const duracionOk =
-    Number(duracionEstimadaMin) > 0 && Number.isInteger(Number(duracionEstimadaMin));
+    Number(duracionEstimadaMin) > 0 &&
+    Number.isInteger(Number(duracionEstimadaMin));
 
   const puedeGuardar =
     consentimientoActual &&
@@ -115,9 +118,7 @@ export default function Ingreso() {
     !visitaAbierta &&
     duracionOk &&
     !guardando;
-    !visitaAbierta &&
-    duracionOk &&
-    !guardando;
+  !visitaAbierta && duracionOk && !guardando;
 
   function toggleServicio(s) {
     setDirty(true);
@@ -167,8 +168,15 @@ export default function Ingreso() {
   }
 
   function agregarTratamiento() {
-    if (!nuevoTratDesc.trim() || !nuevoTratImp || Number(nuevoTratImp) <= 0 || !nuevoTratOrigen) {
-      setError("Indica descripción, importe mayor que 0 y origen para el tratamiento médico.");
+    if (
+      !nuevoTratDesc.trim() ||
+      !nuevoTratImp ||
+      Number(nuevoTratImp) <= 0 ||
+      !nuevoTratOrigen
+    ) {
+      setError(
+        "Indica descripción, importe mayor que 0 y origen para el tratamiento médico.",
+      );
       return;
     }
     setError("");
@@ -240,7 +248,9 @@ export default function Ingreso() {
     setError("");
     setAvisoRechazo(false);
     try {
-      const condicionesHash = await hashTexto(textoLegalCompleto(CLAUSULAS_INGRESO));
+      const condicionesHash = await hashTexto(
+        textoLegalCompleto(CLAUSULAS_INGRESO),
+      );
 
       const visitaBase = {
         mascota_id: sel.mascota.id,
@@ -296,7 +306,10 @@ export default function Ingreso() {
       }
     } catch (e) {
       console.error(e);
-      setError("No se pudo guardar el ingreso: " + (e.message || "Error al conectar con el servidor"));
+      setError(
+        "No se pudo guardar el ingreso: " +
+          (e.message || "Error al conectar con el servidor"),
+      );
     } finally {
       setGuardando(false);
     }
@@ -408,14 +421,16 @@ export default function Ingreso() {
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
           <span className="text-sm font-semibold">
-            Cargando datos e inicializando la base de datos… Por favor, espera un momento.
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
           </span>
         </div>
       )}
 
       {errorDB && (
         <Aviso tipo="error">
-          Error al conectar con la base de datos: {errorDB}. Comprueba tu conexión o recarga la página.
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
         </Aviso>
       )}
 
@@ -544,8 +559,8 @@ export default function Ingreso() {
                 Tratamientos médicos acordados (previos)
               </h4>
               <p className="mt-0.5 text-xs text-brand-500">
-                Tratamientos especiales pactados al ingreso. Se sumarán al total y
-                quedarán autorizados con la firma de esta ficha.
+                Tratamientos especiales pactados al ingreso. Se sumarán al total
+                y quedarán autorizados con la firma de esta ficha.
               </p>
 
               {tratamientosPrevios.length > 0 && (
@@ -556,11 +571,17 @@ export default function Ingreso() {
                       className="flex items-center justify-between rounded-lg border border-brand-200 bg-white p-3 text-sm"
                     >
                       <div>
-                        <span className="font-bold text-brand-800">{t.descripcion}</span>{" "}
-                        <span className="text-brand-600 font-semibold">— {t.importe} €</span>
+                        <span className="font-bold text-brand-800">
+                          {t.descripcion}
+                        </span>{" "}
+                        <span className="text-brand-600 font-semibold">
+                          — {t.importe} €
+                        </span>
                         <div className="text-xs text-brand-500">
                           Origen: {t.origen}
-                          {t.receta_referencia ? ` · Receta: ${t.receta_referencia}` : ""}
+                          {t.receta_referencia
+                            ? ` · Receta: ${t.receta_referencia}`
+                            : ""}
                         </div>
                       </div>
                       <button
@@ -576,7 +597,9 @@ export default function Ingreso() {
               )}
 
               <div className="mt-3 rounded-xl border border-brand-200 bg-white p-3">
-                <p className="mb-2 text-xs font-bold text-brand-700">Añadir tratamiento médico:</p>
+                <p className="mb-2 text-xs font-bold text-brand-700">
+                  Añadir tratamiento médico:
+                </p>
                 <div className="grid gap-3 sm:grid-cols-4">
                   <div className="sm:col-span-2">
                     <TextInput
@@ -602,8 +625,12 @@ export default function Ingreso() {
                       onChange={(e) => setNuevoTratOrigen(e.target.value)}
                     >
                       <option value="tutor">Solicitud del tutor</option>
-                      <option value="veterinario_centro">Recomendación centro</option>
-                      <option value="veterinario_mascota">Prescripción veterinaria</option>
+                      <option value="veterinario_centro">
+                        Recomendación centro
+                      </option>
+                      <option value="veterinario_mascota">
+                        Prescripción veterinaria
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -626,7 +653,9 @@ export default function Ingreso() {
               </div>
 
               <div className="mt-4 flex justify-end text-sm font-bold text-brand-800">
-                <span>Total presupuestado: {totalPresupuestado.toFixed(2)} €</span>
+                <span>
+                  Total presupuestado: {totalPresupuestado.toFixed(2)} €
+                </span>
               </div>
             </div>
           </Card>
@@ -718,7 +747,9 @@ export default function Ingreso() {
                 disabled={!puedeGuardar || guardando}
                 className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
               >
-                {guardando ? "Guardando…" : "Registrar ingreso en papel y generar PDF"}
+                {guardando
+                  ? "Guardando…"
+                  : "Registrar ingreso en papel y generar PDF"}
               </button>
               {servicios.length === 0 && (
                 <span className="text-sm text-brand-500">
@@ -732,7 +763,8 @@ export default function Ingreso() {
               )}
               {servicios.length > 0 && duracionOk && !respuestaCondiciones && (
                 <span className="text-sm text-brand-500">
-                  Indica si el tutor acepta las condiciones (solo para flujo en papel).
+                  Indica si el tutor acepta las condiciones (solo para flujo en
+                  papel).
                 </span>
               )}
               {servicios.length > 0 &&

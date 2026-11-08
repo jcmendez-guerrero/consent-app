@@ -31,7 +31,10 @@ test("solo se permiten las transiciones válidas según la máquina de estados",
   assert.equal(transicionPermitida(ESTADOS.CONECTADA, ESTADOS.FIRMADA), true);
   assert.equal(transicionPermitida(ESTADOS.CONECTADA, ESTADOS.CANCELADA), true);
   assert.equal(transicionPermitida(ESTADOS.CONECTADA, ESTADOS.EXPIRADA), true);
-  assert.equal(transicionPermitida(ESTADOS.CONECTADA, ESTADOS.ESPERANDO), false);
+  assert.equal(
+    transicionPermitida(ESTADOS.CONECTADA, ESTADOS.ESPERANDO),
+    false,
+  );
 
   assert.equal(transicionPermitida(ESTADOS.FIRMADA, ESTADOS.CANCELADA), true); // Consumo/cierre
   assert.equal(transicionPermitida(ESTADOS.FIRMADA, ESTADOS.CONECTADA), false);
@@ -39,7 +42,10 @@ test("solo se permiten las transiciones válidas según la máquina de estados",
 
   // Estados terminales no permiten transiciones de salida
   assert.equal(transicionPermitida(ESTADOS.EXPIRADA, ESTADOS.CONECTADA), false);
-  assert.equal(transicionPermitida(ESTADOS.CANCELADA, ESTADOS.CONECTADA), false);
+  assert.equal(
+    transicionPermitida(ESTADOS.CANCELADA, ESTADOS.CONECTADA),
+    false,
+  );
 });
 
 test("sesiones expiradas rechazan envío y transiciones", () => {

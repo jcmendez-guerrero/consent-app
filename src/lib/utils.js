@@ -78,7 +78,9 @@ export function calcularImporteRetenido({
 
 export function calcularTotalVisita(visita = {}) {
   const base = visita.interrumpida
-    ? Math.round(((Number(visita.importe_retenido) || 0) + Number.EPSILON) * 100) / 100
+    ? Math.round(
+        ((Number(visita.importe_retenido) || 0) + Number.EPSILON) * 100,
+      ) / 100
     : Math.round(((Number(visita.precio) || 0) + Number.EPSILON) * 100) / 100;
 
   let recargoDemora = 0;
@@ -97,8 +99,7 @@ export function calcularTotalVisita(visita = {}) {
   const cargosSum = cargosList
     .filter(
       (c) =>
-        c &&
-        (c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado"),
+        c && (c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado"),
     )
     .reduce((sum, c) => sum + (Number(c.importe) || 0), 0);
   const cargos = Math.round((cargosSum + Number.EPSILON) * 100) / 100;

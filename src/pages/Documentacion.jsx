@@ -14,7 +14,7 @@ const FLUJOS = [
     titulo: "Firma digital en tablet / dispositivo de la tienda (recomendado)",
     pasos: [
       'En la pantalla de "Consentimiento" o "Ingreso", pulsar el botón "📱 Firmar en dispositivo de la tienda".',
-      'Aparecerá en el mostrador un código QR con enlace seguro a `/firmar/:token` (expira en 10 minutos de inactividad con actualización en tiempo real).',
+      "Aparecerá en el mostrador un código QR con enlace seguro a `/firmar/:token` (expira en 10 minutos de inactividad con actualización en tiempo real).",
       "Escanear el QR con la cámara del dispositivo de la tienda (tablet o teléfono del mostrador).",
       "El tutor revisa los bloques de aceptación simplificados (términos contractuales, RGPD, y autorizaciones opcionales de fotos o avisos comerciales) y firma en pantalla con el dedo o puntero.",
       "A continuación, el tutor devuelve el dispositivo al personal de Mundo Mascotix para su firma manuscrita digital.",
@@ -44,13 +44,14 @@ const FLUJOS = [
     ],
   },
   {
-    titulo: "Gestión de incidencias durante el servicio (recargo, parásitos e interrupción)",
+    titulo:
+      "Gestión de incidencias durante el servicio (recargo, parásitos e interrupción)",
     pasos: [
       'Desde el Dashboard, pulsar el botón "Incidencias" de la visita en curso.',
       'Pulsar "Iniciar servicio" en cuanto empiece el trabajo para fijar la hora de inicio oficial.',
       'Recargo de manipulación (10 €): si el perro presenta dificultades de manejo no habituales, registrar primero un contacto telefónico o presencial con el tutor ("acepta", "rechaza" o "no localizado") y asociar dicho contacto para aplicar el recargo contractual único de 10 €.',
-      'Detección de parásitos: si se detectan pulgas o garrapatas, marcar el hallazgo y registrar la decisión (tratamiento especial acordado con contacto del tutor, desparasitación veterinaria urgente o derivación sanitaria).',
-      'Interrupción del servicio: si resulta imposible o peligroso continuar, seleccionar causa y motivo. La aplicación calcula el importe retenido según las condiciones contractuales (proporcional al tiempo invertido si el comportamiento fue declarado previamente; 100 % del importe presupuestado si no se declaró).',
+      "Detección de parásitos: si se detectan pulgas o garrapatas, marcar el hallazgo y registrar la decisión (tratamiento especial acordado con contacto del tutor, desparasitación veterinaria urgente o derivación sanitaria).",
+      "Interrupción del servicio: si resulta imposible o peligroso continuar, seleccionar causa y motivo. La aplicación calcula el importe retenido según las condiciones contractuales (proporcional al tiempo invertido si el comportamiento fue declarado previamente; 100 % del importe presupuestado si no se declaró).",
     ],
   },
   {
@@ -60,7 +61,7 @@ const FLUJOS = [
       "Registrar los hallazgos de entrega y los cuidados recomendados al tutor.",
       'Anotar la hora de aviso de "mascota lista" y la hora real de recogida.',
       "Revisar el desglose contractual inline: base presupuestada o retenida, tratamientos veterinarios acordados en ingreso, recargo de manipulación (si fue aceptado), tratamiento antiparasitario autorizado y recargo por demora en recogida (15 €/hora tras 60 min de cortesía).",
-      'Confirmar la recepción y firma del documento de entrega.',
+      "Confirmar la recepción y firma del documento de entrega.",
     ],
   },
 ];

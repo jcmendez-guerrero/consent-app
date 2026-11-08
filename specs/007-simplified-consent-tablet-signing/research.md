@@ -8,7 +8,11 @@ No `NEEDS CLARIFICATION` items remain in the Technical Context. The decisions be
 
 ## R-1: How to store block-level acceptance without breaking history
 
-- **Decision**: Keep `clausulas_respuestas` as the source of per-clause answers. When the tutor accepts the consent terms block, the five service clauses (`servicios`, `veracidad`, `exoneracion`, `emergencias`, `vigencia`) are stored as `acepta`; refusing stores `rechaza`. The privacy clause (`rgpd`) holds the privacy decision on its own. Add `legal_hashes` (JSON) with one SHA-256 per accepted text (`terminos`, `rgpd`, `imagenes`, `comunicaciones`) and `formato_aceptacion` (`clausulas` for old records, `bloques` for new ones).
+- **Decision**: Keep `clausulas_respuestas` as the source of per-clause answers. When the tutor accepts the
+  consent terms block, the five service clauses (`servicios`, `veracidad`, `exoneracion`, `emergencias`,
+  `vigencia`) are stored as `acepta`; refusing stores `rechaza`. The privacy clause (`rgpd`) holds the privacy
+  decision on its own. Add `legal_hashes` (JSON) with one SHA-256 per accepted text (`terminos`, `rgpd`,
+  `imagenes`, `comunicaciones`) and `formato_aceptacion` (`clausulas` for old records, `bloques` for new ones).
 - **Rationale**: `estado`, the revocation flow, `ConsentimientoEditar`, the SiWeb360 sync and every PDF already read `clausulas_respuestas`. Writing block decisions into that shape means no reader needs to change, historical records are untouched (FR-013), and the new `legal_hashes` satisfies FR-011 without altering the overall `legal_hash` that constitution V requires.
 - **Alternatives considered**: (a) replace `clausulas_respuestas` with three boolean columns, which would need a data migration and rewrite of all readers; (b) store only a single combined hash, which cannot prove which of the three separate texts was accepted.
 
@@ -27,7 +31,11 @@ No `NEEDS CLARIFICATION` items remain in the Technical Context. The decisions be
   - Every signing endpoint has its own stricter rate limiter, because the global limiter (200 per 15 minutes) would be consumed by 2-second polling.
   - The counter creates the consent or visit record only after receiving a `firmada` result (FR-030); abandoned sessions therefore leave nothing accepted.
 - **Rationale**: Reuses the existing authentication boundary, needs no new identity system, and keeps state in SQL so it works if App Service runs more than one instance. A hashed token means a database read does not reveal usable links.
-- **Alternatives considered**: (a) a public unauthenticated signing link, rejected because it exposes personal data to anyone with the URL and would need Easy Auth exclusions; (b) opening the whole app on the tablet and filling the form there, rejected because staff would lose the "prepared at the counter, signed by the tutor" flow and the tutor would see staff-only screens; (c) Bluetooth/native pairing, rejected as impossible from a browser PWA across iOS and Android.
+- **Alternatives considered**: (a) a public unauthenticated signing link, rejected because it exposes
+  personal data to anyone with the URL and would need Easy Auth exclusions; (b) opening the whole app on the
+  tablet and filling the form there, rejected because staff would lose the "prepared at the counter, signed by
+  the tutor" flow and the tutor would see staff-only screens; (c) Bluetooth/native pairing, rejected as
+  impossible from a browser PWA across iOS and Android.
 
 ## R-4: Counter-to-tablet updates: polling vs. push
 
@@ -71,7 +79,10 @@ No `NEEDS CLARIFICATION` items remain in the Technical Context. The decisions be
 
 ## R-10: Paper fallback and documents
 
-- **Decision**: Paper stays exactly as today for tutors or devices without connectivity. The blank consent PDF shows three decision boxes (terms, privacy, photos) plus the optional communications box, the blank Ficha de Ingreso shows one acceptance box, and `pdfConsentimiento` / `pdfVisita` render digital signatures through the existing `firmasDualesEnPDF`. `pdfVisita` gains an itemised charges section and the interruption amount.
+- **Decision**: Paper stays exactly as today for tutors or devices without connectivity. The blank consent
+  PDF shows three decision boxes (terms, privacy, photos) plus the optional communications box, the blank
+  Ficha de Ingreso shows one acceptance box, and `pdfConsentimiento` / `pdfVisita` render digital signatures
+  through the existing `firmasDualesEnPDF`. `pdfVisita` gains an itemised charges section and the interruption amount.
 - **Rationale**: FR-033 and FR-035; reuses the dual-signature layout built in spec 005.
 
 ## R-11: Out of scope (kept explicit)

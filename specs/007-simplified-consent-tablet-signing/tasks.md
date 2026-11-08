@@ -46,12 +46,38 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 
 **⚠️ CRITICAL**: No user story work starts until this phase is complete.
 
-- [X] T003 Create `server/db/migrations/0005_acceptance_blocks_charges_signing.sql` per [data-model.md](data-model.md): new columns on `dbo.consentimientos` (`formato_aceptacion`, `legal_hashes`, `firma_sesion_id`) and `dbo.visitas` (`condiciones_version`, `condiciones_hash`, `condiciones_con_recargos`, `duracion_estimada_min`, `comportamiento_declarado`, `hora_inicio_servicio`, `parasitos_detectados`, `parasitos_decision`, `parasitos_motivo`, `interrumpida`, `interrupcion_causa`, `interrupcion_motivo`, `hora_interrupcion`, `importe_retenido`) with their CHECK constraints; new tables `dbo.visita_contactos`, `dbo.visita_cargos` (including the filtered unique index `UX_visita_cargos_manipulacion`) and `dbo.sesiones_firma` (unique index on `token_hash`); use `GO` batch separators as in migrations 0001 to 0004, additive only
-- [X] T004 Apply the migration to a non-production database with `npm run db:migrate`, confirm it is listed in `dbo.__migrations`, run it a second time to confirm it is a no-op, and note the result in the PR description
-- [X] T005 [P] Update `src/lib/legal.js`: (a) keep clauses 1 to 5 of `CLAUSULAS_CONSENTIMIENTO` word for word; (b) add to `CLAUSULAS_INGRESO` the new conditions (handling surcharge of 10 € where signing does not accept the charge, medical treatments agreed upfront and the parasite case needing tutor approval, and the interruption rule of proportional loss of price or full price if the behaviour was not disclosed) and adjust the existing `rechazo` clause so it no longer contradicts the interruption rule; (c) export `RECARGO_MANIPULACION_EUR = 10`, `RESUMEN_TERMINOS`, `RESUMEN_CONDICIONES_INGRESO`, `RESUMEN_RGPD`, `RESUMEN_IMAGENES`, and helpers `clausulasTerminos()` (clauses 1 to 5) and `hashesConsentimiento({ excluyeRgpd })` returning the per-text SHA-256 object; (d) bump `LEGAL_VERSION`
-- [X] T006 [P] Add pure functions to `src/lib/utils.js`: `minutosInvertidos(horaInicio, horaInterrupcion)` (adds 24 h when the second is earlier, like `calcularRecargo`), `calcularImporteRetenido({ precio, duracionEstimadaMin, horaInicio, horaInterrupcion, comportamientoDeclarado })` (full price if not disclosed, otherwise price × min(1, minutes ÷ estimated duration) rounded to cents) and `calcularTotalVisita(visita)` returning `{ base, recargoDemora, cargos, total }` where only charges with `respuesta` `acordado_ingreso` or `aceptado` count and an interrupted visit uses `importe_retenido` as base
-- [X] T007 [P] Write `tests/unit/importe-retenido.test.mjs` using `node:test` covering the cases in [quickstart.md](quickstart.md) section 7 (proportional, not disclosed, capped at the full price, crosses midnight, rounding to cents) and `calcularTotalVisita` (accepted and agreed charges summed; declined and unreachable charges ignored; interrupted base; late-pickup charge added unchanged); run with `npm test`
-- [X] T008 [P] Create `src/components/BloqueAceptacion.jsx` per [contracts/ui-contracts.md](contracts/ui-contracts.md): collapsed by default with always-visible summary, expandable full clauses, one accept/refuse control that is never pre-selected, `opcional` mode with a single unchecked checkbox, touch targets of at least 44×44 px, error state not signalled by colour alone, full text visible when printed
+- [X] T003 Create `server/db/migrations/0005_acceptance_blocks_charges_signing.sql` per [data-model.md](data-model.md):
+      new columns on `dbo.consentimientos` (`formato_aceptacion`, `legal_hashes`, `firma_sesion_id`) and
+      `dbo.visitas` (`condiciones_version`, `condiciones_hash`, `condiciones_con_recargos`, `duracion_estimada_min`,
+      `comportamiento_declarado`, `hora_inicio_servicio`, `parasitos_detectados`, `parasitos_decision`,
+      `parasitos_motivo`, `interrumpida`, `interrupcion_causa`, `interrupcion_motivo`, `hora_interrupcion`,
+      `importe_retenido`) with their CHECK constraints; new tables `dbo.visita_contactos`, `dbo.visita_cargos`
+      (including the filtered unique index `UX_visita_cargos_manipulacion`) and `dbo.sesiones_firma` (unique index
+      on `token_hash`); use `GO` batch separators as in migrations 0001 to 0004, additive only
+- [X] T004 Apply the migration to a non-production database with `npm run db:migrate`, confirm it is listed in
+      `dbo.__migrations`, run it a second time to confirm it is a no-op, and note the result in the PR description
+- [X] T005 [P] Update `src/lib/legal.js`: (a) keep clauses 1 to 5 of `CLAUSULAS_CONSENTIMIENTO` word for word;
+      (b) add to `CLAUSULAS_INGRESO` the new conditions (handling surcharge of 10 € where signing does not accept
+      the charge, medical treatments agreed upfront and the parasite case needing tutor approval, and the
+      interruption rule of proportional loss of price or full price if the behaviour was not disclosed) and adjust
+      the existing `rechazo` clause so it no longer contradicts the interruption rule; (c) export
+      `RECARGO_MANIPULACION_EUR = 10`, `RESUMEN_TERMINOS`, `RESUMEN_CONDICIONES_INGRESO`, `RESUMEN_RGPD`,
+      `RESUMEN_IMAGENES`, and helpers `clausulasTerminos()` (clauses 1 to 5) and
+      `hashesConsentimiento({ excluyeRgpd })` returning the per-text SHA-256 object; (d) bump `LEGAL_VERSION`
+- [X] T006 [P] Add pure functions to `src/lib/utils.js`: `minutosInvertidos(horaInicio, horaInterrupcion)` (adds
+      24 h when the second is earlier, like `calcularRecargo`), `calcularImporteRetenido({ precio, duracionEstimadaMin,
+      horaInicio, horaInterrupcion, comportamientoDeclarado })` (full price if not disclosed, otherwise price ×
+      min(1, minutes ÷ estimated duration) rounded to cents) and `calcularTotalVisita(visita)` returning
+      `{ base, recargoDemora, cargos, total }` where only charges with `respuesta` `acordado_ingreso` or `aceptado`
+      count and an interrupted visit uses `importe_retenido` as base
+- [X] T007 [P] Write `tests/unit/importe-retenido.test.mjs` using `node:test` covering the cases in
+      [quickstart.md](quickstart.md) section 7 (proportional, not disclosed, capped at the full price, crosses
+      midnight, rounding to cents) and `calcularTotalVisita` (accepted and agreed charges summed; declined and
+      unreachable charges ignored; interrupted base; late-pickup charge added unchanged); run with `npm test`
+- [X] T008 [P] Create `src/components/BloqueAceptacion.jsx` per [contracts/ui-contracts.md](contracts/ui-contracts.md):
+      collapsed by default with always-visible summary, expandable full clauses, one accept/refuse control that is
+      never pre-selected, `opcional` mode with a single unchecked checkbox, touch targets of at least 44×44 px, error
+      state not signalled by colour alone, full text visible when printed
 - [X] T009 [P] Extend `server/lib/mappers.js`: `mapConsentimiento` returns `formato_aceptacion`, parsed `legal_hashes`, `firma_sesion_id`; `mapVisita` returns all new visit fields plus `cargos` and `contactos` (default empty arrays); add `mapCargo` and `mapContacto`
 - [X] T010 [P] Create `server/lib/interruption.js` that recomputes the retained amount using the same rule as `src/lib/utils.js` (import the shared pure function rather than duplicating it) and exposes `validarImporteRetenido(visita, horaInterrupcion, importeRecibido)` returning the expected amount or an error with a 0.01 € tolerance
 
@@ -67,7 +93,11 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 
 - [X] T011 [US1] Update `server/routes/consentimientos.js` `POST /`: accept `formato_aceptacion` (default `clausulas`), `legal_hashes` (required, as an object with at least `terminos`, when `bloques`), `firma_sesion_id`; persist them; reject `firma_tipo = 'digital'` without both `firma` and `firma_tienda`; leave `PUT /:id`, revocation and the SiWeb360 sync unchanged
 - [X] T012 [US1] Update `src/pages/Consentimiento.jsx` to present the service clauses (1 to 5) through a read-only `BloqueAceptacion` summary block instead of the per-clause list with ☐ marks, keeping the "generar e imprimir en blanco" flow and the draft that is passed to the confirm page
-- [X] T013 [US1] Update `src/pages/ConsentimientoConfirmar.jsx`: replace the per-clause `ClauseBlock` questions for clauses 1 to 5 with one `BloqueAceptacion` terms decision that writes the same value to `servicios`, `veracidad`, `exoneracion`, `emergencias` and `vigencia` in `clausulas_respuestas`; set `formato_aceptacion: 'bloques'` and `legal_hashes.terminos`; block saving with a visible message until the terms are answered; a refusal sets `estado` to `rechazado` as today
+- [X] T013 [US1] Update `src/pages/ConsentimientoConfirmar.jsx`: replace the per-clause `ClauseBlock`
+      questions for clauses 1 to 5 with one `BloqueAceptacion` terms decision that writes the same value to
+      `servicios`, `veracidad`, `exoneracion`, `emergencias` and `vigencia` in `clausulas_respuestas`; set
+      `formato_aceptacion: 'bloques'` and `legal_hashes.terminos`; block saving with a visible message until the
+      terms are answered; a refusal sets `estado` to `rechazado` as today
 - [X] T014 [US1] Update `src/lib/pdf.js`: `pdfConsentimiento` and `pdfBlankConsentimiento` render the terms as one block with a single acceptance box (paper: empty box, no option pre-marked); keep the existing dual-signature layout (`firmasDualesEnPDF`)
 - [X] T015 [US1] Update `src/pages/Ingreso.jsx`: replace the always-visible clause list and the two buttons with one `BloqueAceptacion` "Condiciones de ingreso" (using `RESUMEN_CONDICIONES_INGRESO`); keep the paper-signing confirmation; send `condiciones_version`, `condiciones_hash` (SHA-256 of the intake text) and `condiciones_con_recargos: true` with the visit
 - [X] T016 [US1] Update `server/routes/visitas.js` `POST /` and `PUT /:id` to accept and persist `condiciones_version`, `condiciones_hash` and `condiciones_con_recargos` (defaults leave legacy visits at 0)
@@ -84,7 +114,11 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 
 **Independent Test**: [quickstart.md](quickstart.md) scenario A steps 5 to 7.
 
-- [X] T019 [US2] Update `src/pages/ConsentimientoConfirmar.jsx`: add the privacy `BloqueAceptacion` (hidden when `draft.excluyeRgpd`, writing the decision to `clausulas_respuestas.rgpd`), the optional photos checkbox and the optional communications checkbox, both unchecked by default and not required; write `legal_hashes` for `rgpd`, `imagenes` and `comunicaciones` using `hashesConsentimiento`; privacy refusal for a new client blocks completion with a visible message
+- [X] T019 [US2] Update `src/pages/ConsentimientoConfirmar.jsx`: add the privacy `BloqueAceptacion`
+      (hidden when `draft.excluyeRgpd`, writing the decision to `clausulas_respuestas.rgpd`), the optional
+      photos checkbox and the optional communications checkbox, both unchecked by default and not required;
+      write `legal_hashes` for `rgpd`, `imagenes` and `comunicaciones` using `hashesConsentimiento`; privacy
+      refusal for a new client blocks completion with a visible message
 - [X] T020 [P] [US2] Update `src/pages/Consentimiento.jsx` so the printed/blank consent preview lists the three independent items (terms, privacy unless excluded, photos) and the communications option
 - [X] T021 [US2] Update `src/lib/pdf.js` (`pdfConsentimiento`, `pdfBlankConsentimiento`): three decision boxes (terms, privacy, photos) plus the communications box, none pre-marked on paper, each tied to the legal version
 - [X] T022 [US2] Update `server/routes/consentimientos.js` `POST /` validation: when `formato_aceptacion = 'bloques'` require `legal_hashes` keys `terminos`, `imagenes`, `comunicaciones` and `rgpd` unless the client already has a valid privacy acceptance (look up the client's earlier accepted consents); return `400` with a clear message otherwise
@@ -102,12 +136,24 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 **Independent Test**: [quickstart.md](quickstart.md) scenario C steps 2 to 7, 9 and 10.
 
 - [X] T025 [US3] Update `server/routes/visitas.js`: persist `duracion_estimada_min`, `comportamiento_declarado` and `hora_inicio_servicio` on `POST /` and `PUT /:id`; require `duracion_estimada_min > 0` when `condiciones_con_recargos` is true; make `GET /` also return each visit's `cargos` and `contactos` (two extra queries joined in memory, not N+1)
-- [X] T026 [US3] Add `POST /api/visitas/:id/contactos` and `POST /api/visitas/:id/cargos` (type `manipulacion` only in this story) to `server/routes/visitas.js` per [contracts/api-visit-charges.md](contracts/api-visit-charges.md): reject with `409` when `condiciones_con_recargos` is false, fix the amount to 10.00 on the server, require a contact of that visit, store declined and unreachable outcomes as audit rows that do not count in totals, and return `409` for a second handling surcharge
+- [X] T026 [US3] Add `POST /api/visitas/:id/contactos` and `POST /api/visitas/:id/cargos` (type `manipulacion`
+      only in this story) to `server/routes/visitas.js` per [contracts/api-visit-charges.md](contracts/api-visit-charges.md):
+      reject with `409` when `condiciones_con_recargos` is false, fix the amount to 10.00 on the server, require
+      a contact of that visit, store declined and unreachable outcomes as audit rows that do not count in
+      totals, and return `409` for a second handling surcharge
 - [X] T027 [US3] Add `POST /api/visitas/:id/interrupcion` to `server/routes/visitas.js`: validate cause prerequisites, recompute with `server/lib/interruption.js`, return `422` with the expected amount on mismatch, store `interrumpida`, cause, reason, time and retained amount, `409` if already interrupted
 - [X] T028 [P] [US3] Add client functions to `src/lib/store.js`: `iniciarServicio(visitaId, hora)`, `registrarContacto(visitaId, datos)`, `aplicarCargo(visitaId, datos)`, `interrumpirVisita(visitaId, datos)`, each calling the endpoint and refetching
 - [X] T029 [US3] Update `src/pages/Ingreso.jsx`: required "duración estimada (min)" field, the checkbox "El tutor ha informado de comportamiento difícil o de una condición relevante", and sending `duracion_estimada_min` and `comportamiento_declarado`
-- [X] T030 [US3] Create `src/components/CargosVisita.jsx` with the contact log form (channel, date and time defaulting to now in Europe/Madrid, staff member, result, note), the handling-surcharge form (choose the contact whose result is accept or refuse, or unreachable) and the interruption form that shows the amount calculated by `calcularImporteRetenido` and requires confirmation before sending; itemised summary using `calcularTotalVisita`
-- [X] T031 [US3] Create `src/pages/VisitaIncidencias.jsx` (route `/visita/:visitaId/incidencias`) with the visit header, an "Iniciar servicio" button that records `hora_inicio_servicio`, the reminder banner when the pet's behaviour chips include Nervioso, Agresivo or Miedoso (never applying anything automatically), the `CargosVisita` panel, and the blocked state with an explanation when `condiciones_con_recargos` is false
+- [X] T030 [US3] Create `src/components/CargosVisita.jsx` with the contact log form (channel, date and time
+      defaulting to now in Europe/Madrid, staff member, result, note), the handling-surcharge form (choose the
+      contact whose result is accept or refuse, or unreachable) and the interruption form that shows the
+      amount calculated by `calcularImporteRetenido` and requires confirmation before sending; itemised summary
+      using `calcularTotalVisita`
+- [X] T031 [US3] Create `src/pages/VisitaIncidencias.jsx` (route `/visita/:visitaId/incidencias`) with the
+      visit header, an "Iniciar servicio" button that records `hora_inicio_servicio`, the reminder banner
+      when the pet's behaviour chips include Nervioso, Agresivo or Miedoso (never applying anything
+      automatically), the `CargosVisita` panel, and the blocked state with an explanation when
+      `condiciones_con_recargos` is false
 - [X] T032 [US3] Register the route in `src/App.jsx` inside `ProtectedRoute`, and add an "Incidencias" link on each open visit in `src/pages/Dashboard.jsx`
 - [X] T033 [US3] Update `src/pages/Entrega.jsx`: show the agreed price (or the retained amount with the interruption note), each accepted charge, the late-pickup charge and the final total from `calcularTotalVisita`, inline in the existing price card (constitution III)
 - [X] T034 [US3] Update `src/lib/pdf.js` `pdfVisita` to print an itemised charges section, the interruption note and the retained amount, with the total equal to the sum of the printed lines
@@ -125,7 +171,11 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 
 - [X] T036 [US4] Update `src/pages/Ingreso.jsx`: "Tratamientos médicos acordados" list (description, amount, origin: tutor request, in-charge veterinarian recommendation or pet's veterinarian prescription, optional prescription reference); block saving a row without description, amount or origin; include the list as `tratamientos_previos`; add each amount to the on-screen total
 - [X] T037 [US4] Update `server/routes/visitas.js` `POST /` to create one `dbo.visita_cargos` row of type `tratamiento` with `respuesta = 'acordado_ingreso'` for each `tratamientos_previos` entry in the same transaction as the visit; validate description, amount > 0 and origin with `400`
-- [X] T038 [US4] Extend `POST /api/visitas/:id/cargos` in `server/routes/visitas.js` to handle `tratamiento` (before the service starts) and `parasitos` (requires `parasitos_detectados` and a contact with result accept, else `409`), and add `POST /api/visitas/:id/parasitos` for the finding and the groomer's decision (`tratamiento`, `detener`, `continuar_normal`; reason required for the last two; no tutor approval needed for that decision)
+- [X] T038 [US4] Extend `POST /api/visitas/:id/cargos` in `server/routes/visitas.js` to handle `tratamiento`
+      (before the service starts) and `parasitos` (requires `parasitos_detectados` and a contact with result
+      accept, else `409`), and add `POST /api/visitas/:id/parasitos` for the finding and the groomer's decision
+      (`tratamiento`, `detener`, `continuar_normal`; reason required for the last two; no tutor approval needed
+      for that decision)
 - [X] T039 [US4] Extend `src/lib/store.js` with `registrarParasitos(visitaId, datos)` and update `src/components/CargosVisita.jsx` with the parasite section: mark finding, record the informing contact, apply the special treatment only after an "acepta" contact, or record the decision; "Detener servicio" chains into the interruption form with cause `parasitos`
 - [X] T040 [US4] Make `src/pages/Entrega.jsx` and `src/lib/pdf.js` show medical and parasite charges as their own lines, separate from the base price and the handling surcharge
 - [X] T041 [US4] Verify scenario C steps 2, 3, 8 and 10 from [quickstart.md](quickstart.md)
@@ -142,14 +192,22 @@ description: "Task list for feature 007: simplified consent acceptance, handling
 
 - [X] T042 [P] [US5] Create `server/lib/signingSession.js` with pure functions: token generation (256-bit random, URL-safe) and SHA-256 hashing, the allowed state transitions (`esperando` → `conectada` → `firmada`, expiry and cancellation from any non-terminal state), 10-minute sliding expiry, and the rule that terminal states have empty payload and result
 - [X] T043 [P] [US5] Write `tests/unit/sesion-firma.test.mjs` with `node:test` for the state machine: only drawn transitions allowed, expired sessions reject submission, a consumed result cannot be read twice, terminal states carry no payload or result
-- [X] T044 [US5] Create `server/routes/firma.js` per [contracts/api-signing-sessions.md](contracts/api-signing-sessions.md): counter endpoints (create, poll, consume, cancel) and tablet endpoints (open, submit, cancel) backed by `dbo.sesiones_firma`, lazy cleanup of terminal or expired sessions older than one hour on creation, `410` without personal data for dead sessions, PNG data URL size limit of 1 MB per signature, wipe `payload` and `resultado` on every terminal state
+- [X] T044 [US5] Create `server/routes/firma.js` per [contracts/api-signing-sessions.md](contracts/api-signing-sessions.md):
+      counter endpoints (create, poll, consume, cancel) and tablet endpoints (open, submit, cancel) backed by
+      `dbo.sesiones_firma`, lazy cleanup of terminal or expired sessions older than one hour on creation, `410`
+      without personal data for dead sessions, PNG data URL size limit of 1 MB per signature, wipe `payload` and
+      `resultado` on every terminal state
 - [X] T045 [US5] Mount `/api/firma` in `server/index.js` with its own rate limiter added to `server/middleware/rateLimiter.js` (separate budget so 2-second polling does not exhaust the global limit); ensure the route stays behind Easy Auth like all `/api/*`
 - [X] T046 [P] [US5] Create `src/components/SignaturePad.jsx`: pointer-events canvas with `touch-action: none`, device-pixel-ratio scaling, clear button, PNG data-URL output, `null` when empty, 60 fps while drawing
 - [X] T047 [P] [US5] Add signing-session client functions to `src/lib/store.js`: `crearSesionFirma`, `consultarSesionFirma`, `consumirSesionFirma`, `cancelarSesionFirma`
 - [X] T048 [US5] Create `src/components/DispositivoFirma.jsx`: creates the session, renders the QR with the already installed `qrcode` package, shows the states from [contracts/ui-contracts.md](contracts/ui-contracts.md), polls every 2 s, always cancels the session when closed early, and offers "Reintentar" and "Usar papel" on expiry or network error
 - [X] T049 [US5] Create `src/pages/FirmaRemota.jsx` (route `/firmar/:token`): loads the payload, shows the blocks to answer with `BloqueAceptacion`, tutor `SignaturePad`, hand-over screen, store `SignaturePad`, send and thank-you screens, an expired/cancelled screen with no personal data, and a heartbeat every 15 s while idle
 - [X] T050 [US5] Update `src/App.jsx`: register `/firmar/:token` inside `ProtectedRoute` and render it without the main navigation header
-- [X] T051 [US5] Integrate the consent flow in `src/pages/Consentimiento.jsx`: add the "Firmar en dispositivo de la tienda" option beside the paper option; on a `firmada` result compare `legal_version` and `legal_hashes` with the counter's own values (reject with a "actualiza la tablet" message on mismatch), then save through `guardarConsentimiento` with `firma_tipo: 'digital'`, `firma`, `firma_tienda`, `firma_sesion_id`, consume the session and continue to the intake
+- [X] T051 [US5] Integrate the consent flow in `src/pages/Consentimiento.jsx`: add the "Firmar en dispositivo
+      de la tienda" option beside the paper option; on a `firmada` result compare `legal_version` and
+      `legal_hashes` with the counter's own values (reject with a "actualiza la tablet" message on mismatch),
+      then save through `guardarConsentimiento` with `firma_tipo: 'digital'`, `firma`, `firma_tienda`,
+      `firma_sesion_id`, consume the session and continue to the intake
 - [X] T052 [US5] Integrate the Ficha de Ingreso flow in `src/pages/Ingreso.jsx` the same way: digital option, version and hash check, save the visit with `firma_ingreso: { tipo: 'digital', data }`, `firma_tienda_ingreso`, then consume the session
 - [X] T053 [US5] Update `src/lib/pdf.js` so digitally signed consents and fichas show both signatures, all decisions, the legal version identifier and the date and time (reusing `firmasDualesEnPDF`), and confirm generation stays under 3 seconds
 - [X] T054 [US5] Verify scenario B steps 1 to 9 from [quickstart.md](quickstart.md) on a real tablet and counter, including 10 abandoned-session attempts leaving no accepted record, version skew rejection, two concurrent devices, paper fallback and the private-window access check

@@ -13,14 +13,23 @@ export default function VisitaIncidencias() {
   const [error, setError] = useState("");
 
   const visita = db.visitas.find((v) => v.id === visitaId);
-  const mascota = visita ? db.mascotas.find((m) => m.id === visita.mascota_id) : null;
-  const cliente = mascota ? db.clientes.find((c) => c.id === mascota.cliente_id) : null;
+  const mascota = visita
+    ? db.mascotas.find((m) => m.id === visita.mascota_id)
+    : null;
+  const cliente = mascota
+    ? db.clientes.find((c) => c.id === mascota.cliente_id)
+    : null;
 
   if (!visita) {
     return (
       <div className="space-y-4">
-        <Aviso tipo="warning">Cargando datos de la visita o visita no encontrada…</Aviso>
-        <Link to="/" className="text-sm font-bold text-brand-600 hover:underline">
+        <Aviso tipo="warning">
+          Cargando datos de la visita o visita no encontrada…
+        </Aviso>
+        <Link
+          to="/"
+          className="text-sm font-bold text-brand-600 hover:underline"
+        >
           ← Volver al inicio
         </Link>
       </div>
@@ -51,7 +60,10 @@ export default function VisitaIncidencias() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Link to="/" className="text-sm font-semibold text-brand-500 hover:text-brand-700">
+            <Link
+              to="/"
+              className="text-sm font-semibold text-brand-500 hover:text-brand-700"
+            >
               ← Inicio
             </Link>
             <span className="text-brand-300">/</span>
@@ -61,7 +73,8 @@ export default function VisitaIncidencias() {
             Gestión del servicio · {mascota?.nombre || "Mascota"}
           </h1>
           <p className="text-sm text-brand-500">
-            Tutor: {cliente?.nombre_apellidos || "—"} ({cliente?.telefono || "—"})
+            Tutor: {cliente?.nombre_apellidos || "—"} (
+            {cliente?.telefono || "—"})
           </p>
         </div>
 
@@ -81,24 +94,34 @@ export default function VisitaIncidencias() {
       <Card title="Estado del servicio en curso">
         <div className="grid gap-4 sm:grid-cols-3 text-sm">
           <div>
-            <span className="block text-xs font-semibold text-brand-500">Servicios contratados</span>
+            <span className="block text-xs font-semibold text-brand-500">
+              Servicios contratados
+            </span>
             <span className="font-bold text-brand-800">
               {(visita.servicios || []).join(", ") || "Dermospa"}
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold text-brand-500">Precio base acordado</span>
+            <span className="block text-xs font-semibold text-brand-500">
+              Precio base acordado
+            </span>
             <span className="font-bold text-brand-800">{visita.precio} €</span>
           </div>
           <div>
-            <span className="block text-xs font-semibold text-brand-500">Hora de ingreso</span>
-            <span className="font-bold text-brand-800">{visita.hora_ingreso || "—"}</span>
+            <span className="block text-xs font-semibold text-brand-500">
+              Hora de ingreso
+            </span>
+            <span className="font-bold text-brand-800">
+              {visita.hora_ingreso || "—"}
+            </span>
           </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-brand-100 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="text-xs font-semibold text-brand-500 block">Hora de inicio del servicio:</span>
+            <span className="text-xs font-semibold text-brand-500 block">
+              Hora de inicio del servicio:
+            </span>
             <span className="text-sm font-bold text-brand-800">
               {visita.hora_inicio_servicio
                 ? `${visita.hora_inicio_servicio} (en curso)`
@@ -122,18 +145,20 @@ export default function VisitaIncidencias() {
       {/* Recordatorio preventivo si hay chips de comportamiento difícil */}
       {tieneAntecedentesDificiles && (
         <Aviso tipo="info">
-          ℹ️ <strong>Recordatorio preventivo:</strong> La mascota tiene antecedentes de nerviosismo,
-          miedo o agresividad. Si presenta dificultades graves que exijan esfuerzo adicional,
-          puede aplicarse el recargo de manipulación de 10 € tras comunicarlo al tutor.
+          ℹ️ <strong>Recordatorio preventivo:</strong> La mascota tiene
+          antecedentes de nerviosismo, miedo o agresividad. Si presenta
+          dificultades graves que exijan esfuerzo adicional, puede aplicarse el
+          recargo de manipulación de 10 € tras comunicarlo al tutor.
         </Aviso>
       )}
 
       {/* Verificación de condiciones_con_recargos */}
       {!visita.condiciones_con_recargos ? (
         <Aviso tipo="error">
-          ⚠️ <strong>Funcionalidad bloqueada:</strong> Esta visita fue registrada sin las condiciones
-          de recargo e interrupción (o con una versión anterior). Por imperativo contractual y legal
-          (FR-025), no es posible registrar recargos ni interrupciones para esta visita.
+          ⚠️ <strong>Funcionalidad bloqueada:</strong> Esta visita fue
+          registrada sin las condiciones de recargo e interrupción (o con una
+          versión anterior). Por imperativo contractual y legal (FR-025), no es
+          posible registrar recargos ni interrupciones para esta visita.
         </Aviso>
       ) : (
         <CargosVisita visita={visita} />

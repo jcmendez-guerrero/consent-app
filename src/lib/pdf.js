@@ -456,11 +456,7 @@ export async function pdfConsentimiento({
     const terminosClauses = clausulas.filter((c) => c.id !== "rgpd");
     const rgpdClause = clausulas.find((c) => c.id === "rgpd");
 
-    y = tituloSeccion(
-      doc,
-      y + 2,
-      "3. Condiciones de prestación del servicio",
-    );
+    y = tituloSeccion(doc, y + 2, "3. Condiciones de prestación del servicio");
     for (const c of terminosClauses) {
       y = bloqueTexto(doc, y + 1, c.titulo, { bold: true, size: 8 });
       y = bloqueTexto(doc, y, c.texto, { size: 7.2 });
@@ -471,7 +467,8 @@ export async function pdfConsentimiento({
     y = lineaAceptacion(doc, y, {
       tipoFirma: consentimiento.firma_tipo,
       respuesta: respuestaTerminos,
-      textoAcepta: "Acepto las condiciones de prestación del servicio (Cláusulas 1 a 5)",
+      textoAcepta:
+        "Acepto las condiciones de prestación del servicio (Cláusulas 1 a 5)",
       textoRechaza: "No acepto las condiciones de prestación del servicio",
     });
 
@@ -486,7 +483,8 @@ export async function pdfConsentimiento({
       y = lineaAceptacion(doc, y, {
         tipoFirma: consentimiento.firma_tipo,
         respuesta: consentimiento.clausulas_respuestas?.rgpd || "acepta",
-        textoAcepta: "Acepto la política de protección de datos personales (RGPD)",
+        textoAcepta:
+          "Acepto la política de protección de datos personales (RGPD)",
         textoRechaza: "No acepto el tratamiento de datos personales",
       });
 
@@ -668,8 +666,7 @@ export async function pdfVisita({
 
   const cargosAceptados = (visita.cargos || []).filter(
     (c) =>
-      c &&
-      (c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado"),
+      c && (c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado"),
   );
   if (cargosAceptados.length > 0 || visita.interrumpida) {
     y = tituloSeccion(doc, y + 2, "Desglose de cargos e incidencias");
@@ -688,12 +685,7 @@ export async function pdfVisita({
           : c.tipo === "parasitos"
             ? "Tratamiento especial antiparasitario"
             : `Tratamiento médico (${c.origen || "acordado"})`;
-      y = filaDato(
-        doc,
-        y,
-        `${tipoLabel}: ${c.descripcion}`,
-        `${c.importe} €`,
-      );
+      y = filaDato(doc, y, `${tipoLabel}: ${c.descripcion}`, `${c.importe} €`);
     }
   }
 
@@ -858,7 +850,11 @@ export async function pdfVisita({
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(DARK);
-        doc.text("Escanea este código con tu móvil para dejarnos tu opinión en Google:", M + 21, y + 11);
+        doc.text(
+          "Escanea este código con tu móvil para dejarnos tu opinión en Google:",
+          M + 21,
+          y + 11,
+        );
         y += 20;
       } catch {
         // si falla la generación del QR, se omite sin bloquear el resto del PDF
@@ -966,18 +962,24 @@ export async function pdfBlankConsentimiento() {
   }
   y = lineaAceptacion(doc, y, {
     tipoFirma: "papel",
-    textoAcepta: "Acepto las condiciones de prestación del servicio (Cláusulas 1 a 5)",
+    textoAcepta:
+      "Acepto las condiciones de prestación del servicio (Cláusulas 1 a 5)",
     textoRechaza: "No acepto las condiciones de prestación del servicio",
   });
 
   const rgpdClause = CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd");
   if (rgpdClause) {
-    y = tituloSeccion(doc, y + 2, "4. Protección de datos personales (RGPD) y comunicaciones");
+    y = tituloSeccion(
+      doc,
+      y + 2,
+      "4. Protección de datos personales (RGPD) y comunicaciones",
+    );
     y = bloqueTexto(doc, y + 1, rgpdClause.titulo, { bold: true, size: 8.5 });
     y = bloqueTexto(doc, y, rgpdClause.texto, { size: 7.2 });
     y = lineaAceptacion(doc, y, {
       tipoFirma: "papel",
-      textoAcepta: "Acepto la política de protección de datos personales (RGPD)",
+      textoAcepta:
+        "Acepto la política de protección de datos personales (RGPD)",
       textoRechaza: "No acepto el tratamiento de datos personales",
     });
 
@@ -1176,7 +1178,11 @@ export async function pdfBlankEntrega() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(DARK);
-    doc.text("Escanea este código con tu móvil para dejarnos tu opinión en Google:", M + 21, y + 11);
+    doc.text(
+      "Escanea este código con tu móvil para dejarnos tu opinión en Google:",
+      M + 21,
+      y + 11,
+    );
     y += 20;
   } catch {
     // si falla la generación del QR, se omite sin bloquear el resto del PDF

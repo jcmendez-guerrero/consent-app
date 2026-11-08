@@ -108,7 +108,9 @@ export function mapVisita(row) {
     condiciones_hash: row.condiciones_hash ?? null,
     condiciones_con_recargos: !!row.condiciones_con_recargos,
     duracion_estimada_min:
-      row.duracion_estimada_min != null ? Number(row.duracion_estimada_min) : null,
+      row.duracion_estimada_min != null
+        ? Number(row.duracion_estimada_min)
+        : null,
     comportamiento_declarado: !!row.comportamiento_declarado,
     hora_inicio_servicio: row.hora_inicio_servicio ?? null,
     parasitos_detectados: !!row.parasitos_detectados,

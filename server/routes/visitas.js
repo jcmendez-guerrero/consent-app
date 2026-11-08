@@ -96,19 +96,21 @@ router.post("/", async (req, res, next) => {
       : [];
     for (const t of tratamientosPrevios) {
       if (!t.descripcion || !t.descripcion.trim()) {
-        return res
-          .status(400)
-          .json({ error: "La descripción del tratamiento médico es obligatoria" });
+        return res.status(400).json({
+          error: "La descripción del tratamiento médico es obligatoria",
+        });
       }
       const imp = Number(t.importe);
       if (Number.isNaN(imp) || imp <= 0) {
-        return res
-          .status(400)
-          .json({ error: "El importe del tratamiento médico debe ser mayor que 0" });
+        return res.status(400).json({
+          error: "El importe del tratamiento médico debe ser mayor que 0",
+        });
       }
       if (
         !t.origen ||
-        !["tutor", "veterinario_centro", "veterinario_mascota"].includes(t.origen)
+        !["tutor", "veterinario_centro", "veterinario_mascota"].includes(
+          t.origen,
+        )
       ) {
         return res
           .status(400)
@@ -150,11 +152,7 @@ router.post("/", async (req, res, next) => {
       )
       .input("notas_ingreso", sql.NVarChar, v.notas_ingreso || null)
       .input("hora_ingreso", sql.Char(5), v.hora_ingreso || null)
-      .input(
-        "clausulas_respuesta_condiciones",
-        sql.NVarChar(10),
-        clausulasResp,
-      )
+      .input("clausulas_respuesta_condiciones", sql.NVarChar(10), clausulasResp)
       .input("firma_ingreso_tipo", sql.NVarChar, v.firma_ingreso?.tipo || null)
       .input(
         "firma_ingreso_data",
@@ -171,11 +169,7 @@ router.post("/", async (req, res, next) => {
       .input("condiciones_hash", sql.Char(64), v.condiciones_hash || null)
       .input("condiciones_con_recargos", sql.Bit, conRecargos)
       .input("duracion_estimada_min", sql.Int, duracionMin)
-      .input(
-        "comportamiento_declarado",
-        sql.Bit,
-        !!v.comportamiento_declarado,
-      )
+      .input("comportamiento_declarado", sql.Bit, !!v.comportamiento_declarado)
       .input(
         "hora_inicio_servicio",
         sql.Char(5),
@@ -278,11 +272,7 @@ router.put("/:id", async (req, res, next) => {
       )
       .input("notas_ingreso", sql.NVarChar, v.notas_ingreso || null)
       .input("hora_ingreso", sql.Char(5), v.hora_ingreso || null)
-      .input(
-        "clausulas_respuesta_condiciones",
-        sql.NVarChar(10),
-        clausulasResp,
-      )
+      .input("clausulas_respuesta_condiciones", sql.NVarChar(10), clausulasResp)
       .input("firma_ingreso_tipo", sql.NVarChar, v.firma_ingreso?.tipo || null)
       .input(
         "firma_ingreso_data",
@@ -387,7 +377,8 @@ async function getVisitaConRecargos(pool, visitaId) {
     .request()
     .input("id", sql.NVarChar, visitaId)
     .query("SELECT * FROM dbo.visitas WHERE id = @id");
-  if (!res.recordset.length) return { errorStatus: 404, message: "Visita no encontrada" };
+  if (!res.recordset.length)
+    return { errorStatus: 404, message: "Visita no encontrada" };
   const visita = res.recordset[0];
   if (!visita.condiciones_con_recargos) {
     return {
@@ -592,7 +583,8 @@ router.post("/:id/cargos", async (req, res, next) => {
       }
       if (!contacto_id) {
         return res.status(409).json({
-          error: "Se requiere un contacto para autorizar el tratamiento de parásitos",
+          error:
+            "Se requiere un contacto para autorizar el tratamiento de parásitos",
         });
       }
       const ctcRes = await pool
@@ -603,7 +595,9 @@ router.post("/:id/cargos", async (req, res, next) => {
           "SELECT id, resultado FROM dbo.visita_contactos WHERE id = @contacto_id AND visita_id = @visita_id",
         );
       if (!ctcRes.recordset.length) {
-        return res.status(400).json({ error: "El contacto no existe en esta visita" });
+        return res
+          .status(400)
+          .json({ error: "El contacto no existe en esta visita" });
       }
       if (ctcRes.recordset[0].resultado !== "acepta") {
         return res.status(409).json({
@@ -613,13 +607,13 @@ router.post("/:id/cargos", async (req, res, next) => {
       }
 
       if (!descripcion || !descripcion.trim()) {
-        return res
-          .status(400)
-          .json({ error: "La descripción es obligatoria" });
+        return res.status(400).json({ error: "La descripción es obligatoria" });
       }
       const imp = Number(importe);
       if (Number.isNaN(imp) || imp <= 0) {
-        return res.status(400).json({ error: "El importe debe ser mayor que 0" });
+        return res
+          .status(400)
+          .json({ error: "El importe debe ser mayor que 0" });
       }
 
       await pool
@@ -724,7 +718,9 @@ router.post("/:id/interrupcion", async (req, res, next) => {
     if (errorStatus) return res.status(errorStatus).json({ error: message });
 
     if (visita.interrumpida) {
-      return res.status(409).json({ error: "El servicio ya ha sido interrumpido" });
+      return res
+        .status(409)
+        .json({ error: "El servicio ya ha sido interrumpido" });
     }
 
     const { causa, motivo, hora_interrupcion, importe_retenido } = req.body;

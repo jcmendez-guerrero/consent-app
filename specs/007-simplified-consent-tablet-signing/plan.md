@@ -6,7 +6,11 @@
 
 ## Summary
 
-Replace the per-clause accept/reject lists with one collapsed block per document (consent terms; Ficha de Ingreso conditions), keep privacy and photos as separate acceptances, add the per-visit surcharge model (10 € handling, upfront medical treatment, parasite special treatment with tutor approval) with an interruption rule that computes the retained amount, and let the tutor and the store sign on a store phone or tablet linked through a short-lived signing session.
+Replace the per-clause accept/reject lists with one collapsed block per document (consent terms;
+Ficha de Ingreso conditions), keep privacy and photos as separate acceptances, add the per-visit
+surcharge model (10 € handling, upfront medical treatment, parasite special treatment with tutor
+approval) with an interruption rule that computes the retained amount, and let the tutor and the
+store sign on a store phone or tablet linked through a short-lived signing session.
 
 Technical approach (details in [research.md](research.md)):
 
@@ -49,7 +53,12 @@ Technical approach (details in [research.md](research.md)):
 | Security & Compliance | See note below | PASS with amendment recommended |
 | Workflow gates | Spec check, legal-integrity check (`LEGAL_VERSION`), browser verification, build check listed in the quickstart | PASS |
 
-**Note on the constitution text**: the *Security & Compliance* section still describes a "single-device, counter-only prototype with no authentication layer" and the `localStorage` persistence. The deployed system is already networked (Express + Azure SQL + Easy Auth) and the security review gate was applied in specs 003 and 005. This feature adds a second device and a new endpoint group, so the review gate is applied again here (see the security notes in [research.md](research.md) R-3). Amending the constitution text to match reality is recommended as a separate change; it does not block this plan.
+**Note on the constitution text**: the *Security & Compliance* section still describes a "single-device,
+counter-only prototype with no authentication layer" and the `localStorage` persistence. The deployed
+system is already networked (Express + Azure SQL + Easy Auth) and the security review gate was applied in
+specs 003 and 005. This feature adds a second device and a new endpoint group, so the review gate is applied
+again here (see the security notes in [research.md](research.md) R-3). Amending the constitution text to
+match reality is recommended as a separate change; it does not block this plan.
 
 **Post-design re-check**: Design keeps all new endpoints behind Easy Auth, stores only a hash of the pairing token, purges personal data from sessions at terminal state, and adds no third-party transfer of personal data. No violations; Complexity Tracking is empty.
 

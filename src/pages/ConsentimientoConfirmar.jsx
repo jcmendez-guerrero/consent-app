@@ -18,11 +18,7 @@ import {
   RESUMEN_IMAGENES,
   clausulasTerminos,
 } from "../lib/legal";
-import {
-  Card,
-  PrimaryButton,
-  Aviso,
-} from "../components/ui";
+import { Card, PrimaryButton, Aviso } from "../components/ui";
 import BloqueAceptacion from "../components/BloqueAceptacion";
 
 function Dato({ etiqueta, valor }) {
@@ -172,7 +168,9 @@ export default function ConsentimientoConfirmar() {
       }
     } catch (err) {
       console.error(err);
-      setError("No se pudo resolver la vinculación con SiWeb360: " + err.message);
+      setError(
+        "No se pudo resolver la vinculación con SiWeb360: " + err.message,
+      );
     } finally {
       setSiwebResolviendo(false);
     }
@@ -202,8 +200,8 @@ export default function ConsentimientoConfirmar() {
             </h2>
             <p className="mt-1 text-sm text-brand-600">
               Existen varios contactos en SiWeb360 que coinciden con los datos
-              del cliente. Selecciona el contacto adecuado para vincularlo o crea
-              uno nuevo:
+              del cliente. Selecciona el contacto adecuado para vincularlo o
+              crea uno nuevo:
             </p>
             <div className="mt-4 max-h-60 space-y-2 overflow-y-auto">
               {siwebModal.candidates.map((cand) => (
@@ -294,7 +292,9 @@ export default function ConsentimientoConfirmar() {
             <BloqueAceptacion
               titulo="Protección de datos (RGPD / LOPDGDD)"
               resumen={RESUMEN_RGPD}
-              clausulas={[CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd")]}
+              clausulas={[
+                CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd"),
+              ]}
               valor={decisionRgpd}
               onChange={setDecisionRgpd}
             />
@@ -313,8 +313,9 @@ export default function ConsentimientoConfirmar() {
 
       {rgpdRechazado && (
         <Aviso tipo="error">
-          ⚠️ El tutor ha rechazado la protección de datos (RGPD). No es posible completar ni registrar
-          el consentimiento sin la aceptación del tratamiento de datos personales conforme al RGPD.
+          ⚠️ El tutor ha rechazado la protección de datos (RGPD). No es posible
+          completar ni registrar el consentimiento sin la aceptación del
+          tratamiento de datos personales conforme al RGPD.
         </Aviso>
       )}
 
@@ -361,7 +362,9 @@ export default function ConsentimientoConfirmar() {
         {!guardado && (
           <PrimaryButton
             onClick={confirmarYProceder}
-            disabled={!todasRespondidas || !confirmado || guardando || rgpdRechazado}
+            disabled={
+              !todasRespondidas || !confirmado || guardando || rgpdRechazado
+            }
           >
             {guardando
               ? "Guardando…"
@@ -381,7 +384,8 @@ export default function ConsentimientoConfirmar() {
         )}
         {!guardado && !todasRespondidas && (
           <span className="self-center text-sm text-brand-500">
-            Marca tu respuesta en los términos{!draft.excluyeRgpd ? " y la protección de datos" : ""}.
+            Marca tu respuesta en los términos
+            {!draft.excluyeRgpd ? " y la protección de datos" : ""}.
           </span>
         )}
         {guardado && guardado.estado !== "aceptado" && (

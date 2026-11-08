@@ -10,12 +10,7 @@ import {
   calcularTotalVisita,
   horaAhora,
 } from "../lib/utils";
-import {
-  Card,
-  TextInput,
-  Aviso,
-  inputCls,
-} from "./ui";
+import { Card, TextInput, Aviso, inputCls } from "./ui";
 
 export default function CargosVisita({ visita, onActualizado }) {
   // Contact state
@@ -290,7 +285,9 @@ export default function CargosVisita({ visita, onActualizado }) {
           </h4>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="block text-xs font-semibold text-brand-700 mb-1">Motivo</label>
+              <label className="block text-xs font-semibold text-brand-700 mb-1">
+                Motivo
+              </label>
               <select
                 className={inputCls}
                 value={ctcMotivo}
@@ -302,7 +299,9 @@ export default function CargosVisita({ visita, onActualizado }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-brand-700 mb-1">Canal</label>
+              <label className="block text-xs font-semibold text-brand-700 mb-1">
+                Canal
+              </label>
               <select
                 className={inputCls}
                 value={ctcCanal}
@@ -314,7 +313,9 @@ export default function CargosVisita({ visita, onActualizado }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-brand-700 mb-1">Resultado</label>
+              <label className="block text-xs font-semibold text-brand-700 mb-1">
+                Resultado
+              </label>
               <select
                 className={inputCls}
                 value={ctcResultado}
@@ -363,19 +364,29 @@ export default function CargosVisita({ visita, onActualizado }) {
             }`}
           >
             {cargoManipulacion.respuesta === "aceptado" && (
-              <p>✓ Recargo de manipulación difícil aplicado: 10.00 € (Aceptado por el tutor)</p>
+              <p>
+                ✓ Recargo de manipulación difícil aplicado: 10.00 € (Aceptado
+                por el tutor)
+              </p>
             )}
             {cargoManipulacion.respuesta === "rechazado" && (
-              <p>✕ Recargo de manipulación rechazado por el tutor. (Permite interrupción por comportamiento)</p>
+              <p>
+                ✕ Recargo de manipulación rechazado por el tutor. (Permite
+                interrupción por comportamiento)
+              </p>
             )}
             {cargoManipulacion.respuesta === "no_localizado" && (
-              <p>⚠ Tutor no localizado para el recargo de manipulación. (Permite interrupción por tutor no localizado)</p>
+              <p>
+                ⚠ Tutor no localizado para el recargo de manipulación. (Permite
+                interrupción por tutor no localizado)
+              </p>
             )}
           </div>
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-brand-600">
-              Selecciona el contacto previo registrado en el que el tutor respondió o no pudo ser localizado:
+              Selecciona el contacto previo registrado en el que el tutor
+              respondió o no pudo ser localizado:
             </p>
             {contactosValidosManipulacion.length > 0 ? (
               <div className="flex flex-wrap items-center gap-3">
@@ -401,12 +412,16 @@ export default function CargosVisita({ visita, onActualizado }) {
                   disabled={guardandoManipulacion || !selContactoManipulacion}
                   className="rounded-xl bg-brand-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-brand-700 disabled:opacity-40"
                 >
-                  {guardandoManipulacion ? "Aplicando…" : "Aplicar recargo (10 €)"}
+                  {guardandoManipulacion
+                    ? "Aplicando…"
+                    : "Aplicar recargo (10 €)"}
                 </button>
               </div>
             ) : (
               <p className="text-xs italic text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
-                Primero debes registrar un contacto con resultado &apos;acepta&apos;, &apos;rechaza&apos; o &apos;no localizado&apos;.
+                Primero debes registrar un contacto con resultado
+                &apos;acepta&apos;, &apos;rechaza&apos; o &apos;no
+                localizado&apos;.
               </p>
             )}
           </div>
@@ -440,8 +455,11 @@ export default function CargosVisita({ visita, onActualizado }) {
               </p>
               {visita.parasitos_decision && (
                 <p className="mt-1 text-xs text-amber-800">
-                  Decisión registrada: <strong>{visita.parasitos_decision}</strong>
-                  {visita.parasitos_motivo ? ` — Motivo: ${visita.parasitos_motivo}` : ""}
+                  Decisión registrada:{" "}
+                  <strong>{visita.parasitos_decision}</strong>
+                  {visita.parasitos_motivo
+                    ? ` — Motivo: ${visita.parasitos_motivo}`
+                    : ""}
                 </p>
               )}
             </div>
@@ -449,11 +467,13 @@ export default function CargosVisita({ visita, onActualizado }) {
             {/* Tratamiento especial con cargo */}
             <div className="rounded-xl border border-brand-200 bg-white p-4">
               <h4 className="text-xs font-bold text-brand-800 mb-2">
-                Opción A: Tratamiento especial antiparasitario (autorizado por el tutor)
+                Opción A: Tratamiento especial antiparasitario (autorizado por
+                el tutor)
               </h4>
               {cargoParasitos ? (
                 <p className="text-sm font-bold text-emerald-700">
-                  ✓ Tratamiento antiparasitario aplicado: {cargoParasitos.importe} € ({cargoParasitos.descripcion})
+                  ✓ Tratamiento antiparasitario aplicado:{" "}
+                  {cargoParasitos.importe} € ({cargoParasitos.descripcion})
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -476,7 +496,9 @@ export default function CargosVisita({ visita, onActualizado }) {
                       value={selContactoParasitos}
                       onChange={(e) => setSelContactoParasitos(e.target.value)}
                     >
-                      <option value="">-- Contacto &quot;acepta&quot; --</option>
+                      <option value="">
+                        -- Contacto &quot;acepta&quot; --
+                      </option>
                       {contactosAceptaParasitos.map((c) => (
                         <option key={c.id} value={c.id}>
                           {new Date(c.fecha_hora).toLocaleTimeString("es-ES", {
@@ -504,7 +526,8 @@ export default function CargosVisita({ visita, onActualizado }) {
             {!cargoParasitos && (
               <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
                 <h4 className="text-xs font-bold text-brand-800 mb-2">
-                  Opción B: Decisión del centro sin tratamiento especial autorizado
+                  Opción B: Decisión del centro sin tratamiento especial
+                  autorizado
                 </h4>
                 <div className="mb-2">
                   <TextInput
@@ -546,9 +569,16 @@ export default function CargosVisita({ visita, onActualizado }) {
           <div className="rounded-xl border border-red-400 bg-red-50 p-4 text-sm text-red-900">
             <h4 className="font-bold text-base">⚠️ Servicio interrumpido</h4>
             <div className="mt-2 space-y-1 text-xs">
-              <p><strong>Causa:</strong> {visita.interrupcion_causa}</p>
-              <p><strong>Motivo:</strong> {visita.interrupcion_motivo}</p>
-              <p><strong>Hora de interrupción:</strong> {visita.hora_interrupcion}</p>
+              <p>
+                <strong>Causa:</strong> {visita.interrupcion_causa}
+              </p>
+              <p>
+                <strong>Motivo:</strong> {visita.interrupcion_motivo}
+              </p>
+              <p>
+                <strong>Hora de interrupción:</strong>{" "}
+                {visita.hora_interrupcion}
+              </p>
               <p className="text-sm font-bold mt-2">
                 Importe retenido confirmado: {visita.importe_retenido} €
               </p>
@@ -558,18 +588,26 @@ export default function CargosVisita({ visita, onActualizado }) {
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-semibold text-brand-700 mb-1">Causa</label>
+                <label className="block text-xs font-semibold text-brand-700 mb-1">
+                  Causa
+                </label>
                 <select
                   className={inputCls}
                   value={intCausa}
                   onChange={(e) => setIntCausa(e.target.value)}
                 >
-                  <option value="comportamiento">Comportamiento peligroso / rechazo recargo</option>
-                  <option value="parasitos">Parásitos (decisión detener)</option>
+                  <option value="comportamiento">
+                    Comportamiento peligroso / rechazo recargo
+                  </option>
+                  <option value="parasitos">
+                    Parásitos (decisión detener)
+                  </option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-brand-700 mb-1">Hora de interrupción</label>
+                <label className="block text-xs font-semibold text-brand-700 mb-1">
+                  Hora de interrupción
+                </label>
                 <TextInput
                   type="time"
                   value={intHora}
@@ -579,7 +617,9 @@ export default function CargosVisita({ visita, onActualizado }) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-brand-700 mb-1">Motivo detallado</label>
+              <label className="block text-xs font-semibold text-brand-700 mb-1">
+                Motivo detallado
+              </label>
               <TextInput
                 value={intMotivo}
                 onChange={(e) => setIntMotivo(e.target.value)}
@@ -589,24 +629,36 @@ export default function CargosVisita({ visita, onActualizado }) {
 
             {/* Cálculo transparente según regla contractual */}
             <div className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-xs text-brand-900">
-              <p className="font-bold">Cálculo del importe retenido según la regla contractual:</p>
+              <p className="font-bold">
+                Cálculo del importe retenido según la regla contractual:
+              </p>
               <p className="mt-1">
                 {visita.comportamiento_declarado ? (
                   <span>
-                    El tutor <strong>declaró</strong> el comportamiento previamente. Se retiene de forma proporcional al tiempo invertido sobre la duración estimada:
+                    El tutor <strong>declaró</strong> el comportamiento
+                    previamente. Se retiene de forma proporcional al tiempo
+                    invertido sobre la duración estimada:
                     <br />
-                    Precio base: {visita.precio} € · Duración: {visita.duracion_estimada_min} min · Hora inicio: {visita.hora_inicio_servicio || "—"} · Interrupción: {intHora}
+                    Precio base: {visita.precio} € · Duración:{" "}
+                    {visita.duracion_estimada_min} min · Hora inicio:{" "}
+                    {visita.hora_inicio_servicio || "—"} · Interrupción:{" "}
+                    {intHora}
                     <br />
                     <strong className="text-sm text-brand-800">
-                      Importe retenido calculado: {importeRetenidoCalculado.toFixed(2)} €
+                      Importe retenido calculado:{" "}
+                      {importeRetenidoCalculado.toFixed(2)} €
                     </strong>
                   </span>
                 ) : (
                   <span>
-                    El tutor <strong>NO declaró</strong> previamente el comportamiento. Según las condiciones de ingreso, se retiene el <strong>importe íntegro</strong> del servicio presupuestado:
+                    El tutor <strong>NO declaró</strong> previamente el
+                    comportamiento. Según las condiciones de ingreso, se retiene
+                    el <strong>importe íntegro</strong> del servicio
+                    presupuestado:
                     <br />
                     <strong className="text-sm text-brand-800">
-                      Importe retenido: {importeRetenidoCalculado.toFixed(2)} € (100 %)
+                      Importe retenido: {importeRetenidoCalculado.toFixed(2)} €
+                      (100 %)
                     </strong>
                   </span>
                 )}
@@ -621,7 +673,8 @@ export default function CargosVisita({ visita, onActualizado }) {
                 className="mt-0.5 h-5 w-5 rounded accent-[#016581]"
               />
               <span>
-                Confirmo la interrupción del servicio y el importe retenido de {importeRetenidoCalculado.toFixed(2)} €.
+                Confirmo la interrupción del servicio y el importe retenido de{" "}
+                {importeRetenidoCalculado.toFixed(2)} €.
               </span>
             </label>
 
@@ -631,7 +684,9 @@ export default function CargosVisita({ visita, onActualizado }) {
               disabled={guardandoInterrupcion || !intConfirmado}
               className="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-40"
             >
-              {guardandoInterrupcion ? "Interrumpiendo…" : "Confirmar interrupción del servicio"}
+              {guardandoInterrupcion
+                ? "Interrumpiendo…"
+                : "Confirmar interrupción del servicio"}
             </button>
           </div>
         )}
@@ -642,19 +697,32 @@ export default function CargosVisita({ visita, onActualizado }) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between border-b border-brand-100 py-1.5">
             <span className="text-brand-700">
-              {visita.interrumpida ? "Base retenida por interrupción:" : "Precio base presupuestado:"}
+              {visita.interrumpida
+                ? "Base retenida por interrupción:"
+                : "Precio base presupuestado:"}
             </span>
-            <span className="font-semibold text-brand-900">{desgloseTotal.base.toFixed(2)} €</span>
+            <span className="font-semibold text-brand-900">
+              {desgloseTotal.base.toFixed(2)} €
+            </span>
           </div>
 
           {cargos
-            .filter((c) => c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado")
+            .filter(
+              (c) =>
+                c.respuesta === "acordado_ingreso" ||
+                c.respuesta === "aceptado",
+            )
             .map((c) => (
-              <div key={c.id} className="flex justify-between border-b border-brand-100 py-1.5 text-xs">
+              <div
+                key={c.id}
+                className="flex justify-between border-b border-brand-100 py-1.5 text-xs"
+              >
                 <span className="text-brand-600">
                   + {c.descripcion} ({c.tipo}):
                 </span>
-                <span className="font-semibold text-brand-800">{Number(c.importe).toFixed(2)} €</span>
+                <span className="font-semibold text-brand-800">
+                  {Number(c.importe).toFixed(2)} €
+                </span>
               </div>
             ))}
 

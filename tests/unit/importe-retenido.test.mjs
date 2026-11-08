@@ -72,10 +72,20 @@ test("calcularTotalVisita suma cargos acordados y aceptados, ignora rechazados y
     hora_aviso_recogida: "12:00",
     hora_recogida: "13:30", // 90 min - 60 margen = 30 min extra => 1 hora de recargo (15 €)
     cargos: [
-      { id: "c1", tipo: "tratamiento", importe: 12, respuesta: "acordado_ingreso" },
+      {
+        id: "c1",
+        tipo: "tratamiento",
+        importe: 12,
+        respuesta: "acordado_ingreso",
+      },
       { id: "c2", tipo: "manipulacion", importe: 10, respuesta: "aceptado" },
       { id: "c3", tipo: "manipulacion", importe: 10, respuesta: "rechazado" },
-      { id: "c4", tipo: "manipulacion", importe: 10, respuesta: "no_localizado" },
+      {
+        id: "c4",
+        tipo: "manipulacion",
+        importe: 10,
+        respuesta: "no_localizado",
+      },
     ],
   };
 
@@ -93,7 +103,12 @@ test("calcularTotalVisita usa importe_retenido en visita interrumpida", () => {
     importe_retenido: 20,
     recargo_demora: 0,
     cargos: [
-      { id: "c1", tipo: "tratamiento", importe: 15, respuesta: "acordado_ingreso" },
+      {
+        id: "c1",
+        tipo: "tratamiento",
+        importe: 15,
+        respuesta: "acordado_ingreso",
+      },
       { id: "c2", tipo: "manipulacion", importe: 10, respuesta: "rechazado" },
     ],
   };

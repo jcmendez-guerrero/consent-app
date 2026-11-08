@@ -6,22 +6,52 @@
 
 **Status**: Draft
 
-**Input**: User description: "we need to generate a colapsep version of the terms and conditions of the original entry form so the user accept all at once as legal terms of the service, add a separated one for the GDPR statements and other for the photos of the animal as it currently is, the plan is to simplify the process to the user, now, in the form of acceptance it is needed to include a condition that if the dog actitutde is not correc t( agressive, nervous, etc) that make it difficult to provide the treatment it may have a surcharge of 10€ for handling, in case is not accepted the service may be interrupted always in benefit of the animal health and this do not imply a return of the payment of the service. Other surcharge may be for medical treatments prior review by the veterinarian in charge and or the prescription given by the veterinarian of the pet. The system should have the capability to connect the phone or tablet of the store for the signature of the consents"
+**Input**: User description: "we need to generate a colapsep version of the terms and conditions
+of the original entry form so the user accept all at once as legal terms of the service, add a
+separated one for the GDPR statements and other for the photos of the animal as it currently is,
+the plan is to simplify the process to the user, now, in the form of acceptance it is needed to
+include a condition that if the dog actitutde is not correc t( agressive, nervous, etc) that make
+it difficult to provide the treatment it may have a surcharge of 10€ for handling, in case is not
+accepted the service may be interrupted always in benefit of the animal health and this do not imply
+a return of the payment of the service. Other surcharge may be for medical treatments prior review
+by the veterinarian in charge and or the prescription given by the veterinarian of the pet. The
+system should have the capability to connect the phone or tablet of the store for the signature
+of the consents"
 
 ## Clarifications
 
 ### Session 2026-11-04
 
 - Q: When should existing clients accept the new surcharge terms? → A: No re-acceptance of the consent is needed. The new surcharge and interruption conditions are added to the Ficha de Ingreso, which is signed at every service. The existing consent terms keep their text and remain valid; they are only presented as a single acceptance.
-- Q: How is the tutor's answer to a surcharge captured, given the tutor signs at drop-off? → A: Signing the Ficha de Ingreso (done at drop-off; the "Ficha de entrega" mentioned in the answer is read as the Ficha de Ingreso) does not accept any charge. It only accepts that a surcharge may apply and that the tutor will be contacted to decide whether to accept it or to have the treatment interrupted. The tutor's decision is obtained after contact during the service. If the tutor declines, or cannot be contacted, the treatment is interrupted directly, especially when the tutor did not disclose the pet's temperament. What the tutor owes after an interruption is defined by the interruption rule (see the later answer).
-- Q: Does the medical treatment follow the same accept/decline-after-contact model as the handling surcharge? → A: No. Medical treatments are agreed upfront at drop-off (by tutor request, in-charge veterinarian recommendation, or the pet's veterinarian prescription) and accepted by the Ficha de Ingreso signature. The exception is a parasite infection detected during the service: the tutor is informed and a special treatment is handled; if it is not applied, the groomer decides to stop the service or continue with the normal bath, always for the animal's health.
-- Q: Is the tutor's approval needed for a parasite special treatment, and what happens to the price when a service is interrupted? → A: The tutor's approval is required for the special treatment; without it the groomer decides to stop or continue the normal bath. An interruption for health or safety reasons (risk to the animal or the groomer) makes the tutor lose the part of the price proportional to the time invested, or the full service price if the behaviour was not disclosed, always in the animal's interest. This replaces the earlier "no refund" wording.
+- Q: How is the tutor's answer to a surcharge captured, given the tutor signs at drop-off? → A: Signing
+  the Ficha de Ingreso (done at drop-off; the "Ficha de entrega" mentioned in the answer is read as the
+  Ficha de Ingreso) does not accept any charge. It only accepts that a surcharge may apply and that the
+  tutor will be contacted to decide whether to accept it or to have the treatment interrupted. The tutor's
+  decision is obtained after contact during the service. If the tutor declines, or cannot be contacted,
+  the treatment is interrupted directly, especially when the tutor did not disclose the pet's temperament.
+  What the tutor owes after an interruption is defined by the interruption rule (see the later answer).
+- Q: Does the medical treatment follow the same accept/decline-after-contact model as the handling
+  surcharge? → A: No. Medical treatments are agreed upfront at drop-off (by tutor request, in-charge
+  veterinarian recommendation, or the pet's veterinarian prescription) and accepted by the Ficha de
+  Ingreso signature. The exception is a parasite infection detected during the service: the tutor is
+  informed and a special treatment is handled; if it is not applied, the groomer decides to stop the
+  service or continue with the normal bath, always for the animal's health.
+- Q: Is the tutor's approval needed for a parasite special treatment, and what happens to the price
+  when a service is interrupted? → A: The tutor's approval is required for the special treatment;
+  without it the groomer decides to stop or continue the normal bath. An interruption for health or
+  safety reasons (risk to the animal or the groomer) makes the tutor lose the part of the price
+  proportional to the time invested, or the full service price if the behaviour was not disclosed,
+  always in the animal's interest. This replaces the earlier "no refund" wording.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - One-Step Acceptance of the Service Terms (Priority: P1)
 
-Today the tutor (pet owner) is shown long lists of separate clauses and must accept or reject each one individually: the consent clauses (authorization of services, truthfulness of information, exoneration of liability, veterinary emergencies, validity) and the intake conditions on the Ficha de Ingreso (claims, late pick-up, abandonment, right to refuse or interrupt, additional treatments, price variation, personal belongings). This feature replaces each list with a **single collapsed block with one acceptance**:
+Today the tutor (pet owner) is shown long lists of separate clauses and must accept or reject each
+one individually: the consent clauses (authorization of services, truthfulness of information,
+exoneration of liability, veterinary emergencies, validity) and the intake conditions on the Ficha
+de Ingreso (claims, late pick-up, abandonment, right to refuse or interrupt, additional treatments,
+price variation, personal belongings). This feature replaces each list with a **single collapsed block with one acceptance**:
 
 - **Consent (signed once per pet)**: a collapsed "Términos y condiciones del servicio" block containing the existing consent clauses 1–5, with their text unchanged.
 - **Ficha de Ingreso (signed at every service)**: a collapsed "Condiciones de ingreso" block containing the existing intake conditions plus the two new conditions: the behaviour handling surcharge and the medical treatment charges including the parasite case (see User Stories 3 and 4).
@@ -68,15 +98,32 @@ Privacy and photo authorization stay **outside** the consent terms, each as its 
 
 ### User Story 3 - Handling Surcharge for Difficult Behaviour (Priority: P2)
 
-The Ficha de Ingreso conditions, accepted at every service, state that if the animal's attitude (aggressive, nervous, fearful, etc.) makes it difficult to provide the treatment, a **handling surcharge of 10 €** may be applied. Signing the Ficha de Ingreso at drop-off does **not** accept the charge; it only accepts that the charge may apply and that the tutor will be contacted so they can decide to accept it or to have the treatment interrupted. If the tutor declines, or cannot be contacted, the treatment **is interrupted, always in the interest of the animal's health and for the safety of the animal and the groomer**. On an interruption the tutor **loses the part of the price proportional to the time invested, or the full service price when the pet's difficult behaviour was not disclosed at drop-off**, and cannot refuse to pay that amount. Staff contact the tutor during the visit, and the contact attempts and the tutor's decision are recorded.
+The Ficha de Ingreso conditions, accepted at every service, state that if the animal's attitude
+(aggressive, nervous, fearful, etc.) makes it difficult to provide the treatment, a **handling surcharge of 10 €**
+may be applied. Signing the Ficha de Ingreso at drop-off does **not** accept the charge; it only accepts
+that the charge may apply and that the tutor will be contacted so they can decide to accept it or to have the
+treatment interrupted. If the tutor declines, or cannot be contacted, the treatment **is interrupted, always
+in the interest of the animal's health and for the safety of the animal and the groomer**. On an interruption
+the tutor **loses the part of the price proportional to the time invested, or the full service price when
+the pet's difficult behaviour was not disclosed at drop-off**, and cannot refuse to pay that amount. Staff
+contact the tutor during the visit, and the contact attempts and the tutor's decision are recorded.
 
 **Why this priority**: It protects the business and the animal when handling is difficult, but it depends on the terms (Story 1) already stating the condition.
 
-**Independent Test**: Open a visit in progress for an animal flagged as aggressive or nervous. Record a contact with the tutor in which they accept, and confirm the visit total increases by 10 € and the surcharge is shown in the delivery step. Repeat recording "declined" and then "tutor could not be contacted", and confirm in both cases the visit is marked as interrupted, the amount retained is calculated by the interruption rule (proportional to the time invested if the behaviour was disclosed at drop-off, the full price if it was not), and the contact details are recorded.
+**Independent Test**: Open a visit in progress for an animal flagged as aggressive or nervous. Record a contact
+with the tutor in which they accept, and confirm the visit total increases by 10 € and the surcharge is shown
+in the delivery step. Repeat recording "declined" and then "tutor could not be contacted", and confirm in
+both cases the visit is marked as interrupted, the amount retained is calculated by the interruption rule
+(proportional to the time invested if the behaviour was disclosed at drop-off, the full price if it was not),
+and the contact details are recorded.
 
 **Acceptance Scenarios**:
 
-1. **Given** the Ficha de Ingreso conditions contain the handling surcharge condition, **When** the tutor reads them at drop-off, **Then** the condition shows the amount (10 €), the examples of behaviour that may trigger it, that signing does not accept the charge but only that it may apply and that the tutor will be contacted, and the consequence of declining or not being reachable (interruption, with the tutor losing the proportional part of the price for the time invested, or the full price if the behaviour was not disclosed).
+1. **Given** the Ficha de Ingreso conditions contain the handling surcharge condition, **When** the tutor reads
+   them at drop-off, **Then** the condition shows the amount (10 €), the examples of behaviour that may
+   trigger it, that signing does not accept the charge but only that it may apply and that the tutor will be
+   contacted, and the consequence of declining or not being reachable (interruption, with the tutor losing
+   the proportional part of the price for the time invested, or the full price if the behaviour was not disclosed).
 2. **Given** a visit in which the animal's behaviour makes the treatment difficult, **When** staff contacts the tutor and records that the tutor accepted the surcharge, **Then** 10 € is added to the visit total and clearly itemized on the delivery step.
 3. **Given** the same situation, **When** staff records that the tutor declined the surcharge, **Then** the visit is marked as interrupted for the animal's wellbeing, the reason is recorded, and the delivery step shows the amount retained under the interruption rule.
 4. **Given** the same situation, **When** staff records that the tutor could not be contacted, **Then** the visit is marked as interrupted directly, the contact attempts are recorded, and the delivery step shows the amount retained under the interruption rule.
@@ -90,7 +137,11 @@ The Ficha de Ingreso conditions, accepted at every service, state that if the an
 Medical treatments can enter a visit in **two distinct ways**:
 
 1. **Agreed upfront at drop-off.** The treatment is requested by the tutor, recommended by the veterinarian in charge, or prescribed by the pet's own veterinarian. It is agreed on the Ficha de Ingreso, with its description, source and amount, and accepted by the tutor when they sign at drop-off.
-2. **Parasite infection detected during the service.** The tutor is informed and their **approval is required** to apply a special treatment. If the tutor does not approve, or cannot be contacted, the special treatment is not applied and the groomer decides, for the animal's health and without needing the tutor's approval, whether to stop the service or to continue with the normal bath. The decision and its reason are recorded.
+2. **Parasite infection detected during the service.** The tutor is informed and their **approval is
+   required** to apply a special treatment. If the tutor does not approve, or cannot be contacted, the
+   special treatment is not applied and the groomer decides, for the animal's health and without needing
+   the tutor's approval, whether to stop the service or to continue with the normal bath. The decision and
+   its reason are recorded.
 
 **Why this priority**: It completes the pricing conditions, but amounts vary case by case, so it follows the fixed handling surcharge.
 
@@ -98,7 +149,10 @@ Medical treatments can enter a visit in **two distinct ways**:
 
 **Acceptance Scenarios**:
 
-1. **Given** the Ficha de Ingreso conditions, **When** the tutor reads them, **Then** a condition explains that medical treatments may carry a charge when agreed upfront (by request, recommendation or prescription), and that if a parasite infection is detected the tutor will be informed, a special treatment needs the tutor's approval, and otherwise the service may be stopped or adapted for the animal's health.
+1. **Given** the Ficha de Ingreso conditions, **When** the tutor reads them, **Then** a condition explains that
+   medical treatments may carry a charge when agreed upfront (by request, recommendation or prescription), and
+   that if a parasite infection is detected the tutor will be informed, a special treatment needs the tutor's
+   approval, and otherwise the service may be stopped or adapted for the animal's health.
 2. **Given** a Ficha de Ingreso, **When** staff adds an upfront medical treatment, **Then** it requires a description, an amount and its origin (tutor request, in-charge veterinarian recommendation, pet's veterinarian prescription); saving without any of them is blocked.
 3. **Given** an upfront medical treatment on the Ficha de Ingreso, **When** the tutor signs, **Then** the treatment and its amount are accepted by that signature, with no further contact needed to apply it.
 4. **Given** a treatment originating from the pet's own veterinarian prescription, **When** it is recorded, **Then** staff can note a reference to the prescription (for example a date or number).
@@ -111,7 +165,11 @@ Medical treatments can enter a visit in **two distinct ways**:
 
 ### User Story 5 - Sign Consents on the Store's Phone or Tablet (Priority: P2)
 
-Staff can connect the store's phone or tablet to the counter workstation so that the **tutor reviews and signs the consent and the Ficha de Ingreso on that device** instead of on paper. Once the tutor signs, the signature and the acceptance decisions appear automatically on the counter workstation. The store's own countersignature can also be captured on the connected device. If no device is connected, or the connection fails, the existing paper flow remains available as a fallback.
+Staff can connect the store's phone or tablet to the counter workstation so that the **tutor reviews
+and signs the consent and the Ficha de Ingreso on that device** instead of on paper. Once the tutor
+signs, the signature and the acceptance decisions appear automatically on the counter workstation.
+The store's own countersignature can also be captured on the connected device. If no device is
+connected, or the connection fails, the existing paper flow remains available as a fallback.
 
 **Why this priority**: It removes printing and manual re-entry, and delivers the digital-signature capability the business wants. It builds on Stories 1 and 2 (the content being signed) so it follows them.
 
@@ -174,18 +232,29 @@ Staff can connect the store's phone or tablet to the counter workstation so that
 **Handling surcharge (10 €)**
 
 - **FR-014**: The Ficha de Ingreso conditions MUST state that a handling surcharge of 10 € may apply when the animal's attitude (for example aggressive, nervous, fearful) makes the treatment difficult, and that signing does not accept the charge but only that it may apply and that the tutor will be contacted to decide.
-- **FR-015**: The Ficha de Ingreso conditions MUST state that, if the tutor declines the surcharge or cannot be contacted, the treatment is interrupted in the interest of the animal's health, especially when the pet's temperament was not disclosed, and that, on an interruption for health or safety reasons, the tutor loses the part of the price proportional to the time invested, or the full service price if the behaviour was not disclosed at drop-off, and cannot refuse to pay it.
+- **FR-015**: The Ficha de Ingreso conditions MUST state that, if the tutor declines the surcharge or
+  cannot be contacted, the treatment is interrupted in the interest of the animal's health, especially when
+  the pet's temperament was not disclosed, and that, on an interruption for health or safety reasons, the tutor
+  loses the part of the price proportional to the time invested, or the full service price if the behaviour was
+  not disclosed at drop-off, and cannot refuse to pay it.
 - **FR-016**: Staff MUST be able to apply the handling surcharge to a visit only after recording the contact with the tutor (channel, date and time, staff member) and the tutor's decision (accepted or declined); the system MUST NOT apply it automatically.
 - **FR-016a**: Staff MUST be able to record that the tutor could not be contacted, with the attempts made (channel, date and time, staff member).
 - **FR-017**: When the tutor declines or cannot be contacted, the system MUST mark the visit as interrupted, record the reason, and show on the delivery step the amount retained under the interruption rule (FR-017a).
-- **FR-017a**: Interruption rule: when a service is interrupted for health or safety reasons (risk to the animal or to the groomer), the amount retained MUST be the part of the service price proportional to the time invested, calculated from the recorded service start time, interruption time and estimated service duration, unless the behaviour or condition causing the interruption was not disclosed at drop-off, in which case the full service price is retained; any remainder is not charged or is returned to the tutor.
+- **FR-017a**: Interruption rule: when a service is interrupted for health or safety reasons (risk to the
+  animal or to the groomer), the amount retained MUST be the part of the service price proportional to the
+  time invested, calculated from the recorded service start time, interruption time and estimated service
+  duration, unless the behaviour or condition causing the interruption was not disclosed at drop-off, in which
+  case the full service price is retained; any remainder is not charged or is returned to the tutor.
 - **FR-017b**: The Ficha de Ingreso MUST record the estimated service duration and whether the tutor disclosed any difficult behaviour or relevant condition at drop-off; staff MUST record the service start time and the interruption time, and MUST be able to confirm the calculated retained amount before it is shown on the delivery step.
 - **FR-018**: The handling surcharge MUST be applied at most once per visit.
 - **FR-019**: Accepted surcharges MUST be itemized on the delivery step and included in the visit total.
 
 **Medical treatment charges**
 
-- **FR-020**: The Ficha de Ingreso conditions MUST state that medical treatments may carry a charge when agreed upfront (by tutor request, in-charge veterinarian recommendation, or the pet's veterinarian prescription), and that if a parasite infection is detected the tutor will be informed, a special treatment requires the tutor's approval, and otherwise the service may be stopped or adapted for the animal's health.
+- **FR-020**: The Ficha de Ingreso conditions MUST state that medical treatments may carry a charge when agreed
+  upfront (by tutor request, in-charge veterinarian recommendation, or the pet's veterinarian prescription),
+  and that if a parasite infection is detected the tutor will be informed, a special treatment requires the
+  tutor's approval, and otherwise the service may be stopped or adapted for the animal's health.
 - **FR-021**: Staff MUST be able to add an upfront medical treatment to the Ficha de Ingreso with a description, an amount and its origin (tutor request, in-charge veterinarian recommendation, or pet's veterinarian prescription); saving without these MUST be blocked.
 - **FR-022**: The tutor's signature on the Ficha de Ingreso MUST accept the upfront medical treatments and amounts listed on it; no further acceptance is required to apply them.
 - **FR-023**: The system MUST allow an optional prescription reference to be noted on an upfront medical treatment.
@@ -217,7 +286,12 @@ Staff can connect the store's phone or tablet to the counter workstation so that
 - **Consent Record**: The set of the three decisions, the legal text versions, the signatures (tutor and store), the date and time, and the signing method (paper or store device).
 - **Signing Session**: A short-lived link between one in-progress consent and one store device, with a status (waiting, connected, signed, expired, cancelled).
 - **Store Device**: The phone or tablet used by the tutor to review and sign; has no stored personal data after the session ends.
-- **Surcharge**: An extra charge attached to a visit, with a type (handling, upfront medical treatment, or parasite special treatment), amount, reason or description, origin (for medical: tutor request, in-charge veterinarian recommendation, or pet's veterinarian prescription), tutor response (accepted, declined, or not reachable) for handling surcharges, the contact record (channel, date and time, staff member, attempts made), and an optional prescription reference. Upfront medical treatments are accepted by the Ficha de Ingreso signature.
+- **Surcharge**: An extra charge attached to a visit, with a type (handling, upfront medical treatment,
+  or parasite special treatment), amount, reason or description, origin (for medical: tutor request,
+  in-charge veterinarian recommendation, or pet's veterinarian prescription), tutor response (accepted,
+  declined, or not reachable) for handling surcharges, the contact record (channel, date and time, staff
+  member, attempts made), and an optional prescription reference. Upfront medical treatments are accepted
+  by the Ficha de Ingreso signature.
 - **Visit**: The existing service occurrence for a pet, which now also carries its surcharges, its interruption state and reason, the estimated duration, start and interruption times, whether difficult behaviour was disclosed at drop-off, the amount retained after an interruption, and the final total.
 
 ## Success Criteria *(mandatory)*
@@ -237,8 +311,15 @@ Staff can connect the store's phone or tablet to the counter workstation so that
 
 ## Assumptions
 
-- The acceptance blocks (consent terms, privacy, photos, intake conditions) use the clause wording already approved by Mundo Mascotix; the only new wording is the handling surcharge condition, the medical treatment surcharge condition and the interruption statement (proportional loss of the price, or full price when the behaviour was not disclosed) described in this request. Final wording of these new clauses is to be reviewed by the person responsible for Mundo Mascotix before release.
-- The consent (signed once per pet) and the Ficha de Ingreso (signed at every service) stay as two separate documents, each simplified to a single terms acceptance. The Ficha de Ingreso intake conditions are claims, late pick-up, abandonment, right to refuse or interrupt, additional treatments, price variation and personal belongings; the existing late pick-up charge (15 € per hour or fraction after 60 minutes) is unchanged.
+- The acceptance blocks (consent terms, privacy, photos, intake conditions) use the clause wording already
+  approved by Mundo Mascotix; the only new wording is the handling surcharge condition, the medical
+  treatment surcharge condition and the interruption statement (proportional loss of the price, or full price
+  when the behaviour was not disclosed) described in this request. Final wording of these new clauses is to
+  be reviewed by the person responsible for Mundo Mascotix before release.
+- The consent (signed once per pet) and the Ficha de Ingreso (signed at every service) stay as two separate
+  documents, each simplified to a single terms acceptance. The Ficha de Ingreso intake conditions are claims,
+  late pick-up, abandonment, right to refuse or interrupt, additional treatments, price variation and
+  personal belongings; the existing late pick-up charge (15 € per hour or fraction after 60 minutes) is unchanged.
 - The commercial-communications authorization is kept as a separate optional choice shown with the privacy block, because it must be granted independently of the data-protection statement.
 - The tutor reads and signs on the store device in the store itself, supervised by staff; remote signing by tutors on their own devices is out of scope.
 - Digital signing on the store device coexists with the existing paper flow; staff chooses per consent, and paper remains the fallback when the device or connection is unavailable.
@@ -248,7 +329,12 @@ Staff can connect the store's phone or tablet to the counter workstation so that
 - The interruption rule applies to any interruption for health or safety reasons, including a stop after a parasite finding. For a parasite stop, "disclosed at drop-off" means the tutor declared the relevant condition on the Ficha de Ingreso.
 - The proportional amount is calculated as the service price multiplied by the time invested divided by the estimated service duration, capped at 100% of the price; the estimated duration is entered by staff at drop-off, and staff can confirm the calculated amount before it is shown.
 - Applying a surcharge remains a decision by staff; the system reminds but never charges automatically.
-- The interruption rule (proportional loss of the price for the time invested, or the full price when the behaviour was not disclosed) is included as requested by the business and supersedes the earlier "no refund" wording and the existing intake wording ("sin derecho a reembolso íntegro si el servicio ya se ha iniciado parcialmente"). Retaining the full price and preventing the tutor from refusing payment can be challenged under Spanish consumer-protection rules, so the wording is flagged for review by the responsible person before go-live.
+- The interruption rule (proportional loss of the price for the time invested, or the full price when
+  the behaviour was not disclosed) is included as requested by the business and supersedes the earlier
+  "no refund" wording and the existing intake wording ("sin derecho a reembolso íntegro si el servicio ya
+  se ha iniciado parcialmente"). Retaining the full price and preventing the tutor from refusing payment
+  can be challenged under Spanish consumer-protection rules, so the wording is flagged for review by the
+  responsible person before go-live.
 - Existing consents, visits and signatures stay as they are and remain valid; no migration of historical per-clause answers and no re-acceptance of the consent terms is required.
 - The delivery step already displays the price and late pick-up charge inline; surcharges follow the same inline presentation.
 - Date and time displays use the Europe/Madrid locale, and touch targets meet the minimum size used for counter and tablet use, per the project constitution.

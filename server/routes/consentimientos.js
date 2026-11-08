@@ -51,7 +51,8 @@ router.post("/", async (req, res, next) => {
     if (formatoAceptacion === "bloques") {
       if (!c.legal_hashes || typeof c.legal_hashes !== "object") {
         return res.status(400).json({
-          error: "Se requieren las huellas de los textos legales (legal_hashes)",
+          error:
+            "Se requieren las huellas de los textos legales (legal_hashes)",
         });
       }
       if (

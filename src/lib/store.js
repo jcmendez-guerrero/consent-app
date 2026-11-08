@@ -48,7 +48,10 @@ async function fetchAll() {
     cache = { clientes, mascotas, consentimientos, visitas };
     updateStatus(false, null);
   } catch (err) {
-    updateStatus(false, err.message || "Error al conectar con la base de datos");
+    updateStatus(
+      false,
+      err.message || "Error al conectar con la base de datos",
+    );
     throw err;
   } finally {
     notify();

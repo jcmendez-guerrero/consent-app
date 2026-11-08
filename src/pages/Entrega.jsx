@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useDirty } from "../contexts/DirtyContext";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import QRCode from "qrcode";
-import { useDB, useDBStatus, guardarVisita, consumirSesionFirma } from "../lib/store";
+import {
+  useDB,
+  useDBStatus,
+  guardarVisita,
+  consumirSesionFirma,
+} from "../lib/store";
 import {
   CLAUSULAS_INGRESO,
   CUIDADOS_CHECKLIST,
@@ -251,7 +256,10 @@ export default function Entrega() {
       navigate("/");
     } catch (e) {
       console.error(e);
-      setError("No se pudo cerrar la visita tras la firma digital: " + (e.message || e));
+      setError(
+        "No se pudo cerrar la visita tras la firma digital: " +
+          (e.message || e),
+      );
     } finally {
       setGuardando(false);
       setMostrarModalFirma(false);
@@ -274,14 +282,16 @@ export default function Entrega() {
           <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
             <span className="text-sm font-semibold">
-              Cargando datos e inicializando la base de datos… Por favor, espera un momento.
+              Cargando datos e inicializando la base de datos… Por favor, espera
+              un momento.
             </span>
           </div>
         )}
 
         {errorDB && (
           <Aviso tipo="error">
-            Error al conectar con la base de datos: {errorDB}. Comprueba tu conexión o recarga la página.
+            Error al conectar con la base de datos: {errorDB}. Comprueba tu
+            conexión o recarga la página.
           </Aviso>
         )}
         <Card
@@ -361,14 +371,16 @@ export default function Entrega() {
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
           <span className="text-sm font-semibold">
-            Cargando datos e inicializando la base de datos… Por favor, espera un momento.
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
           </span>
         </div>
       )}
 
       {errorDB && (
         <Aviso tipo="error">
-          Error al conectar con la base de datos: {errorDB}. Comprueba tu conexión o recarga la página.
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
         </Aviso>
       )}
 
@@ -528,17 +540,34 @@ export default function Entrega() {
                     ? `Base retenida (interrupción: ${actual.visita.interrupcion_motivo || "servicio interrumpido"}):`
                     : "Precio base acordado:"}
                 </span>
-                <span className="font-semibold text-brand-900">{desglose.base.toFixed(2)} €</span>
+                <span className="font-semibold text-brand-900">
+                  {desglose.base.toFixed(2)} €
+                </span>
               </div>
 
               {(actual.visita.cargos || [])
-                .filter((c) => c.respuesta === "acordado_ingreso" || c.respuesta === "aceptado")
+                .filter(
+                  (c) =>
+                    c.respuesta === "acordado_ingreso" ||
+                    c.respuesta === "aceptado",
+                )
                 .map((c) => (
-                  <div key={c.id} className="flex justify-between text-xs text-brand-700">
+                  <div
+                    key={c.id}
+                    className="flex justify-between text-xs text-brand-700"
+                  >
                     <span>
-                      + {c.tipo === "manipulacion" ? "Recargo manipulación difícil" : c.tipo === "parasitos" ? `Tratamiento antiparasitario (${c.descripcion})` : `Tratamiento médico (${c.descripcion})`}:
+                      +{" "}
+                      {c.tipo === "manipulacion"
+                        ? "Recargo manipulación difícil"
+                        : c.tipo === "parasitos"
+                          ? `Tratamiento antiparasitario (${c.descripcion})`
+                          : `Tratamiento médico (${c.descripcion})`}
+                      :
                     </span>
-                    <span className="font-semibold text-brand-800">{Number(c.importe).toFixed(2)} €</span>
+                    <span className="font-semibold text-brand-800">
+                      {Number(c.importe).toFixed(2)} €
+                    </span>
                   </div>
                 ))}
 
@@ -581,7 +610,8 @@ export default function Entrega() {
         subtitle="Firma del tutor al recoger la mascota, como constancia de la entrega y de haber recibido las indicaciones de cuidado."
       >
         <Aviso tipo="info">
-          Puedes solicitar la firma digital con el móvil del tutor o en la tablet de la tienda, o registrar la firma manual en papel.
+          Puedes solicitar la firma digital con el móvil del tutor o en la
+          tablet de la tienda, o registrar la firma manual en papel.
         </Aviso>
         <div className="mt-4">
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">

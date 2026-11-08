@@ -1,3 +1,4 @@
+**/.agents/**
 **/.github/agents/**/*.md
 **/.github/instructions/**/*.md
 **/.github/skills/**/*.md

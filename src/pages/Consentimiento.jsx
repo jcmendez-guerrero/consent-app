@@ -319,14 +319,16 @@ export default function Consentimiento() {
         <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-brand-800 shadow-sm animate-pulse">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
           <span className="text-sm font-semibold">
-            Cargando datos e inicializando la base de datos… Por favor, espera un momento.
+            Cargando datos e inicializando la base de datos… Por favor, espera
+            un momento.
           </span>
         </div>
       )}
 
       {errorDB && (
         <Aviso tipo="error">
-          Error al conectar con la base de datos: {errorDB}. Comprueba tu conexión o recarga la página.
+          Error al conectar con la base de datos: {errorDB}. Comprueba tu
+          conexión o recarga la página.
         </Aviso>
       )}
 
@@ -540,7 +542,9 @@ export default function Consentimiento() {
                 <BloqueAceptacion
                   titulo="2. Protección de datos (RGPD / LOPDGDD)"
                   resumen={RESUMEN_RGPD}
-                  clausulas={[CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd")]}
+                  clausulas={[
+                    CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd"),
+                  ]}
                   readOnly={true}
                 />
               )}
