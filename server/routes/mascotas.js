@@ -38,8 +38,10 @@ router.post("/", async (req, res, next) => {
       )
       .input("especie", sql.NVarChar, m.especie || "perro").query(`
         MERGE dbo.mascotas AS t
-        USING (VALUES (@cliente_id, @nombre)) AS s(cliente_id, nombre)
+        USING (VALUES (@cliente_id, @nombre, @microchip)) AS s(cliente_id, nombre, microchip)
           ON t.cliente_id = s.cliente_id AND t.nombre = s.nombre
+          -- mismo nombre pero microchips distintos = otra mascota (dos "Luna")
+          AND (s.microchip IS NULL OR t.microchip IS NULL OR t.microchip = s.microchip)
         WHEN MATCHED THEN UPDATE SET
           raza = COALESCE(@raza, t.raza),
           edad = COALESCE(@edad, t.edad),

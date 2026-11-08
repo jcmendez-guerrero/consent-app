@@ -1,5 +1,8 @@
 const BASE = "https://app.siweb360.com/api/public";
 
+// Sin tope, un SiWeb360 colgado dejaría colgado también el guardado del consentimiento.
+const TIMEOUT_MS = 8000;
+
 function authHeaders() {
   return {
     Authorization: `Bearer ${process.env.SIWEB360_API_KEY}`,
@@ -13,7 +16,10 @@ async function readErrorBody(res) {
 }
 
 async function siGet(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
+  const res = await fetch(`${BASE}${path}`, {
+    headers: authHeaders(),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok)
     throw new Error(
       `SiWeb360 GET ${path} → ${res.status}${await readErrorBody(res)}`,
@@ -26,6 +32,7 @@ async function siPost(path, body) {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok)
     throw new Error(
@@ -39,6 +46,7 @@ async function siPut(path, body) {
     method: "PUT",
     headers: authHeaders(),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok)
     throw new Error(

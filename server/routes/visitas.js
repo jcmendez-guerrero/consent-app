@@ -10,6 +10,14 @@ import { validarImporteRetenido } from "../lib/interruption.js";
 
 const router = Router();
 
+// El front antiguo enviaba un objeto; hoy llega 'acepta' | 'rechaza' (o nada).
+function normalizarClausula(valor) {
+  if (typeof valor === "object" && valor !== null) {
+    return valor.condiciones_generales || valor.condiciones || "acepta";
+  }
+  return valor || null;
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const pool = await getPool();
@@ -91,13 +99,7 @@ router.post("/", async (req, res, next) => {
       }
     }
 
-    const clausulasResp =
-      typeof v.clausulas_respuesta_condiciones === "object" &&
-      v.clausulas_respuesta_condiciones !== null
-        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
-          v.clausulas_respuesta_condiciones.condiciones ||
-          "acepta"
-        : v.clausulas_respuesta_condiciones || null;
+    const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
     await transaction.begin();
 
@@ -245,13 +247,7 @@ router.put("/:id", async (req, res, next) => {
       });
     }
 
-    const clausulasResp =
-      typeof v.clausulas_respuesta_condiciones === "object" &&
-      v.clausulas_respuesta_condiciones !== null
-        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
-          v.clausulas_respuesta_condiciones.condiciones ||
-          "acepta"
-        : v.clausulas_respuesta_condiciones || null;
+    const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
     await pool
       .request()
