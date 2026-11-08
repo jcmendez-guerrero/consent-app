@@ -67,7 +67,7 @@ router.put("/:id", async (req, res, next) => {
         .json({ error: "El email del cliente es obligatorio" });
     }
     const pool = await getPool();
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input("nombre_apellidos", sql.NVarChar, c.nombre_apellidos)
@@ -79,6 +79,9 @@ router.put("/:id", async (req, res, next) => {
             telefono = @telefono, email = @email, actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);

@@ -353,11 +353,9 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
         WHERE id = @id AND estado = 'conectada' AND expira_en > SYSUTCDATETIME()
       `);
     if (!update.rowsAffected[0]) {
-      return res
-        .status(409)
-        .json({
-          error: "La sesión ya no admite la firma (caducada o enviada)",
-        });
+      return res.status(409).json({
+        error: "La sesión ya no admite la firma (caducada o enviada)",
+      });
     }
 
     res.json({ estado: ESTADOS.FIRMADA });

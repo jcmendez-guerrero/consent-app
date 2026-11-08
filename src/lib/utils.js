@@ -1,5 +1,7 @@
+// Fecha local (no UTC): entre las 00:00 y las 02:00 en España toISOString() daría ayer.
+// El locale sv-SE formatea como YYYY-MM-DD.
 export function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("sv-SE");
 }
 
 export function horaAhora() {

@@ -249,7 +249,7 @@ router.put("/:id", async (req, res, next) => {
 
     const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input("estado", sql.NVarChar, v.estado)
@@ -366,6 +366,9 @@ router.put("/:id", async (req, res, next) => {
           actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Visita no encontrada" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);

@@ -65,7 +65,7 @@ router.put("/:id", async (req, res, next) => {
   try {
     const pool = await getPool();
     const m = req.body;
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input("nombre", sql.NVarChar, m.nombre)
@@ -85,6 +85,9 @@ router.put("/:id", async (req, res, next) => {
             especie = @especie, actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Mascota no encontrada" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);
