@@ -25,10 +25,30 @@ const router = Router();
 router.get("/", async (req, res, next) => {
   try {
     const pool = await getPool();
+    // Sin las imágenes de firma (pesan mucho): GET /:id devuelve el registro completo.
+    const result = await pool.request().query(`
+      SELECT id, cliente_id, mascota_id, fecha, firma_tipo, clausulas_respuestas, estado,
+             condiciones_preexistentes, condiciones_preexistentes_otras, autoriza_fotos,
+             autoriza_comunicaciones, legal_version, legal_hash, revocado, creado_por,
+             consent_blob_path, formato_aceptacion, legal_hashes, firma_sesion_id
+      FROM dbo.consentimientos ORDER BY fecha DESC`);
+    res.json(result.recordset.map(mapConsentimiento));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const pool = await getPool();
     const result = await pool
       .request()
-      .query("SELECT * FROM dbo.consentimientos ORDER BY fecha DESC");
-    res.json(result.recordset.map(mapConsentimiento));
+      .input("id", sql.NVarChar, req.params.id)
+      .query("SELECT * FROM dbo.consentimientos WHERE id = @id");
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: "Consentimiento no encontrado" });
+    }
+    res.json(mapConsentimiento(result.recordset[0]));
   } catch (err) {
     next(err);
   }

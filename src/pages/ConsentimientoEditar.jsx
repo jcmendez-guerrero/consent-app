@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
-import { useDB, actualizarConsentimiento } from "../lib/store";
+import {
+  useDB,
+  actualizarConsentimiento,
+  fetchConsentimiento,
+} from "../lib/store";
 import {
   CLAUSULAS_CONSENTIMIENTO,
   CLAUSULA_IMAGENES,
@@ -108,7 +112,7 @@ export default function ConsentimientoEditar() {
         cliente,
         mascota,
         consentimiento: {
-          ...consentimiento,
+          ...(await fetchConsentimiento(id)),
           clausulas_respuestas: respuestas,
           autoriza_fotos: autorizaFotos,
           autoriza_comunicaciones: autorizaComunicaciones,

@@ -1,13 +1,8 @@
 import { Router } from "express";
 import { getPool, sql } from "../db/pool.js";
-import {
-  mapCliente,
-  mapMascota,
-  mapConsentimiento,
-  mapVisita,
-  mapCargo,
-  mapContacto,
-} from "../lib/mappers.js";
+import { mapCliente, mapMascota, mapConsentimiento } from "../lib/mappers.js";
+import { visitasConDetalle } from "../lib/visitasDetalle.js";
+import { getBlobServiceClient } from "../lib/blobClient.js";
 import { uid } from "../lib/id.js";
 
 const router = Router();
@@ -90,13 +85,53 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
+// Borra del Blob Storage todos los ficheros de las mascotas del cliente (carpeta
+// "<mascota_id>/"), incluidas versiones antiguas que ya no apunta ninguna fila.
+async function borrarBlobsDelCliente(pool, clienteId) {
+  const conBlob = await pool
+    .request()
+    .input("clienteId", sql.NVarChar, clienteId)
+    .query(
+      "SELECT TOP 1 1 AS x FROM dbo.consentimientos WHERE cliente_id = @clienteId AND consent_blob_path IS NOT NULL",
+    );
+  if (!conBlob.recordset.length) return;
+
+  const mascotas = await pool
+    .request()
+    .input("clienteId", sql.NVarChar, clienteId)
+    .query("SELECT id FROM dbo.mascotas WHERE cliente_id = @clienteId");
+  const container = getBlobServiceClient().getContainerClient(
+    process.env.BLOB_CONTAINER_NAME || "consentimientos",
+  );
+  for (const { id } of mascotas.recordset) {
+    for await (const blob of container.listBlobsFlat({ prefix: `${id}/` })) {
+      await container.deleteBlob(blob.name);
+    }
+  }
+}
+
 router.delete("/:id", async (req, res, next) => {
-  const pool = await getPool();
-  const transaction = new sql.Transaction(pool);
+  let transaction;
   try {
-    await transaction.begin();
+    const pool = await getPool();
     const clienteId = req.params.id;
 
+    // Primero los ficheros: si falla, la BD queda intacta y se puede reintentar.
+    await borrarBlobsDelCliente(pool, clienteId);
+
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    // tratamientos.visita_id no tiene ON DELETE CASCADE: hay que borrarlos antes que las visitas.
+    await new sql.Request(transaction).input(
+      "clienteId",
+      sql.NVarChar,
+      clienteId,
+    ).query(`
+        DELETE t FROM dbo.tratamientos t
+        INNER JOIN dbo.mascotas m ON m.id = t.mascota_id
+        WHERE m.cliente_id = @clienteId
+      `);
     await new sql.Request(transaction).input(
       "clienteId",
       sql.NVarChar,
@@ -119,7 +154,13 @@ router.delete("/:id", async (req, res, next) => {
     await transaction.commit();
     res.status(204).end();
   } catch (err) {
-    await transaction.rollback();
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch {
+        // Sin transacción activa (p. ej. begin() falló): nada que deshacer.
+      }
+    }
     next(err);
   }
 });
@@ -133,6 +174,9 @@ router.get("/:id/export", async (req, res, next) => {
       .request()
       .input("id", sql.NVarChar, clienteId)
       .query("SELECT * FROM dbo.clientes WHERE id = @id");
+    if (!clienteResult.recordset.length) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
     const cliente = mapCliente(clienteResult.recordset[0]);
 
     const mascotasResult = await pool
@@ -140,7 +184,6 @@ router.get("/:id/export", async (req, res, next) => {
       .input("clienteId", sql.NVarChar, clienteId)
       .query("SELECT * FROM dbo.mascotas WHERE cliente_id = @clienteId");
     const mascotas = mascotasResult.recordset.map(mapMascota);
-    const mascotaIds = mascotas.map((m) => m.id);
 
     const consentimientosResult = await pool
       .request()
@@ -149,56 +192,14 @@ router.get("/:id/export", async (req, res, next) => {
     const consentimientos =
       consentimientosResult.recordset.map(mapConsentimiento);
 
-    let visitas = [];
-    if (mascotaIds.length) {
-      const visitasResult = await pool
-        .request()
-        .input("clienteId", sql.NVarChar, clienteId).query(`
-          SELECT v.* FROM dbo.visitas v
-          INNER JOIN dbo.mascotas m ON m.id = v.mascota_id
-          WHERE m.cliente_id = @clienteId
-        `);
-      const vRows = visitasResult.recordset;
-      if (vRows.length) {
-        const vIds = vRows.map((r) => r.id);
-        const cargosReq = pool.request();
-        const contactosReq = pool.request();
-        const inParams = vIds
-          .map((id, idx) => {
-            const p = `v${idx}`;
-            cargosReq.input(p, sql.NVarChar, id);
-            contactosReq.input(p, sql.NVarChar, id);
-            return `@${p}`;
-          })
-          .join(",");
-        const [cargosRes, contactosRes] = await Promise.all([
-          cargosReq.query(
-            `SELECT * FROM dbo.visita_cargos WHERE visita_id IN (${inParams}) ORDER BY creado_en ASC`,
-          ),
-          contactosReq.query(
-            `SELECT * FROM dbo.visita_contactos WHERE visita_id IN (${inParams}) ORDER BY fecha_hora ASC`,
-          ),
-        ]);
-        const cMap = new Map();
-        for (const row of cargosRes.recordset) {
-          const l = cMap.get(row.visita_id) || [];
-          l.push(mapCargo(row));
-          cMap.set(row.visita_id, l);
-        }
-        const ctcMap = new Map();
-        for (const row of contactosRes.recordset) {
-          const l = ctcMap.get(row.visita_id) || [];
-          l.push(mapContacto(row));
-          ctcMap.set(row.visita_id, l);
-        }
-        visitas = vRows.map((r) => {
-          const mapped = mapVisita(r);
-          mapped.cargos = cMap.get(r.id) || [];
-          mapped.contactos = ctcMap.get(r.id) || [];
-          return mapped;
-        });
-      }
-    }
+    const visitasResult = await pool
+      .request()
+      .input("clienteId", sql.NVarChar, clienteId).query(`
+        SELECT v.* FROM dbo.visitas v
+        INNER JOIN dbo.mascotas m ON m.id = v.mascota_id
+        WHERE m.cliente_id = @clienteId
+      `);
+    const visitas = await visitasConDetalle(pool, visitasResult.recordset);
 
     res.json({
       exportado: new Date().toISOString(),

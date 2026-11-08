@@ -15,6 +15,14 @@ import { rateLimiter, firmaRateLimiter } from "./middleware/rateLimiter.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// App Service pone un proxy delante: sin esto el limitador ve la IP del proxy y
+// cuenta a todos los usuarios como uno solo.
+app.set("trust proxy", 1);
+
+// Los ficheros estáticos van antes de los limitadores: no deben gastar su cupo.
+const distDir = path.join(__dirname, "../dist");
+app.use(express.static(distDir));
+
 // Las firmas van como PNG en base64 dentro del JSON; el límite por defecto de
 // Express (100kb) se queda corto.
 app.use(express.json({ limit: "5mb" }));
@@ -32,8 +40,6 @@ app.use("/api/visitas", visitasRouter);
 app.use("/api/tratamientos", tratamientosRouter);
 app.use("/api/siweb360", siweb360Router);
 
-const distDir = path.join(__dirname, "../dist");
-app.use(express.static(distDir));
 app.get("*", (req, res) => {
   res.sendFile(path.join(distDir, "index.html"));
 });

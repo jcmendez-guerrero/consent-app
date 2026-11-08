@@ -266,12 +266,22 @@ export async function guardarVisita(visita) {
 // ---- Incidencias, contactos, cargos e interrupción (Feature 007) ----
 
 export async function iniciarServicio(visitaId, hora) {
-  await fetchJSON(`/api/visitas/${visitaId}`, {
-    method: "PUT",
+  await fetchJSON(`/api/visitas/${visitaId}/inicio`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hora_inicio_servicio: hora }),
   });
   await refetch();
+}
+
+// Las listas de useDB() no llevan imágenes de firma; estas dos devuelven el
+// registro completo para generar PDFs.
+export async function fetchVisita(id) {
+  return fetchJSON(`/api/visitas/${id}`);
+}
+
+export async function fetchConsentimiento(id) {
+  return fetchJSON(`/api/consentimientos/${id}`);
 }
 
 export async function registrarContacto(visitaId, datos) {
