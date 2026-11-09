@@ -47,7 +47,20 @@ jobs:
           allow-ghsas: GHSA-gcqx-w48m-w2h4, GHSA-g3hv-75wg-m249
           warn-only: true
 
-  linting: 
+  pruebas:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      # Las pruebas no usan dependencias externas: basta el Node del runner.
+      - name: Ejecutar pruebas
+        run: npm test
+
+  linting:
     name: Linting
     runs-on: ubuntu-latest
     permissions:

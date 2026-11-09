@@ -25,10 +25,30 @@ const router = Router();
 router.get("/", async (req, res, next) => {
   try {
     const pool = await getPool();
+    // Sin las imágenes de firma (pesan mucho): GET /:id devuelve el registro completo.
+    const result = await pool.request().query(`
+      SELECT id, cliente_id, mascota_id, fecha, firma_tipo, clausulas_respuestas, estado,
+             condiciones_preexistentes, condiciones_preexistentes_otras, autoriza_fotos,
+             autoriza_comunicaciones, legal_version, legal_hash, revocado, creado_por,
+             consent_blob_path, formato_aceptacion, legal_hashes, firma_sesion_id
+      FROM dbo.consentimientos ORDER BY fecha DESC`);
+    res.json(result.recordset.map(mapConsentimiento));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const pool = await getPool();
     const result = await pool
       .request()
-      .query("SELECT * FROM dbo.consentimientos ORDER BY fecha DESC");
-    res.json(result.recordset.map(mapConsentimiento));
+      .input("id", sql.NVarChar, req.params.id)
+      .query("SELECT * FROM dbo.consentimientos WHERE id = @id");
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: "Consentimiento no encontrado" });
+    }
+    res.json(mapConsentimiento(result.recordset[0]));
   } catch (err) {
     next(err);
   }
@@ -264,7 +284,7 @@ router.put("/:id", async (req, res, next) => {
       ([, v]) => v === "rechaza",
     );
     const estado = hayRechazo ? "rechazado" : "aceptado";
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input(
@@ -295,6 +315,11 @@ router.put("/:id", async (req, res, next) => {
           autoriza_comunicaciones = @autoriza_comunicaciones
         WHERE id = @id AND revocado IS NULL
       `);
+    if (!result.rowsAffected[0]) {
+      return res
+        .status(404)
+        .json({ error: "Consentimiento no encontrado o revocado" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);
@@ -304,12 +329,18 @@ router.put("/:id", async (req, res, next) => {
 router.post("/:id/revocar", async (req, res, next) => {
   try {
     const pool = await getPool();
-    await pool
+    // Solo si aún no está revocado: una segunda revocación no debe mover la fecha real.
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .query(
-        "UPDATE dbo.consentimientos SET revocado = SYSUTCDATETIME() WHERE id = @id",
+        "UPDATE dbo.consentimientos SET revocado = SYSUTCDATETIME() WHERE id = @id AND revocado IS NULL",
       );
+    if (!result.rowsAffected[0]) {
+      return res
+        .status(404)
+        .json({ error: "Consentimiento no encontrado o ya revocado" });
+    }
     res.status(204).end();
   } catch (err) {
     next(err);

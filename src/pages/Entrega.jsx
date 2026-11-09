@@ -7,6 +7,7 @@ import {
   useDBStatus,
   guardarVisita,
   consumirSesionFirma,
+  fetchVisita,
 } from "../lib/store";
 import {
   CLAUSULAS_INGRESO,
@@ -168,7 +169,7 @@ export default function Entrega() {
         cliente: actual.cliente,
         mascota: actual.mascota,
         visita: {
-          ...actual.visita,
+          ...(await fetchVisita(actual.visita.id)),
           hallazgos_entrega: hallazgos,
           cuidados_checklist: cuidados,
           notas_cuidado_entrega: notasCuidado,
@@ -194,7 +195,7 @@ export default function Entrega() {
     setError("");
     try {
       const visita = {
-        ...actual.visita,
+        ...(await fetchVisita(actual.visita.id)),
         estado: "entregada",
         hallazgos_entrega: hallazgos,
         cuidados_checklist: cuidados,
@@ -230,7 +231,7 @@ export default function Entrega() {
     setError("");
     try {
       const visita = {
-        ...actual.visita,
+        ...(await fetchVisita(actual.visita.id)),
         estado: "entregada",
         hallazgos_entrega: hallazgos,
         cuidados_checklist: cuidados,
@@ -244,8 +245,10 @@ export default function Entrega() {
         firma_tienda_entrega: resultado.firma_tienda,
       };
 
-      await consumirSesionFirma(sesionId);
+      // Primero se guarda; la sesión solo se consume si el guardado ha ido bien,
+      // para no perder la firma si falla la base de datos.
       await guardarVisita(visita);
+      await consumirSesionFirma(sesionId).catch(() => {});
       await pdfVisita({
         cliente: actual.cliente,
         mascota: actual.mascota,

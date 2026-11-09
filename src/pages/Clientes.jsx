@@ -10,6 +10,7 @@ import {
   exportarCliente,
   fetchTratamientos,
   uploadConsentBlob,
+  fetchConsentimiento,
 } from "../lib/store";
 import {
   CLAUSULAS_CONSENTIMIENTO,
@@ -77,7 +78,7 @@ export default function Clientes() {
     await pdfConsentimiento({
       cliente,
       mascota,
-      consentimiento,
+      consentimiento: await fetchConsentimiento(consentimiento.id),
       clausulas: CLAUSULAS_CONSENTIMIENTO,
       clausulaImagenes: CLAUSULA_IMAGENES,
       clausulaComunicaciones: CLAUSULA_COMUNICACIONES,

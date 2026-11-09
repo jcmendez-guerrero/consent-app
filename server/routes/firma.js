@@ -9,6 +9,7 @@ import {
   calcularExpiracion,
   estaExpirada,
   esTerminal,
+  esActiva,
 } from "../lib/signingSession.js";
 
 const router = Router();
@@ -95,15 +96,15 @@ router.get("/sesiones/:id", async (req, res, next) => {
 
     const sesion = result.recordset[0];
 
-    // Verificar expiración
-    if (!esTerminal(sesion.estado) && estaExpirada(sesion)) {
+    // Verificar expiración (una sesión ya firmada conserva su resultado)
+    if (esActiva(sesion.estado) && estaExpirada(sesion)) {
       await pool
         .request()
         .input("id", sql.NVarChar, sesion.id)
         .input("estado", sql.NVarChar, ESTADOS.EXPIRADA).query(`
           UPDATE dbo.sesiones_firma
           SET estado = @estado, payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
-          WHERE id = @id
+          WHERE id = @id AND estado IN ('esperando', 'conectada')
         `);
       sesion.estado = ESTADOS.EXPIRADA;
       sesion.resultado = null;
@@ -202,6 +203,12 @@ router.get("/tablet/:token", async (req, res, next) => {
 
     const sesion = result.recordset[0];
 
+    if (sesion.estado === ESTADOS.FIRMADA) {
+      return res
+        .status(410)
+        .json({ error: "Sesión ya firmada", estado: "firmada" });
+    }
+
     // Si ya está terminal o caducada, responder 410 sin datos personales
     if (esTerminal(sesion.estado) || estaExpirada(sesion)) {
       if (!esTerminal(sesion.estado)) {
@@ -211,18 +218,12 @@ router.get("/tablet/:token", async (req, res, next) => {
           .input("estado", sql.NVarChar, ESTADOS.EXPIRADA).query(`
             UPDATE dbo.sesiones_firma
             SET estado = @estado, payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
-            WHERE id = @id
+            WHERE id = @id AND estado IN ('esperando', 'conectada')
           `);
       }
       return res
         .status(410)
         .json({ error: "Sesión caducada", estado: "expirada" });
-    }
-
-    if (sesion.estado === ESTADOS.FIRMADA) {
-      return res
-        .status(410)
-        .json({ error: "Sesión ya firmada", estado: "firmada" });
     }
 
     const ahora = new Date();
@@ -240,7 +241,7 @@ router.get("/tablet/:token", async (req, res, next) => {
         UPDATE dbo.sesiones_firma
         SET estado = @estado, dispositivo = COALESCE(@dispositivo, dispositivo),
             actualizado_en = @actualizado_en, expira_en = @expira_en
-        WHERE id = @id
+        WHERE id = @id AND estado IN ('esperando', 'conectada')
       `);
 
     let payloadObj = null;
@@ -339,7 +340,9 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       firmado_en: ahora.toISOString(),
     };
 
-    await pool
+    // Atómico: solo firma si sigue conectada y sin caducar. Un doble envío o un
+    // latido simultáneo no pueden pisar el resultado.
+    const update = await pool
       .request()
       .input("id", sql.NVarChar, sesion.id)
       .input("estado", sql.NVarChar, ESTADOS.FIRMADA)
@@ -347,8 +350,13 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       .input("actualizado_en", sql.DateTime2, ahora).query(`
         UPDATE dbo.sesiones_firma
         SET estado = @estado, resultado = @resultado, actualizado_en = @actualizado_en
-        WHERE id = @id
+        WHERE id = @id AND estado = 'conectada' AND expira_en > SYSUTCDATETIME()
       `);
+    if (!update.rowsAffected[0]) {
+      return res.status(409).json({
+        error: "La sesión ya no admite la firma (caducada o enviada)",
+      });
+    }
 
     res.json({ estado: ESTADOS.FIRMADA });
   } catch (err) {

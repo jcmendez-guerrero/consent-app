@@ -17,9 +17,6 @@ export const VISTAS_PAPEL = [
   { id: "dorsal", label: "Espalda" },
 ];
 
-// Alias backward-compat para código que ya importa VISTAS
-export const VISTAS = VISTAS_WEB;
-
 // El perro mira hacia la izquierda.
 const PERFIL = {
   viewBox: "0 0 460 340",

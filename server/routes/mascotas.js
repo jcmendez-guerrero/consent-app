@@ -38,8 +38,10 @@ router.post("/", async (req, res, next) => {
       )
       .input("especie", sql.NVarChar, m.especie || "perro").query(`
         MERGE dbo.mascotas AS t
-        USING (VALUES (@cliente_id, @nombre)) AS s(cliente_id, nombre)
+        USING (VALUES (@cliente_id, @nombre, @microchip)) AS s(cliente_id, nombre, microchip)
           ON t.cliente_id = s.cliente_id AND t.nombre = s.nombre
+          -- mismo nombre pero microchips distintos = otra mascota (dos "Luna")
+          AND (s.microchip IS NULL OR t.microchip IS NULL OR t.microchip = s.microchip)
         WHEN MATCHED THEN UPDATE SET
           raza = COALESCE(@raza, t.raza),
           edad = COALESCE(@edad, t.edad),
@@ -63,7 +65,7 @@ router.put("/:id", async (req, res, next) => {
   try {
     const pool = await getPool();
     const m = req.body;
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input("nombre", sql.NVarChar, m.nombre)
@@ -83,6 +85,9 @@ router.put("/:id", async (req, res, next) => {
             especie = @especie, actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Mascota no encontrada" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);

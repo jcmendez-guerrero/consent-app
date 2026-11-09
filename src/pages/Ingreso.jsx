@@ -361,9 +361,10 @@ export default function Ingreso() {
         condiciones_con_recargos: true,
       };
 
-      await consumirSesionFirma(sesionId);
-
+      // La sesión se consume solo cuando ya no hace falta la firma: tras guardar
+      // la visita (o tras decidir que no se guarda), nunca antes.
       if (hayRechazoDigital) {
+        await consumirSesionFirma(sesionId).catch(() => {});
         await pdfVisita({
           cliente: clienteActual,
           mascota: sel.mascota,
@@ -374,6 +375,7 @@ export default function Ingreso() {
       } else {
         const visita = { ...visitaBase, estado: "ingresada" };
         const id = await guardarVisita(visita);
+        await consumirSesionFirma(sesionId).catch(() => {});
         await pdfVisita({
           cliente: clienteActual,
           mascota: sel.mascota,

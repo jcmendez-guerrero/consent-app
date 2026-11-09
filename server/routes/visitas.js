@@ -1,82 +1,63 @@
 import { Router } from "express";
 import { getPool, sql } from "../db/pool.js";
-import { mapVisita, mapCargo, mapContacto } from "../lib/mappers.js";
+import {
+  VISITA_COLS_SIN_FIRMAS,
+  visitasConDetalle,
+} from "../lib/visitasDetalle.js";
 import { uid } from "../lib/id.js";
 import { currentUser } from "../middleware/auth.js";
 import { validarImporteRetenido } from "../lib/interruption.js";
 
 const router = Router();
 
+// El front antiguo enviaba un objeto; hoy llega 'acepta' | 'rechaza' (o nada).
+function normalizarClausula(valor) {
+  if (typeof valor === "object" && valor !== null) {
+    return valor.condiciones_generales || valor.condiciones || "acepta";
+  }
+  return valor || null;
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const pool = await getPool();
     const request = pool.request();
-    let query = "SELECT * FROM dbo.visitas";
+    let query = `SELECT ${VISITA_COLS_SIN_FIRMAS} FROM dbo.visitas`;
     if (req.query.estado) {
       request.input("estado", sql.NVarChar, req.query.estado);
       query += " WHERE estado = @estado";
     }
     query += " ORDER BY fecha DESC";
     const result = await request.query(query);
-    const rows = result.recordset;
+    res.json(await visitasConDetalle(pool, result.recordset));
+  } catch (err) {
+    next(err);
+  }
+});
 
-    if (rows.length === 0) {
-      return res.json([]);
+// Visita completa (con las imágenes de firma) para generar PDFs y cerrar la entrega.
+router.get("/:id", async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("id", sql.NVarChar, req.params.id)
+      .query("SELECT * FROM dbo.visitas WHERE id = @id");
+    if (!result.recordset.length) {
+      return res.status(404).json({ error: "Visita no encontrada" });
     }
-
-    const visitIds = rows.map((r) => r.id);
-    const cargosReq = pool.request();
-    const contactosReq = pool.request();
-
-    const inParams = visitIds
-      .map((id, idx) => {
-        const param = `v${idx}`;
-        cargosReq.input(param, sql.NVarChar, id);
-        contactosReq.input(param, sql.NVarChar, id);
-        return `@${param}`;
-      })
-      .join(",");
-
-    const [cargosRes, contactosRes] = await Promise.all([
-      cargosReq.query(
-        `SELECT * FROM dbo.visita_cargos WHERE visita_id IN (${inParams}) ORDER BY creado_en ASC`,
-      ),
-      contactosReq.query(
-        `SELECT * FROM dbo.visita_contactos WHERE visita_id IN (${inParams}) ORDER BY fecha_hora ASC`,
-      ),
-    ]);
-
-    const cargosByVisita = new Map();
-    for (const row of cargosRes.recordset) {
-      const list = cargosByVisita.get(row.visita_id) || [];
-      list.push(mapCargo(row));
-      cargosByVisita.set(row.visita_id, list);
-    }
-
-    const contactosByVisita = new Map();
-    for (const row of contactosRes.recordset) {
-      const list = contactosByVisita.get(row.visita_id) || [];
-      list.push(mapContacto(row));
-      contactosByVisita.set(row.visita_id, list);
-    }
-
-    const visitas = rows.map((r) => {
-      const mapped = mapVisita(r);
-      mapped.cargos = cargosByVisita.get(r.id) || [];
-      mapped.contactos = contactosByVisita.get(r.id) || [];
-      return mapped;
-    });
-
-    res.json(visitas);
+    const [visita] = await visitasConDetalle(pool, result.recordset);
+    res.json(visita);
   } catch (err) {
     next(err);
   }
 });
 
 router.post("/", async (req, res, next) => {
-  const pool = await getPool();
-  const transaction = new sql.Transaction(pool);
+  let transaction;
   try {
+    const pool = await getPool();
+    transaction = new sql.Transaction(pool);
     const v = req.body;
     const id = uid("vis");
 
@@ -118,13 +99,7 @@ router.post("/", async (req, res, next) => {
       }
     }
 
-    const clausulasResp =
-      typeof v.clausulas_respuesta_condiciones === "object" &&
-      v.clausulas_respuesta_condiciones !== null
-        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
-          v.clausulas_respuesta_condiciones.condiciones ||
-          "acepta"
-        : v.clausulas_respuesta_condiciones || null;
+    const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
     await transaction.begin();
 
@@ -217,7 +192,7 @@ router.post("/", async (req, res, next) => {
     await transaction.commit();
     res.status(201).json({ id });
   } catch (err) {
-    if (transaction._aborted === false) {
+    if (transaction && transaction._aborted === false) {
       try {
         await transaction.rollback();
       } catch (_) {
@@ -228,10 +203,41 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+// Solo guarda la hora de inicio; no toca el resto de la visita.
+router.post("/:id/inicio", async (req, res, next) => {
+  try {
+    const { hora_inicio_servicio } = req.body;
+    if (!/^\d{2}:\d{2}$/.test(hora_inicio_servicio || "")) {
+      return res
+        .status(400)
+        .json({ error: "La hora debe tener formato HH:MM" });
+    }
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("id", sql.NVarChar, req.params.id)
+      .input("hora", sql.Char(5), hora_inicio_servicio).query(`
+        UPDATE dbo.visitas
+        SET hora_inicio_servicio = @hora, actualizado_en = SYSUTCDATETIME()
+        WHERE id = @id
+      `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Visita no encontrada" });
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT reemplaza la visita entera: un cuerpo parcial borraría servicios, hallazgos, etc.
 router.put("/:id", async (req, res, next) => {
   try {
     const pool = await getPool();
     const v = req.body;
+    if (!v.estado) {
+      return res.status(400).json({ error: "estado es obligatorio" });
+    }
 
     const duracionMin =
       v.duracion_estimada_min != null ? Number(v.duracion_estimada_min) : null;
@@ -241,15 +247,9 @@ router.put("/:id", async (req, res, next) => {
       });
     }
 
-    const clausulasResp =
-      typeof v.clausulas_respuesta_condiciones === "object" &&
-      v.clausulas_respuesta_condiciones !== null
-        ? v.clausulas_respuesta_condiciones.condiciones_generales ||
-          v.clausulas_respuesta_condiciones.condiciones ||
-          "acepta"
-        : v.clausulas_respuesta_condiciones || null;
+    const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
-    await pool
+    const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
       .input("estado", sql.NVarChar, v.estado)
@@ -349,7 +349,8 @@ router.put("/:id", async (req, res, next) => {
           hallazgos_ingreso = @hallazgos_ingreso, hallazgos_entrega = @hallazgos_entrega,
           notas_ingreso = @notas_ingreso, hora_ingreso = @hora_ingreso,
           clausulas_respuesta_condiciones = @clausulas_respuesta_condiciones,
-          firma_ingreso_tipo = @firma_ingreso_tipo, firma_ingreso_data = @firma_ingreso_data,
+          firma_ingreso_tipo = COALESCE(@firma_ingreso_tipo, firma_ingreso_tipo),
+          firma_ingreso_data = COALESCE(@firma_ingreso_data, firma_ingreso_data),
           autoriza_fotos_redes = @autoriza_fotos_redes, cuidados_checklist = @cuidados_checklist,
           notas_cuidado_entrega = @notas_cuidado_entrega, hora_aviso_listo = @hora_aviso_listo,
           hora_recogida = @hora_recogida, recargo_por_demora = @recargo_por_demora,
@@ -365,6 +366,9 @@ router.put("/:id", async (req, res, next) => {
           actualizado_en = SYSUTCDATETIME()
         WHERE id = @id
       `);
+    if (!result.rowsAffected[0]) {
+      return res.status(404).json({ error: "Visita no encontrada" });
+    }
     res.json({ id: req.params.id });
   } catch (err) {
     next(err);
