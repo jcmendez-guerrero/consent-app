@@ -102,6 +102,10 @@ All other visit columns (`servicios`, `tratamiento`, `precio`, `duracion_estimad
 
 Error messages are in Spanish, like the rest of the API. Responses never echo signature images or personal data beyond the ids.
 
+### Related change: `POST /api/visitas`
+
+Constitution V (v1.1.0) requires the "no visit without an active consent" guard on the server for every entry. `POST /api/visitas` now checks, inside its transaction and before inserting, that the pet has a consent with `estado = 'aceptado'` and `revocado IS NULL`; otherwise it rolls back and answers `409 { "error": "La mascota no tiene un consentimiento vigente", "codigo": "sin_consentimiento" }` and writes nothing (FR-025). The combined endpoint needs no such check because it inserts the accepted consent first, in the same transaction.
+
 ### Idempotency
 
 A second call for the same session finds it consumed and answers `409` `sesion_no_firmada`; it never creates a second pair of records.

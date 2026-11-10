@@ -45,7 +45,7 @@ Expected: migration 0007 applied, no lint errors, build succeeds (note bundle de
 | 15 | Customer-management sync (FR-024) | Scenario 1 and 3 with the integration enabled | Contact synced once per consent (check the log); ambiguous contact shows the modal in the paper flow |
 | 16 | Timing (SC-002) | Time scenario 1 from opening the document on the tablet to the pet admitted, and the old two-step flow, 5 runs each | Under 3 minutes, at least 40 % shorter than the old flow |
 | 17 | Result latency (SC-006) | From "send" on the tablet to the admitted pet on the counter, 20 runs | Under 5 seconds in at least 95 % |
-| 18 | Unsigned session left behind (FR-009) | Create a combined session, never open or sign it, set its `expira_en` in the past, then create another session | The old session is `expirada` with `payload` and `resultado` NULL (also when it was `conectada`) |
+| 18 | Unsigned session left behind (FR-009) | Create a combined session (one left `esperando`, one opened on the tablet so it is `conectada`), never sign them, set their `expira_en` in the past, then restart the server (or wait up to 5 minutes) without creating another session | Both are `expirada` with `payload` and `resultado` NULL |
 | 19 | No personal data in errors (R-13) | Send a registration whose client name is far longer than the column | `500` with the generic message; neither the response nor the server log contains the name |
 
 ## 3. Data checks

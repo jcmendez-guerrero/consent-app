@@ -16,6 +16,19 @@ import {
 
 const router = Router();
 
+// Ingreso combinado: su payload guarda el registro pendiente completo (FR-009) y la firma
+// guardada solo vive durante la ventana de reintento (FR-014). Pasado expira_en se borra todo,
+// también si nadie volvió a consultar la sesión; index.js lo ejecuta al arrancar y cada 5 minutos.
+export async function limpiarSesionesCombinadas(pool) {
+  await pool.request().query(`
+    UPDATE dbo.sesiones_firma
+    SET estado = 'expirada', payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
+    WHERE tipo = 'ingreso_combinado'
+      AND estado IN ('esperando', 'conectada', 'firmada')
+      AND expira_en < SYSUTCDATETIME()
+  `);
+}
+
 // Limpieza perezosa: borra sesiones terminales o expiradas hace más de 1 hora
 async function lazyCleanup(pool) {
   try {
@@ -24,16 +37,7 @@ async function lazyCleanup(pool) {
       WHERE (estado IN ('expirada', 'cancelada') OR expira_en < DATEADD(hour, -1, SYSUTCDATETIME()))
         AND creado_en < DATEADD(hour, -1, SYSUTCDATETIME())
     `);
-    // Ingreso combinado: su payload guarda el registro pendiente completo (FR-009) y la firma
-    // guardada solo vive durante la ventana de reintento (FR-014). Pasado expira_en se borra todo,
-    // también si nadie volvió a consultar la sesión.
-    await pool.request().query(`
-      UPDATE dbo.sesiones_firma
-      SET estado = 'expirada', payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
-      WHERE tipo = 'ingreso_combinado'
-        AND estado IN ('esperando', 'conectada', 'firmada')
-        AND expira_en < SYSUTCDATETIME()
-    `);
+    await limpiarSesionesCombinadas(pool);
   } catch (err) {
     console.error("[firma] Error en limpieza perezosa de sesiones:", err);
   }

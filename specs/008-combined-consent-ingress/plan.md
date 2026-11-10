@@ -96,7 +96,7 @@ server/
 │   ├── firma.js                            # extend: accept tipo, validate result, reset expira_en, purge rule (any active state past expira_en)
 │   ├── consentimientos.js                  # refactor to use registros.js and the shared sync helper (behaviour unchanged)
 │   └── visitas.js                          # refactor POST to use registros.js (behaviour unchanged) + server guard: no visit without an active consent
-└── index.js                                # mount the new router after the global rate limiter
+└── index.js                                # mount the new router after the global rate limiter; run the combined-session expiry wipe at start and every 5 min
 
 src/
 ├── lib/
