@@ -24,11 +24,15 @@ async function lazyCleanup(pool) {
       WHERE (estado IN ('expirada', 'cancelada') OR expira_en < DATEADD(hour, -1, SYSUTCDATETIME()))
         AND creado_en < DATEADD(hour, -1, SYSUTCDATETIME())
     `);
-    // Ingreso combinado: la firma guardada solo vive durante la ventana de reintento (FR-014).
+    // Ingreso combinado: su payload guarda el registro pendiente completo (FR-009) y la firma
+    // guardada solo vive durante la ventana de reintento (FR-014). Pasado expira_en se borra todo,
+    // también si nadie volvió a consultar la sesión.
     await pool.request().query(`
       UPDATE dbo.sesiones_firma
       SET estado = 'expirada', payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
-      WHERE tipo = 'ingreso_combinado' AND estado = 'firmada' AND expira_en < SYSUTCDATETIME()
+      WHERE tipo = 'ingreso_combinado'
+        AND estado IN ('esperando', 'conectada', 'firmada')
+        AND expira_en < SYSUTCDATETIME()
     `);
   } catch (err) {
     console.error("[firma] Error en limpieza perezosa de sesiones:", err);

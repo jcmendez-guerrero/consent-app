@@ -302,7 +302,7 @@ async function anularSesion(pool, id) {
     `);
 }
 
-router.post("/", async (req, res, next) => {
+router.post("/", async (req, res) => {
   let transaction;
   try {
     const b = req.body || {};
@@ -512,7 +512,16 @@ router.post("/", async (req, res, next) => {
     if (err instanceof RespuestaError) {
       return res.status(err.status).json(err.body);
     }
-    next(err);
+    // El mensaje de un error de SQL puede citar valores (p. ej. el texto truncado de un nombre):
+    // ni se registra ni se devuelve (research R-13).
+    console.error("[registros-combinados] error inesperado", {
+      name: err?.name,
+      code: err?.code,
+      number: err?.number,
+    });
+    res.status(500).json({
+      error: "No se pudo completar el registro. Inténtalo de nuevo.",
+    });
   }
 });
 

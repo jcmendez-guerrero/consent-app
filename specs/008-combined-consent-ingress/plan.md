@@ -38,7 +38,7 @@ Technical approach (details in [research.md](research.md)):
 
 **Constraints**: Touch targets ≥ 44×44 px; Europe/Madrid time; Tailwind brand tokens only; no new unauthenticated endpoint (everything stays behind Easy Auth); `LEGAL_VERSION` bump with the new clause; bundle growth under 10 % or justified; the 007 behaviour of the other session types must not change
 
-**Scale/Scope**: One store, a handful of staff devices, tens of registrations per day; 1 migration, 1 new endpoint, 1 new session type, 1 extracted server module, changes to 5 existing pages/components, 1 new pure module with 1 test file
+**Scale/Scope**: One store, a handful of staff devices, tens of registrations per day; 2 migrations, 1 new endpoint, 1 new session type, 1 extracted server module, changes to 6 existing pages/components and 2 shared server mappers, 1 new pure module with 1 test file
 
 ## Constitution Check
 
@@ -88,10 +88,12 @@ server/
 │   ├── registros.js                        # new: insertarConsentimiento / insertarVisita extracted from the routes
 │   ├── registroCombinado.js                # new, pure: decision matrix, canonical snapshot equality
 │   ├── signingSession.js                   # extend: combined-type retention rule (purge of expired 'firmada')
-│   └── siweb360.js                         # extend: shared "search and sync" helper used by both routes
+│   ├── siweb360.js                         # extend: shared "search and sync" helper used by both routes
+│   ├── mappers.js                          # extend: expose firma_grupo_id / firma_unica_hash (API and ARCO+ export)
+│   └── visitasDetalle.js                   # extend: the two columns in the visit list query
 ├── routes/
 │   ├── registrosCombinados.js              # new: POST /api/registros-combinados
-│   ├── firma.js                            # extend: accept tipo, validate result, reset expira_en, purge rule
+│   ├── firma.js                            # extend: accept tipo, validate result, reset expira_en, purge rule (any active state past expira_en)
 │   ├── consentimientos.js                  # refactor to use registros.js and the shared sync helper (behaviour unchanged)
 │   └── visitas.js                          # refactor POST to use registros.js (behaviour unchanged) + server guard: no visit without an active consent
 └── index.js                                # mount the new router after the global rate limiter
@@ -102,7 +104,8 @@ src/
 │   ├── store.js                            # registrarCombinado()
 │   └── pdf.js                              # pdfRegistroCombinado (paper sheet)
 ├── components/
-│   └── DispositivoFirma.jsx                # accept the new tipo, panel title
+│   ├── DispositivoFirma.jsx                # accept the new tipo, panel title, ignore a second in-flight poll result
+│   └── BloqueAceptacion.jsx                # "Ver cláusulas" button raised to 44 px (constitution III)
 ├── pages/
 │   ├── Consentimiento.jsx                  # "Consentimiento + ingreso (una firma)" action, builds the draft
 │   ├── Ingreso.jsx                         # pending-consent mode, combined signing/printing, outcome handling
