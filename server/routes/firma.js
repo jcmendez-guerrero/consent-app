@@ -8,8 +8,10 @@ import {
   hashToken,
   calcularExpiracion,
   estaExpirada,
+  firmadaCaducada,
   esTerminal,
   esActiva,
+  EXPIRY_MS,
 } from "../lib/signingSession.js";
 
 const router = Router();
@@ -21,6 +23,12 @@ async function lazyCleanup(pool) {
       DELETE FROM dbo.sesiones_firma
       WHERE (estado IN ('expirada', 'cancelada') OR expira_en < DATEADD(hour, -1, SYSUTCDATETIME()))
         AND creado_en < DATEADD(hour, -1, SYSUTCDATETIME())
+    `);
+    // Ingreso combinado: la firma guardada solo vive durante la ventana de reintento (FR-014).
+    await pool.request().query(`
+      UPDATE dbo.sesiones_firma
+      SET estado = 'expirada', payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
+      WHERE tipo = 'ingreso_combinado' AND estado = 'firmada' AND expira_en < SYSUTCDATETIME()
     `);
   } catch (err) {
     console.error("[firma] Error en limpieza perezosa de sesiones:", err);
@@ -38,7 +46,11 @@ router.post("/sesiones", async (req, res, next) => {
     await lazyCleanup(pool);
 
     const { tipo, payload } = req.body;
-    if (!["consentimiento", "ingreso", "entrega"].includes(tipo)) {
+    if (
+      !["consentimiento", "ingreso", "entrega", "ingreso_combinado"].includes(
+        tipo,
+      )
+    ) {
       return res.status(400).json({ error: "Tipo de sesión inválido" });
     }
     if (!payload || typeof payload !== "object") {
@@ -105,6 +117,17 @@ router.get("/sesiones/:id", async (req, res, next) => {
           UPDATE dbo.sesiones_firma
           SET estado = @estado, payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
           WHERE id = @id AND estado IN ('esperando', 'conectada')
+        `);
+      sesion.estado = ESTADOS.EXPIRADA;
+      sesion.resultado = null;
+    } else if (firmadaCaducada(sesion)) {
+      await pool
+        .request()
+        .input("id", sql.NVarChar, sesion.id)
+        .input("estado", sql.NVarChar, ESTADOS.EXPIRADA).query(`
+          UPDATE dbo.sesiones_firma
+          SET estado = @estado, payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
+          WHERE id = @id AND estado = 'firmada'
         `);
       sesion.estado = ESTADOS.EXPIRADA;
       sesion.resultado = null;
@@ -330,6 +353,33 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       return res.status(400).json({ error: "Se requiere la firma del tutor" });
     }
 
+    const esCombinada = sesion.tipo === "ingreso_combinado";
+    if (esCombinada) {
+      let payload = {};
+      try {
+        payload = JSON.parse(sesion.payload) || {};
+      } catch {
+        // payload ilegible: se exigirá rgpd como si el cliente fuera nuevo
+      }
+      if (
+        !["acepta", "rechaza"].includes(decisiones.terminos) ||
+        !["acepta", "rechaza"].includes(decisiones.condiciones)
+      ) {
+        return res.status(400).json({
+          error:
+            "Faltan las decisiones de términos y de condiciones de ingreso",
+        });
+      }
+      if (
+        !payload.excluyeRgpd &&
+        !["acepta", "rechaza"].includes(decisiones.rgpd)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Falta la decisión de protección de datos" });
+      }
+    }
+
     const ahora = new Date();
     const resultado = {
       legal_version,
@@ -347,9 +397,16 @@ router.post("/tablet/:token/enviar", async (req, res, next) => {
       .input("id", sql.NVarChar, sesion.id)
       .input("estado", sql.NVarChar, ESTADOS.FIRMADA)
       .input("resultado", sql.NVarChar(sql.MAX), JSON.stringify(resultado))
-      .input("actualizado_en", sql.DateTime2, ahora).query(`
+      .input("actualizado_en", sql.DateTime2, ahora)
+      // Combinada: ventana de reintento de 10 min desde la firma (research R-5). Las demás no cambian.
+      .input(
+        "expira_en",
+        sql.DateTime2,
+        esCombinada ? new Date(ahora.getTime() + EXPIRY_MS) : null,
+      ).query(`
         UPDATE dbo.sesiones_firma
-        SET estado = @estado, resultado = @resultado, actualizado_en = @actualizado_en
+        SET estado = @estado, resultado = @resultado, actualizado_en = @actualizado_en,
+            expira_en = COALESCE(@expira_en, expira_en)
         WHERE id = @id AND estado = 'conectada' AND expira_en > SYSUTCDATETIME()
       `);
     if (!update.rowsAffected[0]) {

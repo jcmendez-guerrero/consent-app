@@ -1,3 +1,5 @@
+import { sql } from "../db/pool.js";
+
 const BASE = "https://app.siweb360.com/api/public";
 
 // Sin tope, un SiWeb360 colgado dejaría colgado también el guardado del consentimiento.
@@ -182,4 +184,63 @@ export async function completeSync(searchResult, cliente, mascotas) {
   console.log(
     `[siweb360] contacto ${contact.id} sincronizado (${mascotas.length} mascota/s)`,
   );
+}
+
+/**
+ * Fase 1 compartida por el consentimiento simple y el registro combinado: lee el cliente
+ * y busca su contacto. Los errores se registran y nunca se propagan (la búsqueda es auxiliar).
+ */
+export async function buscarContactoCliente(pool, clienteId) {
+  let cliente = null;
+  let resultado = { type: "none" };
+  try {
+    const row = await pool
+      .request()
+      .input("id", sql.NVarChar, clienteId)
+      .query(
+        "SELECT nombre_apellidos, dni_nie, email, telefono FROM dbo.clientes WHERE id = @id",
+      );
+    if (row.recordset.length) {
+      cliente = row.recordset[0];
+      resultado = await searchContacto(cliente);
+    }
+  } catch (err) {
+    console.error("[siweb360] search error (non-blocking):", err);
+  }
+  return { resultado, cliente };
+}
+
+// Solo los campos que necesita el modal de desambiguación (sin notas ni otros datos del contacto).
+export function candidatosAmbiguos(resultado) {
+  if (resultado?.type !== "ambiguous") return undefined;
+  return resultado.candidates.map((cand) => ({
+    id: cand.id,
+    nombre: cand.nombre || cand.name || null,
+    email: cand.email || null,
+    telefono: cand.telefono || null,
+  }));
+}
+
+/**
+ * Fase 2 compartida (tras responder): si el contacto no es ambiguo, crea o actualiza el contacto
+ * con todas las mascotas del cliente (FR-004). Los errores se registran y nunca se propagan.
+ */
+export async function completarSyncCliente(
+  pool,
+  clienteId,
+  resultado,
+  cliente,
+) {
+  if (resultado.type === "ambiguous" || !cliente) return;
+  try {
+    const mascotas = await pool
+      .request()
+      .input("cliente_id", sql.NVarChar, clienteId)
+      .query(
+        "SELECT nombre, especie, raza, edad, peso_aprox_kg, microchip FROM dbo.mascotas WHERE cliente_id = @cliente_id",
+      );
+    await completeSync(resultado, cliente, mascotas.recordset);
+  } catch (err) {
+    console.error("[siweb360] completeSync error:", err);
+  }
 }

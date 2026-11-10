@@ -2,10 +2,14 @@ import { Router } from "express";
 import multer from "multer";
 import { getPool, sql } from "../db/pool.js";
 import { mapConsentimiento } from "../lib/mappers.js";
-import { uid } from "../lib/id.js";
 import { currentUser } from "../middleware/auth.js";
 import { getBlobServiceClient } from "../lib/blobClient.js";
-import { searchContacto, completeSync } from "../lib/siweb360.js";
+import {
+  buscarContactoCliente,
+  candidatosAmbiguos,
+  completarSyncCliente,
+} from "../lib/siweb360.js";
+import { insertarConsentimiento } from "../lib/registros.js";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "application/pdf"]);
 const EXT_MAP = {
@@ -58,7 +62,6 @@ router.post("/", async (req, res, next) => {
   try {
     const pool = await getPool();
     const c = req.body;
-    const id = uid("con");
 
     if (c.firma_tipo === "digital" && (!c.firma || !c.firma_tienda)) {
       return res.status(400).json({
@@ -103,104 +106,28 @@ router.post("/", async (req, res, next) => {
     }
 
     // Phase 1: blocking SiWeb360 search (must complete before response so we can return candidates)
-    let siwebSearchResult = { type: "none" };
-    let siwebCliente = null;
-    try {
-      const clienteRow = await pool
-        .request()
-        .input("id", sql.NVarChar, c.cliente_id)
-        .query(
-          "SELECT nombre_apellidos, dni_nie, email, telefono FROM dbo.clientes WHERE id = @id",
-        );
-      if (clienteRow.recordset.length) {
-        siwebCliente = clienteRow.recordset[0];
-        siwebSearchResult = await searchContacto(siwebCliente);
-      }
-    } catch (err) {
-      console.error("[siweb360] search error (non-blocking):", err);
-    }
+    const { resultado: siwebSearchResult, cliente: siwebCliente } =
+      await buscarContactoCliente(pool, c.cliente_id);
 
-    await pool
-      .request()
-      .input("id", sql.NVarChar, id)
-      .input("cliente_id", sql.NVarChar, c.cliente_id)
-      .input("mascota_id", sql.NVarChar, c.mascota_id)
-      .input("fecha", sql.DateTime2, new Date(c.fecha))
-      .input("firma_tipo", sql.NVarChar, c.firma_tipo)
-      .input("firma", sql.NVarChar(sql.MAX), c.firma || null)
-      .input("firma_tienda", sql.NVarChar(sql.MAX), c.firma_tienda || null)
-      .input(
-        "clausulas_respuestas",
-        sql.NVarChar(sql.MAX),
-        JSON.stringify(c.clausulas_respuestas || {}),
-      )
-      .input("estado", sql.NVarChar, c.estado)
-      .input(
-        "condiciones_preexistentes",
-        sql.NVarChar(sql.MAX),
-        JSON.stringify(c.condiciones_preexistentes || []),
-      )
-      .input(
-        "condiciones_preexistentes_otras",
-        sql.NVarChar,
-        c.condiciones_preexistentes_otras || null,
-      )
-      .input("autoriza_fotos", sql.Bit, !!c.autoriza_fotos)
-      .input("autoriza_comunicaciones", sql.Bit, !!c.autoriza_comunicaciones)
-      .input("legal_version", sql.NVarChar, c.legal_version)
-      .input("legal_hash", sql.Char(64), c.legal_hash)
-      .input("formato_aceptacion", sql.NVarChar, formatoAceptacion)
-      .input(
-        "legal_hashes",
-        sql.NVarChar(sql.MAX),
-        c.legal_hashes ? JSON.stringify(c.legal_hashes) : null,
-      )
-      .input("firma_sesion_id", sql.NVarChar, c.firma_sesion_id || null)
-      .input("creado_por", sql.NVarChar, currentUser(req)).query(`
-        INSERT INTO dbo.consentimientos
-          (id, cliente_id, mascota_id, fecha, firma_tipo, firma, firma_tienda, clausulas_respuestas, estado,
-           condiciones_preexistentes, condiciones_preexistentes_otras, autoriza_fotos,
-           autoriza_comunicaciones, legal_version, legal_hash, formato_aceptacion, legal_hashes, firma_sesion_id, creado_por)
-        VALUES
-          (@id, @cliente_id, @mascota_id, @fecha, @firma_tipo, @firma, @firma_tienda, @clausulas_respuestas, @estado,
-           @condiciones_preexistentes, @condiciones_preexistentes_otras, @autoriza_fotos,
-           @autoriza_comunicaciones, @legal_version, @legal_hash, @formato_aceptacion, @legal_hashes, @firma_sesion_id, @creado_por)
-      `);
+    const id = await insertarConsentimiento(
+      () => pool.request(),
+      { ...c, formato_aceptacion: formatoAceptacion },
+      currentUser(req),
+    );
 
     const responseBody = { id };
-    if (siwebSearchResult.type === "ambiguous") {
-      // Solo los campos que necesita el modal de desambiguación (sin notas ni otros datos del contacto).
-      responseBody.siweb360_candidates = siwebSearchResult.candidates.map(
-        (cand) => ({
-          id: cand.id,
-          nombre: cand.nombre || cand.name || null,
-          email: cand.email || null,
-          telefono: cand.telefono || null,
-        }),
-      );
-    }
+    const candidatos = candidatosAmbiguos(siwebSearchResult);
+    if (candidatos) responseBody.siweb360_candidates = candidatos;
 
     res.status(201).json(responseBody);
 
     // Phase 2: fire-and-forget sync (only when not ambiguous — ambiguous requires /resolve)
-    if (siwebSearchResult.type !== "ambiguous" && siwebCliente) {
-      // FR-004: las notas listan todas las mascotas del cliente, no solo la de este consentimiento.
-      try {
-        const mascotasRow = await pool
-          .request()
-          .input("cliente_id", sql.NVarChar, c.cliente_id)
-          .query(
-            "SELECT nombre, especie, raza, edad, peso_aprox_kg, microchip FROM dbo.mascotas WHERE cliente_id = @cliente_id",
-          );
-        await completeSync(
-          siwebSearchResult,
-          siwebCliente,
-          mascotasRow.recordset,
-        );
-      } catch (err) {
-        console.error("[siweb360] completeSync error:", err);
-      }
-    }
+    await completarSyncCliente(
+      pool,
+      c.cliente_id,
+      siwebSearchResult,
+      siwebCliente,
+    );
   } catch (err) {
     next(err);
   }

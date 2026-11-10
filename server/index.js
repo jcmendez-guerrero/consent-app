@@ -9,6 +9,7 @@ import visitasRouter from "./routes/visitas.js";
 import tratamientosRouter from "./routes/tratamientos.js";
 import siweb360Router from "./routes/siweb360.js";
 import firmaRouter from "./routes/firma.js";
+import registrosCombinadosRouter from "./routes/registrosCombinados.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { rateLimiter, firmaRateLimiter } from "./middleware/rateLimiter.js";
 
@@ -37,6 +38,7 @@ app.use("/api/clientes", clientesRouter);
 app.use("/api/mascotas", mascotasRouter);
 app.use("/api/consentimientos", consentimientosRouter);
 app.use("/api/visitas", visitasRouter);
+app.use("/api/registros-combinados", registrosCombinadosRouter);
 app.use("/api/tratamientos", tratamientosRouter);
 app.use("/api/siweb360", siweb360Router);
 

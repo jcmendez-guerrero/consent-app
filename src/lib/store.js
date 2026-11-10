@@ -263,6 +263,27 @@ export async function guardarVisita(visita) {
   return id;
 }
 
+// ---- Consentimiento + ingreso con una firma (Feature 008) ----
+
+// Un único guardado atómico en el servidor. El error lleva `status` y `codigo` para que la
+// pantalla distinga un reintento posible (red, 5xx) de un rechazo de reglas (409, 410, 422).
+export async function registrarCombinado(datos) {
+  const res = await fetch("/api/registros-combinados", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(body.error || `Error ${res.status} al registrar`);
+    err.status = res.status;
+    err.codigo = body.codigo || null;
+    throw err;
+  }
+  await refetch();
+  return body;
+}
+
 // ---- Incidencias, contactos, cargos e interrupción (Feature 007) ----
 
 export async function iniciarServicio(visitaId, hora) {

@@ -7,16 +7,13 @@ import {
 import { uid } from "../lib/id.js";
 import { currentUser } from "../middleware/auth.js";
 import { validarImporteRetenido } from "../lib/interruption.js";
+import {
+  insertarVisita,
+  normalizarClausula,
+  validarVisita,
+} from "../lib/registros.js";
 
 const router = Router();
-
-// El front antiguo enviaba un objeto; hoy llega 'acepta' | 'rechaza' (o nada).
-function normalizarClausula(valor) {
-  if (typeof valor === "object" && valor !== null) {
-    return valor.condiciones_generales || valor.condiciones || "acepta";
-  }
-  return valor || null;
-}
 
 router.get("/", async (req, res, next) => {
   try {
@@ -59,135 +56,34 @@ router.post("/", async (req, res, next) => {
     const pool = await getPool();
     transaction = new sql.Transaction(pool);
     const v = req.body;
-    const id = uid("vis");
 
-    const conRecargos = !!v.condiciones_con_recargos;
-    const duracionMin =
-      v.duracion_estimada_min != null ? Number(v.duracion_estimada_min) : null;
-
-    if (conRecargos && (!duracionMin || duracionMin <= 0)) {
-      return res.status(400).json({
-        error:
-          "La duración estimada en minutos es obligatoria y debe ser mayor que 0 cuando se aceptan condiciones con recargos",
-      });
+    const validado = validarVisita(v);
+    if (validado.error) {
+      return res.status(400).json({ error: validado.error });
     }
-
-    const tratamientosPrevios = Array.isArray(v.tratamientos_previos)
-      ? v.tratamientos_previos
-      : [];
-    for (const t of tratamientosPrevios) {
-      if (!t.descripcion || !t.descripcion.trim()) {
-        return res.status(400).json({
-          error: "La descripción del tratamiento médico es obligatoria",
-        });
-      }
-      const imp = Number(t.importe);
-      if (Number.isNaN(imp) || imp <= 0) {
-        return res.status(400).json({
-          error: "El importe del tratamiento médico debe ser mayor que 0",
-        });
-      }
-      if (
-        !t.origen ||
-        !["tutor", "veterinario_centro", "veterinario_mascota"].includes(
-          t.origen,
-        )
-      ) {
-        return res
-          .status(400)
-          .json({ error: "El origen del tratamiento médico no es válido" });
-      }
-    }
-
-    const clausulasResp = normalizarClausula(v.clausulas_respuesta_condiciones);
 
     await transaction.begin();
 
-    await new sql.Request(transaction)
-      .input("id", sql.NVarChar, id)
+    // Constitución V: ninguna visita sin un consentimiento aceptado y no revocado para la mascota.
+    const consentimiento = await new sql.Request(transaction)
       .input("mascota_id", sql.NVarChar, v.mascota_id)
-      .input("fecha", sql.Date, v.fecha)
-      .input("estado", sql.NVarChar, v.estado)
-      .input(
-        "servicios",
-        sql.NVarChar(sql.MAX),
-        JSON.stringify(v.servicios || []),
-      )
-      .input("tratamiento", sql.NVarChar, v.tratamiento || null)
-      .input("precio", sql.Decimal(8, 2), v.precio || null)
-      .input(
-        "hallazgos_ingreso",
-        sql.NVarChar(sql.MAX),
-        JSON.stringify(v.hallazgos_ingreso || []),
-      )
-      .input(
-        "hallazgos_entrega",
-        sql.NVarChar(sql.MAX),
-        JSON.stringify(v.hallazgos_entrega || []),
-      )
-      .input("notas_ingreso", sql.NVarChar, v.notas_ingreso || null)
-      .input("hora_ingreso", sql.Char(5), v.hora_ingreso || null)
-      .input("clausulas_respuesta_condiciones", sql.NVarChar(10), clausulasResp)
-      .input("firma_ingreso_tipo", sql.NVarChar, v.firma_ingreso?.tipo || null)
-      .input(
-        "firma_ingreso_data",
-        sql.NVarChar(sql.MAX),
-        v.firma_ingreso?.data || null,
-      )
-      .input(
-        "firma_tienda_ingreso",
-        sql.NVarChar(sql.MAX),
-        v.firma_tienda_ingreso || null,
-      )
-      .input("autoriza_fotos_redes", sql.Bit, !!v.autoriza_fotos_redes)
-      .input("condiciones_version", sql.NVarChar, v.condiciones_version || null)
-      .input("condiciones_hash", sql.Char(64), v.condiciones_hash || null)
-      .input("condiciones_con_recargos", sql.Bit, conRecargos)
-      .input("duracion_estimada_min", sql.Int, duracionMin)
-      .input("comportamiento_declarado", sql.Bit, !!v.comportamiento_declarado)
-      .input(
-        "hora_inicio_servicio",
-        sql.Char(5),
-        v.hora_inicio_servicio || null,
-      )
-      .input("creado_por", sql.NVarChar, currentUser(req)).query(`
-        INSERT INTO dbo.visitas
-          (id, mascota_id, fecha, estado, servicios, tratamiento, precio, hallazgos_ingreso,
-           hallazgos_entrega, notas_ingreso, hora_ingreso, clausulas_respuesta_condiciones,
-           firma_ingreso_tipo, firma_ingreso_data, firma_tienda_ingreso, autoriza_fotos_redes,
-           condiciones_version, condiciones_hash, condiciones_con_recargos,
-           duracion_estimada_min, comportamiento_declarado, hora_inicio_servicio, creado_por)
-        VALUES
-          (@id, @mascota_id, @fecha, @estado, @servicios, @tratamiento, @precio, @hallazgos_ingreso,
-           @hallazgos_entrega, @notas_ingreso, @hora_ingreso, @clausulas_respuesta_condiciones,
-           @firma_ingreso_tipo, @firma_ingreso_data, @firma_tienda_ingreso, @autoriza_fotos_redes,
-           @condiciones_version, @condiciones_hash, @condiciones_con_recargos,
-           @duracion_estimada_min, @comportamiento_declarado, @hora_inicio_servicio, @creado_por)
-      `);
-
-    for (const t of tratamientosPrevios) {
-      const cargoId = uid("car");
-      await new sql.Request(transaction)
-        .input("id", sql.NVarChar, cargoId)
-        .input("visita_id", sql.NVarChar, id)
-        .input("tipo", sql.NVarChar, "tratamiento")
-        .input("descripcion", sql.NVarChar, t.descripcion.trim())
-        .input("importe", sql.Decimal(8, 2), Number(t.importe))
-        .input("origen", sql.NVarChar, t.origen)
-        .input(
-          "receta_referencia",
-          sql.NVarChar,
-          t.receta_referencia?.trim() || null,
-        )
-        .input("respuesta", sql.NVarChar, "acordado_ingreso")
-        .input("contacto_id", sql.NVarChar, null)
-        .input("creado_por", sql.NVarChar, currentUser(req)).query(`
-          INSERT INTO dbo.visita_cargos
-            (id, visita_id, tipo, descripcion, importe, origen, receta_referencia, respuesta, contacto_id, creado_por)
-          VALUES
-            (@id, @visita_id, @tipo, @descripcion, @importe, @origen, @receta_referencia, @respuesta, @contacto_id, @creado_por)
-        `);
+      .query(
+        "SELECT TOP 1 id FROM dbo.consentimientos WHERE mascota_id = @mascota_id AND estado = 'aceptado' AND revocado IS NULL",
+      );
+    if (!consentimiento.recordset.length) {
+      await transaction.rollback();
+      return res.status(409).json({
+        error: "La mascota no tiene un consentimiento vigente",
+        codigo: "sin_consentimiento",
+      });
     }
+
+    const id = await insertarVisita(
+      () => new sql.Request(transaction),
+      v,
+      validado,
+      currentUser(req),
+    );
 
     await transaction.commit();
     res.status(201).json({ id });
