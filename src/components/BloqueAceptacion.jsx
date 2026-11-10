@@ -48,7 +48,7 @@ export default function BloqueAceptacion({
           <button
             type="button"
             onClick={() => setDesplegado((prev) => !prev)}
-            className="mt-0.5 inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-lg border border-brand-300 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 print:hidden"
+            className="mt-0.5 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-brand-300 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 print:hidden"
             aria-expanded={desplegado}
           >
             {desplegado ? "Ocultar cláusulas" : "Ver cláusulas"}

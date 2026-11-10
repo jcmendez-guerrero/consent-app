@@ -238,7 +238,7 @@ export default function FirmaRemota() {
           <button
             type="button"
             onClick={handleCancelar}
-            className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-600 hover:bg-brand-50"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-600 hover:bg-brand-50"
           >
             Cancelar
           </button>

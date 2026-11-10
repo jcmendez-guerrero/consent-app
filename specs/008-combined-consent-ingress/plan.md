@@ -26,7 +26,7 @@ Technical approach (details in [research.md](research.md)):
 
 **Primary Dependencies**: Express 4, mssql 11, React Router 7, jsPDF 4, qrcode, Tailwind CSS 4, Vite 6 — all already installed. No new runtime dependency.
 
-**Storage**: Azure SQL Database via Managed Identity. One migration (`0007_registro_combinado.sql`): widen the `sesiones_firma` type check, add `firma_grupo_id` to `consentimientos` and `visitas`, add `firma_unica_hash` to `visitas`. No new table ([data-model.md](data-model.md)).
+**Storage**: Azure SQL Database via Managed Identity. Two migrations: `0007_registro_combinado.sql` (widen the `sesiones_firma` type check, add `firma_grupo_id` to `consentimientos` and `visitas`, add `firma_unica_hash` to `visitas`) and `0008_sesiones_firma_tipo_ancho.sql` (widen `sesiones_firma.tipo` to `NVARCHAR(20)` so `ingreso_combinado` fits). No new table ([data-model.md](data-model.md)).
 
 **Testing**: Manual end-to-end verification on the counter PC and a real tablet (constitution II) following [quickstart.md](quickstart.md); `node --test` for the pure module `registroCombinado.js`; `npx eslint .` and `npm run build` as gates.
 
@@ -82,7 +82,8 @@ specs/008-combined-consent-ingress/
 ```text
 server/
 ├── db/migrations/
-│   └── 0007_registro_combinado.sql         # new
+│   ├── 0007_registro_combinado.sql         # new
+│   └── 0008_sesiones_firma_tipo_ancho.sql  # new: tipo NVARCHAR(15) -> (20)
 ├── lib/
 │   ├── registros.js                        # new: insertarConsentimiento / insertarVisita extracted from the routes
 │   ├── registroCombinado.js                # new, pure: decision matrix, canonical snapshot equality

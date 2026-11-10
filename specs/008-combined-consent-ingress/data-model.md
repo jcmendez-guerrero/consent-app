@@ -2,7 +2,7 @@
 
 **Feature**: 008-combined-consent-ingress | **Date**: 2026-11-10
 
-One migration (`0007_registro_combinado.sql`), no new tables. Column names follow the existing Spanish naming.
+Two migrations (`0007_registro_combinado.sql` and `0008_sesiones_firma_tipo_ancho.sql`), no new tables. Column names follow the existing Spanish naming.
 
 ## Changes to existing tables
 
@@ -11,6 +11,7 @@ One migration (`0007_registro_combinado.sql`), no new tables. Column names follo
 | Change | Detail |
 |---|---|
 | `CK_sesiones_firma_tipo` | Widened to `('consentimiento', 'ingreso', 'entrega', 'ingreso_combinado')` (drop and re-add, as migration 0006 did) |
+| `tipo` column | Widened from `NVARCHAR(15)` to `NVARCHAR(20)` by migration 0008: `ingreso_combinado` has 17 characters and did not fit (found when verifying 0007 on the test database). The CHECK is dropped and re-created around the `ALTER COLUMN` |
 
 No new column. The `payload` and `resultado` JSON shapes for the new type are in [contracts/api-signing-session-combined.md](contracts/api-signing-session-combined.md).
 
