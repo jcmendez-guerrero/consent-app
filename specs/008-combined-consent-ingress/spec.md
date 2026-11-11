@@ -22,7 +22,11 @@
 
 Today, when a pet has no valid consent on file (a new client, or a new pet of an existing client), the tutor goes through two separate signing moments at the counter: first the consent (signed once per pet), and then, after being redirected, the Ficha de Ingreso for the visit. Each moment has its own review, its own acceptance and its own signature.
 
-With this feature, staff prepares **both documents in one pass** (tutor and pet data, the visit data of the entry: services, price, estimated duration, behaviour disclosure, upfront medical treatments, findings and notes) and sends them together to the store's phone or tablet. The tutor reviews the consent blocks and the intake conditions, makes each acceptance decision, and signs **one time**. That single signature (plus the store countersignature) is applied to both the consent and the Ficha de Ingreso, and when it is confirmed the pet is registered as admitted with a valid consent.
+With this feature, staff prepares **both documents in one pass** (tutor and pet data, the visit data of the entry:
+services, price, estimated duration, behaviour disclosure, upfront medical treatments, findings and notes) and sends
+them together to the store's phone or tablet. The tutor reviews the consent blocks and the intake conditions, makes each
+acceptance decision, and signs **one time**. That single signature (plus the store countersignature) is applied to both
+the consent and the Ficha de Ingreso, and when it is confirmed the pet is registered as admitted with a valid consent.
 
 **Why this priority**: This is the whole point of the request: cut the tutor's interaction time at drop-off by removing the second review and second signature. Everything else is a variation of this flow.
 

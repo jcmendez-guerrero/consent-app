@@ -50,7 +50,15 @@ Notes:
 1. Validate shape and the entry rules of `POST /api/visitas` (duration > 0, treatment fields). → `400`.
 2. `digital`: load the session by id; require type `ingreso_combinado`, state `firmada`, not past `expira_en`. → `404` / `409` / `410`. Compare client, pet, `entrada` (canonical JSON) with `payload`, and `decisiones` + `legal_hashes` + signatures with `resultado`. → `409` with `codigo: "no_coincide"`.
 3. Begin the transaction and upsert the client (by DNI/NIE) and the pet (unless `mascota_id`).
-4. Compute `requiereRgpd` on the server (the client has no consent with `estado = 'aceptado'` and `revocado IS NULL`) and ignore any `excluyeRgpd` sent by the client; if privacy is required but `decisiones.rgpd` is missing → `409` `codigo: "no_coincide"`. Apply the decision matrix ([research R-6](../research.md)): privacy refused when required → roll back, `422`, nothing written. Then check no open visit for the pet (→ `409` `codigo: "visita_abierta"`), insert consent with `firma_grupo_id`, `firma_sesion_id`, `formato_aceptacion = 'bloques'`, `legal_hashes`; if admitted, insert visit and its `visita_cargos` (`respuesta = 'acordado_ingreso'`) with the same `firma_grupo_id`, `firma_unica_hash`, signatures and `autoriza_fotos_redes` from `decisiones.fotos`; for `digital`, wipe the session (`payload`, `resultado`) and set it consumed, only if it is still `firmada`. Commit. Any error → rollback, nothing written, session stays `firmada` (retry possible until `expira_en`).
+4. Compute `requiereRgpd` on the server (the client has no consent with `estado = 'aceptado'` and `revocado IS NULL`)
+   and ignore any `excluyeRgpd` sent by the client; if privacy is required but `decisiones.rgpd` is missing → `409`
+   `codigo: "no_coincide"`. Apply the decision matrix ([research R-6](../research.md)): privacy refused when required →
+   roll back, `422`, nothing written. Then check no open visit for the pet (→ `409` `codigo: "visita_abierta"`), insert
+   consent with `firma_grupo_id`, `firma_sesion_id`, `formato_aceptacion = 'bloques'`, `legal_hashes`; if admitted,
+   insert visit and its `visita_cargos` (`respuesta = 'acordado_ingreso'`) with the same `firma_grupo_id`,
+   `firma_unica_hash`, signatures and `autoriza_fotos_redes` from `decisiones.fotos`; for `digital`, wipe the session
+   (`payload`, `resultado`) and set it consumed, only if it is still `firmada`. Commit. Any error → rollback, nothing
+   written, session stays `firmada` (retry possible until `expira_en`).
 5. After commit, when the consent is `aceptado`, run the customer-management sync once (research R-10).
 
 ### Field mapping
@@ -104,7 +112,12 @@ Error messages are in Spanish, like the rest of the API. Responses never echo si
 
 ### Related change: `POST /api/visitas`
 
-Constitution V (v1.1.0) requires the "no visit without an active consent" guard on the server for every entry. `POST /api/visitas` now checks, inside its transaction and before inserting, that the pet has a consent with `estado = 'aceptado'` and `revocado IS NULL`; otherwise it rolls back and answers `409 { "error": "La mascota no tiene un consentimiento vigente", "codigo": "sin_consentimiento" }` and writes nothing (FR-025). The combined endpoint needs no such check because it inserts the accepted consent first, in the same transaction.
+Constitution V (v1.1.0) requires the "no visit without an active consent" guard on the server for every entry.
+`POST /api/visitas` now checks, inside its transaction and before inserting, that the pet has a consent with
+`estado = 'aceptado'` and `revocado IS NULL`; otherwise it rolls back and answers
+`409 { "error": "La mascota no tiene un consentimiento vigente", "codigo": "sin_consentimiento" }` and writes nothing
+(FR-025). The combined endpoint needs no such check because it inserts the accepted consent first, in the same
+transaction.
 
 ### Idempotency
 

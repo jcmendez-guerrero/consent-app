@@ -118,7 +118,12 @@ tests/
     └── registro-combinado.test.mjs         # decision matrix, snapshot equality (picked up by the existing "test" glob)
 ```
 
-**Structure Decision**: Single web application as today. The server rule that matters legally (what is recorded for each combination of decisions, and that the saved data equals the signed snapshot) is isolated in a pure module so it can be tested without a database. The two existing routes are refactored only to share their insert code and keep their behaviour byte for byte, except for one deliberate addition: `POST /api/visitas` now refuses a visit for a pet without an active consent (T009a, FR-025). The refactor is covered by the regression scenarios 12 and 13 of the quickstart, the guard by scenario 14.
+**Structure Decision**: Single web application as today. The server rule that matters legally (what is recorded for each
+combination of decisions, and that the saved data equals the signed snapshot) is isolated in a pure module so it can be
+tested without a database. The two existing routes are refactored only to share their insert code and keep their
+behaviour byte for byte, except for one deliberate addition: `POST /api/visitas` now refuses a visit for a pet without
+an active consent (T009a, FR-025). The refactor is covered by the regression scenarios 12 and 13 of the quickstart, the
+guard by scenario 14.
 
 ## Risks and Open Points
 

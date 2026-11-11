@@ -56,7 +56,11 @@ Server validation additions for this type:
 
 ## Poll (counter): `GET /api/firma/sesiones/:id`
 
-Unchanged response. For this type, if the state is `firmada` and `expira_en` has passed, the server sets `expirada` and wipes `payload` and `resultado` before answering (so `resultado` is `null`). Combined sessions past `expira_en` in any active state (`esperando`, `conectada` or `firmada`) are set to `expirada` with `payload` and `resultado` wiped by the lazy cleanup, and also by a job that runs when the server starts and every 5 minutes, so the pending data does not outlive the session even if nobody polls it (FR-009).
+Unchanged response. For this type, if the state is `firmada` and `expira_en` has passed, the server sets `expirada` and
+wipes `payload` and `resultado` before answering (so `resultado` is `null`). Combined sessions past `expira_en` in any
+active state (`esperando`, `conectada` or `firmada`) are set to `expirada` with `payload` and `resultado` wiped by the
+lazy cleanup, and also by a job that runs when the server starts and every 5 minutes, so the pending data does not
+outlive the session even if nobody polls it (FR-009).
 
 ## Consume
 

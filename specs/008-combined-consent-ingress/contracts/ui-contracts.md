@@ -57,6 +57,9 @@ For a pet with a valid consent the app behaves as today: `/ingreso?mascota=…` 
 
 ## Documents
 
-- **Printable combined sheet** (`pdfRegistroCombinado`): header; tutor and pet data; the consent terms block (and privacy when required) with its decision box; photos and communications boxes (unchecked); the single-signature clause; the intake conditions block with its decision box; the entry summary; **one** signature area for the tutor and one for the store; the legal version identifier and date/time. Europe/Madrid locale.
+- **Printable combined sheet** (`pdfRegistroCombinado`): header; tutor and pet data; the consent terms block (and
+  privacy when required) with its decision box; photos and communications boxes (unchecked); the single-signature
+  clause; the intake conditions block with its decision box; the entry summary; **one** signature area for the tutor and
+  one for the store; the legal version identifier and date/time. Europe/Madrid locale.
 - **Paper signing**: the signed printed sheet is the document of record, as in today's paper flows; no per-record PDFs are generated after the paper confirmation (FR-022).
 - **Stored documents after a digital signing**: `pdfConsentimiento` and `pdfVisita` unchanged, each rendered with the same two signature images, its own decisions, its own legal version and the date/time (FR-022).
