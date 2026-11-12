@@ -64,6 +64,7 @@ export function mapConsentimiento(row) {
     formato_aceptacion: row.formato_aceptacion ?? "clausulas",
     legal_hashes: parseJsonColumn(row.legal_hashes, null),
     firma_sesion_id: row.firma_sesion_id ?? null,
+    firma_grupo_id: row.firma_grupo_id ?? null,
   };
 }
 
@@ -106,6 +107,8 @@ export function mapVisita(row) {
     creado_por: row.creado_por,
     condiciones_version: row.condiciones_version ?? null,
     condiciones_hash: row.condiciones_hash ?? null,
+    firma_grupo_id: row.firma_grupo_id ?? null,
+    firma_unica_hash: row.firma_unica_hash ?? null,
     condiciones_con_recargos: !!row.condiciones_con_recargos,
     duracion_estimada_min:
       row.duracion_estimada_min != null

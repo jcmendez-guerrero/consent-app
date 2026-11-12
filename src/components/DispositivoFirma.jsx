@@ -75,6 +75,8 @@ export default function DispositivoFirma({
     const timer = setInterval(async () => {
       try {
         const info = await consultarSesionFirma(sesion.id);
+        // Dos sondeos en vuelo (p. ej. pestaña en segundo plano) verían "firmada": solo el primero actúa.
+        if (completadoRef.current) return;
         if (info.estado === "firmada") {
           completadoRef.current = true;
           setEstado("firmada");
@@ -109,7 +111,9 @@ export default function DispositivoFirma({
     >
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl text-center">
         <h3 className="text-lg font-bold text-brand-800">
-          Firma en dispositivo de la tienda
+          {tipo === "ingreso_combinado"
+            ? "Consentimiento e ingreso: firma única en el dispositivo"
+            : "Firma en dispositivo de la tienda"}
         </h3>
 
         {estado === "iniciando" && (

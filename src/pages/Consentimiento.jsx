@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useDirty } from "../contexts/DirtyContext";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import {
   useDB,
   useDBStatus,
@@ -8,6 +13,7 @@ import {
   upsertMascota,
   guardarConsentimiento,
   consumirSesionFirma,
+  consentimientoVigente,
 } from "../lib/store";
 import {
   CLAUSULAS_CONSENTIMIENTO,
@@ -122,6 +128,38 @@ export default function Consentimiento() {
   const mascotasExistentes = cliente.id
     ? db.mascotas.filter((m) => m.cliente_id === cliente.id)
     : [];
+
+  // Feature 008: sin consentimiento vigente para la mascota se ofrece firmar consentimiento
+  // e ingreso de una vez. La protección de datos solo se omite si el cliente ya tiene una aceptada.
+  const consentimientoMascota = mascota.id
+    ? consentimientoVigente(db, mascota.id)
+    : null;
+  const mostrarCombinado = !consentimientoMascota;
+  const clienteConRgpdVigente =
+    !!cliente.id &&
+    db.consentimientos.some(
+      (c) =>
+        c.cliente_id === cliente.id && c.estado === "aceptado" && !c.revocado,
+    );
+
+  // Nada se guarda en el servidor: el borrador viaja en el estado del router y se registra
+  // todo junto cuando el tutor firma (o se confirma el papel) en la pantalla de ingreso.
+  function irAIngresoCombinado() {
+    if (!datosOk) return;
+    setDirty(false);
+    navigate("/ingreso", {
+      state: {
+        consentimientoPendiente: {
+          cliente,
+          mascota,
+          mascotaId: mascota.id || null,
+          condicionesPreexistentes,
+          condicionesOtras,
+          excluyeRgpd: clienteConRgpdVigente,
+        },
+      },
+    });
+  }
 
   function seleccionarMascota(m) {
     setDirty(true);
@@ -496,13 +534,47 @@ export default function Consentimiento() {
             <Aviso tipo="error">{error}</Aviso>
           </div>
         )}
+        {consentimientoMascota && (
+          <div className="mb-4">
+            <Aviso tipo="info">
+              Esta mascota ya tiene un consentimiento vigente. Para registrar el
+              ingreso usa la{" "}
+              <Link
+                to={`/ingreso?mascota=${mascota.id}`}
+                className="font-bold underline"
+              >
+                ficha de ingreso
+              </Link>
+              .
+            </Aviso>
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <PrimaryButton
-            onClick={() => setMostrarModalFirma(true)}
-            disabled={!datosOk || generando}
-          >
-            📱 Firmar en dispositivo de la tienda
-          </PrimaryButton>
+          {mostrarCombinado && (
+            <PrimaryButton
+              onClick={irAIngresoCombinado}
+              disabled={!datosOk || generando}
+            >
+              ⚡ Consentimiento + ingreso (una firma)
+            </PrimaryButton>
+          )}
+          {mostrarCombinado ? (
+            <button
+              type="button"
+              onClick={() => setMostrarModalFirma(true)}
+              disabled={!datosOk || generando}
+              className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+            >
+              📱 Solo consentimiento: firmar en dispositivo
+            </button>
+          ) : (
+            <PrimaryButton
+              onClick={() => setMostrarModalFirma(true)}
+              disabled={!datosOk || generando}
+            >
+              📱 Firmar en dispositivo de la tienda
+            </PrimaryButton>
+          )}
           <button
             type="button"
             onClick={generarEImprimir}
@@ -511,7 +583,9 @@ export default function Consentimiento() {
           >
             {generando
               ? "Generando…"
-              : "Generar e imprimir consentimiento en papel"}
+              : mostrarCombinado
+                ? "Solo consentimiento: imprimir en papel"
+                : "Generar e imprimir consentimiento en papel"}
           </button>
           {!datosOk && (
             <span className="text-sm text-brand-500">

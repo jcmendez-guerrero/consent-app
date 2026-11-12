@@ -4,8 +4,11 @@ import {
   upsertCliente,
   upsertMascota,
   guardarConsentimiento,
+  registrarCombinado,
 } from "../lib/store";
 import {
+  CLAUSULAS_INGRESO,
+  RESUMEN_CONDICIONES_INGRESO,
   CLAUSULAS_CONSENTIMIENTO,
   CLAUSULA_IMAGENES,
   CLAUSULA_COMUNICACIONES,
@@ -40,6 +43,7 @@ export default function ConsentimientoConfirmar() {
   const [decisionRgpd, setDecisionRgpd] = useState(null); // 'acepta' | 'rechaza' | null
   const [autorizaFotos, setAutorizaFotos] = useState(false);
   const [autorizaComunicaciones, setAutorizaComunicaciones] = useState(false);
+  const [decisionCondiciones, setDecisionCondiciones] = useState(null); // solo ingreso combinado
 
   const [confirmado, setConfirmado] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -54,12 +58,111 @@ export default function ConsentimientoConfirmar() {
     ? clausulasTerminos()
     : CLAUSULAS_CONSENTIMIENTO;
 
+  // Feature 008: el borrador trae los datos del ingreso y se registra todo con una sola firma en papel.
+  const combinado = !!draft.ingresoPendiente;
+  const entrada = draft.ingresoPendiente;
+  const totalPresupuestado = combinado
+    ? (Number(entrada.precio) || 0) +
+      (entrada.tratamientos_previos || []).reduce(
+        (s, t) => s + (Number(t.importe) || 0),
+        0,
+      )
+    : 0;
+
   const terminosRespondidos = !!decisionTerminos;
   const rgpdRespondido = draft.excluyeRgpd || !!decisionRgpd;
-  const todasRespondidas = terminosRespondidos && rgpdRespondido;
+  const todasRespondidas =
+    terminosRespondidos &&
+    rgpdRespondido &&
+    (!combinado || !!decisionCondiciones);
 
   const rgpdRechazado = !draft.excluyeRgpd && decisionRgpd === "rechaza";
   const terminosRechazados = decisionTerminos === "rechaza";
+
+  // Tras guardar: la pantalla a la que se vuelve depende de lo que quedó registrado.
+  function redirigirTras({ estado, mascotaId, combinadoResultado }, ms) {
+    if (combinadoResultado === "admitido") {
+      setTimeout(() => navigate("/"), ms);
+    } else if (!combinadoResultado && estado === "aceptado") {
+      setTimeout(() => navigate(`/ingreso?mascota=${mascotaId}`), ms);
+    }
+  }
+
+  async function confirmarCombinado() {
+    setGuardando(true);
+    setError("");
+    try {
+      const textoAceptado = textoLegalCompleto([
+        ...clausulasVisibles,
+        CLAUSULA_IMAGENES,
+        CLAUSULA_COMUNICACIONES,
+      ]);
+      const legalHashes = {
+        ...(await hashesConsentimiento({
+          excluyeRgpd: draft.excluyeRgpd,
+          incluyeFirmaUnica: true,
+        })),
+        condiciones: await hashTexto(textoLegalCompleto(CLAUSULAS_INGRESO)),
+      };
+      const mascota = { ...draft.mascota };
+      const mascotaId = mascota.id || null;
+      delete mascota.id;
+      delete mascota.cliente_id;
+
+      const result = await registrarCombinado({
+        modo: "papel",
+        confirmacion_papel: true,
+        cliente: draft.cliente,
+        mascota,
+        mascota_id: mascotaId,
+        consentimiento: {
+          condiciones_preexistentes: draft.condicionesPreexistentes || [],
+          condiciones_preexistentes_otras: draft.condicionesOtras || null,
+          legal_hash: await hashTexto(textoAceptado),
+        },
+        entrada,
+        decisiones: {
+          terminos: decisionTerminos,
+          ...(!draft.excluyeRgpd && { rgpd: decisionRgpd }),
+          fotos: autorizaFotos,
+          comunicaciones: autorizaComunicaciones,
+          condiciones: decisionCondiciones,
+        },
+        legal_version: LEGAL_VERSION,
+        legal_hashes: legalHashes,
+      });
+
+      const estado =
+        result.resultado === "consentimiento_rechazado"
+          ? "rechazado"
+          : "aceptado";
+      const guardadoNuevo = {
+        estado,
+        mascotaId: result.mascota_id,
+        combinadoResultado: result.resultado,
+      };
+      if (result.siweb360_candidates?.length > 0) {
+        setSiwebModal({
+          consentimientoId: result.consentimiento_id,
+          candidates: result.siweb360_candidates,
+          ...guardadoNuevo,
+        });
+        return;
+      }
+      setGuardado(guardadoNuevo);
+      redirigirTras(guardadoNuevo, 1200);
+    } catch (e) {
+      console.error(e);
+      // 409 (datos no coinciden, visita abierta), 422 (RGPD obligatorio) y otros rechazos traen su mensaje.
+      setError(
+        e.status
+          ? e.message
+          : "No se pudo guardar el registro. Inténtalo de nuevo.",
+      );
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   async function confirmarYProceder() {
     if (!todasRespondidas || !confirmado || guardando || guardado) return;
@@ -67,6 +170,10 @@ export default function ConsentimientoConfirmar() {
       setError(
         "El tutor debe aceptar el tratamiento de datos personales (RGPD) para poder registrar el consentimiento.",
       );
+      return;
+    }
+    if (combinado) {
+      await confirmarCombinado();
       return;
     }
 
@@ -160,12 +267,11 @@ export default function ConsentimientoConfirmar() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${res.status}`);
       }
-      const { mascotaId, estado } = siwebModal;
+      const { mascotaId, estado, combinadoResultado } = siwebModal;
       setSiwebModal(null);
-      setGuardado({ estado, mascotaId });
-      if (estado === "aceptado") {
-        setTimeout(() => navigate(`/ingreso?mascota=${mascotaId}`), 800);
-      }
+      const guardadoNuevo = { estado, mascotaId, combinadoResultado };
+      setGuardado(guardadoNuevo);
+      redirigirTras(guardadoNuevo, 800);
     } catch (err) {
       console.error(err);
       setError(
@@ -180,7 +286,9 @@ export default function ConsentimientoConfirmar() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-brand-800">
-          Confirmar consentimiento firmado en papel
+          {combinado
+            ? "Confirmar consentimiento e ingreso firmados en papel"
+            : "Confirmar consentimiento firmado en papel"}
         </h1>
         <p className="text-sm text-brand-500">
           Revisa los datos y marca las decisiones que el tutor indicó en el
@@ -261,6 +369,18 @@ export default function ConsentimientoConfirmar() {
               .join(", ")}
           />
         )}
+        {combinado && (
+          <>
+            <Dato
+              etiqueta="Servicios"
+              valor={(entrada.servicios || []).join(", ")}
+            />
+            <Dato
+              etiqueta="Total presupuestado"
+              valor={`${totalPresupuestado.toFixed(2)} €`}
+            />
+          </>
+        )}
       </Card>
 
       <Card
@@ -335,11 +455,38 @@ export default function ConsentimientoConfirmar() {
         </div>
       </Card>
 
+      {combinado && (
+        <Card
+          title="4 · Condiciones de ingreso"
+          subtitle="Marca la decisión del tutor sobre las condiciones de ingreso en el papel firmado."
+        >
+          <BloqueAceptacion
+            titulo="Condiciones de ingreso"
+            resumen={RESUMEN_CONDICIONES_INGRESO}
+            clausulas={CLAUSULAS_INGRESO}
+            valor={decisionCondiciones}
+            onChange={setDecisionCondiciones}
+          />
+        </Card>
+      )}
+
       {guardado ? (
-        <Aviso tipo={guardado.estado === "aceptado" ? "ok" : "error"}>
-          {guardado.estado === "aceptado"
-            ? "Consentimiento guardado correctamente. Redirigiendo al ingreso…"
-            : "Consentimiento registrado como rechazado. No se puede proceder al ingreso hasta resolverlo."}
+        <Aviso
+          tipo={
+            guardado.estado !== "aceptado"
+              ? "error"
+              : guardado.combinadoResultado === "solo_consentimiento"
+                ? "warning"
+                : "ok"
+          }
+        >
+          {guardado.combinadoResultado === "admitido"
+            ? "Consentimiento e ingreso guardados correctamente. Redirigiendo…"
+            : guardado.combinadoResultado === "solo_consentimiento"
+              ? "Ingreso no registrado: el tutor no aceptó las condiciones de ingreso. El consentimiento sí queda registrado y vigente."
+              : guardado.estado === "aceptado"
+                ? "Consentimiento guardado correctamente. Redirigiendo al ingreso…"
+                : "Consentimiento registrado como rechazado. No se puede proceder al ingreso hasta resolverlo."}
         </Aviso>
       ) : (
         <Card title="Confirmación">
@@ -370,7 +517,9 @@ export default function ConsentimientoConfirmar() {
               ? "Guardando…"
               : terminosRechazados
                 ? "Confirmar y registrar (rechazado)"
-                : "Confirmar y proceder al ingreso"}
+                : combinado
+                  ? "Confirmar y registrar consentimiento e ingreso"
+                  : "Confirmar y proceder al ingreso"}
           </PrimaryButton>
         )}
         {!guardado && (
@@ -385,8 +534,17 @@ export default function ConsentimientoConfirmar() {
         {!guardado && !todasRespondidas && (
           <span className="self-center text-sm text-brand-500">
             Marca tu respuesta en los términos
-            {!draft.excluyeRgpd ? " y la protección de datos" : ""}.
+            {!draft.excluyeRgpd ? ", la protección de datos" : ""}
+            {combinado ? " y las condiciones de ingreso" : ""}.
           </span>
+        )}
+        {guardado && guardado.combinadoResultado === "solo_consentimiento" && (
+          <Link
+            to="/"
+            className="rounded-xl border border-brand-200 px-6 py-3.5 text-base font-bold text-brand-700 transition hover:bg-brand-100"
+          >
+            Ir al inicio →
+          </Link>
         )}
         {guardado && guardado.estado !== "aceptado" && (
           <Link

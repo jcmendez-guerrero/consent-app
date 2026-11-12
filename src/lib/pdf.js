@@ -15,7 +15,9 @@ import {
   CLAUSULAS_CONSENTIMIENTO,
   CLAUSULA_IMAGENES,
   CLAUSULA_COMUNICACIONES,
+  CLAUSULA_FIRMA_UNICA,
   CONDICIONES_PREEXISTENTES_OPCIONES,
+  LEGAL_VERSION,
 } from "./legal";
 import {
   fechaLarga,
@@ -1190,4 +1192,166 @@ export async function pdfBlankEntrega() {
 
   pieResponsable(doc);
   doc.save("Ficha_Entrega_Plantilla.pdf");
+}
+
+// ---------- Consentimiento + ingreso en una sola hoja (spec 008, firma única en papel) ----------
+
+// Documento para imprimir: los datos ya van rellenos y cada decisión queda en blanco para que el
+// tutor la marque a mano; una sola firma del tutor y una de la tienda valen para todo.
+export async function pdfRegistroCombinado({
+  cliente,
+  mascota,
+  entrada,
+  clausulasConsentimiento,
+  clausulasIngreso,
+  excluyeRgpd,
+  condicionesPreexistentes = [],
+  condicionesOtras = null,
+}) {
+  const doc = new jsPDF();
+  let y = await cabecera(
+    doc,
+    "CONSENTIMIENTO INFORMADO E INGRESO — FIRMA ÚNICA",
+    `${RESPONSABLE.establecimiento} · Documento para firmar en papel · Textos legales ${LEGAL_VERSION}`,
+  );
+
+  y = tituloSeccion(doc, y, "1. Datos del tutor y de la mascota");
+  y = filaDato(doc, y, "Tutor", cliente.nombre_apellidos);
+  y = filaDato(doc, y, "DNI/NIE", cliente.dni_nie);
+  y = filaDato(doc, y, "Teléfono", cliente.telefono);
+  y = filaDato(doc, y, "Email", cliente.email);
+  y = filaDato(
+    doc,
+    y,
+    "Mascota",
+    [mascota.nombre, mascota.especie, mascota.raza].filter(Boolean).join(" · "),
+  );
+  y = filaDato(doc, y, "Microchip", mascota.microchip || "—");
+  y = filaDato(
+    doc,
+    y,
+    "Condiciones preexistentes",
+    [...condicionesPreexistentes, condicionesOtras]
+      .filter(Boolean)
+      .join(", ") || "Ninguna declarada",
+  );
+
+  y = tituloSeccion(doc, y + 2, "2. Resumen del ingreso");
+  y = filaDato(
+    doc,
+    y,
+    "Servicios",
+    (entrada.servicios || []).join(", ") || "Dermospa",
+  );
+  y = filaDato(doc, y, "Tratamiento", entrada.tratamiento || "—");
+  y = filaDato(
+    doc,
+    y,
+    "Precio base",
+    `${Number(entrada.precio || 0).toFixed(2)} €`,
+  );
+  y = filaDato(
+    doc,
+    y,
+    "Duración estimada",
+    `${entrada.duracion_estimada_min} min`,
+  );
+  y = filaDato(doc, y, "Hora de ingreso", entrada.hora_ingreso || "—");
+  y = filaDato(
+    doc,
+    y,
+    "Comportamiento o condición comunicados",
+    entrada.comportamiento_declarado ? "Sí" : "No",
+  );
+  const tratamientos = entrada.tratamientos_previos || [];
+  for (const t of tratamientos) {
+    y = filaDato(
+      doc,
+      y,
+      "Tratamiento acordado",
+      `${t.descripcion} — ${Number(t.importe).toFixed(2)} €`,
+    );
+  }
+  const total =
+    Number(entrada.precio || 0) +
+    tratamientos.reduce((s, t) => s + Number(t.importe || 0), 0);
+  y = filaDato(doc, y, "Total presupuestado", `${total.toFixed(2)} €`);
+
+  y = tituloSeccion(doc, y + 2, "3. Consentimiento: condiciones del servicio");
+  for (const c of clausulasConsentimiento.filter((c) => c.id !== "rgpd")) {
+    y = bloqueTexto(doc, y + 1, c.titulo, { bold: true, size: 8 });
+    y = bloqueTexto(doc, y, c.texto, { size: 7.2 });
+  }
+  y = lineaAceptacion(doc, y, {
+    tipoFirma: "papel",
+    textoAcepta:
+      "Acepto las condiciones de prestación del servicio (Cláusulas 1 a 5)",
+    textoRechaza: "No acepto las condiciones de prestación del servicio",
+  });
+
+  y = tituloSeccion(doc, y + 2, "4. Protección de datos y comunicaciones");
+  const rgpd = clausulasConsentimiento.find((c) => c.id === "rgpd");
+  if (!excluyeRgpd && rgpd) {
+    y = bloqueTexto(doc, y + 1, rgpd.titulo, { bold: true, size: 8.5 });
+    y = bloqueTexto(doc, y, rgpd.texto, { size: 7.2 });
+    y = lineaAceptacion(doc, y, {
+      tipoFirma: "papel",
+      textoAcepta:
+        "Acepto la política de protección de datos personales (RGPD)",
+      textoRechaza: "No acepto el tratamiento de datos personales",
+    });
+  }
+  y = bloqueTexto(doc, y + 2, CLAUSULA_COMUNICACIONES.titulo, {
+    bold: true,
+    size: 8.5,
+  });
+  y = bloqueTexto(doc, y, CLAUSULA_COMUNICACIONES.texto, { size: 7.2 });
+  y = bloqueTexto(
+    doc,
+    y,
+    "[ ] Doy mi consentimiento para recibir comunicaciones.     [ ] NO doy mi consentimiento para recibir comunicaciones comerciales.",
+    { bold: true, size: 8, color: DARK },
+  );
+
+  y = tituloSeccion(doc, y + 2, "5. Fotografías y redes sociales (opcional)");
+  y = bloqueTexto(doc, y + 1, CLAUSULA_IMAGENES.titulo, {
+    bold: true,
+    size: 8.5,
+  });
+  y = bloqueTexto(doc, y, CLAUSULA_IMAGENES.texto, { size: 7.2 });
+  y = bloqueTexto(
+    doc,
+    y,
+    "[ ] Autorizo el uso de las imágenes en los términos anteriores.     [ ] NO autorizo el uso de imágenes de mi mascota.",
+    { bold: true, size: 8, color: DARK },
+  );
+
+  y = tituloSeccion(doc, y + 2, "6. Condiciones de ingreso");
+  for (const c of clausulasIngreso) {
+    y = bloqueTexto(doc, y, `• ${c.titulo}: ${c.texto}`, { size: 7 });
+  }
+  y = lineaAceptacion(doc, y, {
+    tipoFirma: "papel",
+    textoAcepta: "El tutor acepta las condiciones de ingreso del servicio",
+    textoRechaza: "El tutor NO acepta las condiciones de ingreso",
+  });
+
+  y = tituloSeccion(doc, y + 2, "7. Firma única");
+  y = bloqueTexto(doc, y, CLAUSULA_FIRMA_UNICA.texto, { size: 7.5 });
+  y = firmasDualesEnPDF(doc, y + 2, {
+    tipoFirma: "papel",
+    textoTutor: `El/La tutor/a firma una sola vez para el consentimiento y el ingreso. En ${RESPONSABLE.localidad}, a ____ de ___________ de ______.`,
+    textoTienda: "Por Mundo Mascotix (representante):",
+  });
+  y = bloqueTexto(
+    doc,
+    y + 2,
+    `Documento generado el ${new Date().toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}`,
+    { size: 7.5, color: MID },
+  );
+
+  pieResponsable(doc);
+  doc.save(
+    `Consentimiento_Ingreso_${(mascota.nombre || "mascota").replace(/\s+/g, "_")}_${entrada.fecha}.pdf`,
+  );
 }

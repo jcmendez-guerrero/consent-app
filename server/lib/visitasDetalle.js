@@ -12,7 +12,7 @@ export const VISITA_COLS_SIN_FIRMAS = `
   condiciones_version, condiciones_hash, condiciones_con_recargos, duracion_estimada_min,
   comportamiento_declarado, hora_inicio_servicio, parasitos_detectados, parasitos_decision,
   parasitos_motivo, interrumpida, interrupcion_causa, interrupcion_motivo,
-  hora_interrupcion, importe_retenido`;
+  hora_interrupcion, importe_retenido, firma_grupo_id, firma_unica_hash`;
 
 // Una sola consulta por tabla: los ids viajan como UN parámetro JSON, así no hay
 // tope de 2100 parámetros de SQL Server por muchas visitas que haya.

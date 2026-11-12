@@ -8,7 +8,9 @@ import consentimientosRouter from "./routes/consentimientos.js";
 import visitasRouter from "./routes/visitas.js";
 import tratamientosRouter from "./routes/tratamientos.js";
 import siweb360Router from "./routes/siweb360.js";
-import firmaRouter from "./routes/firma.js";
+import firmaRouter, { limpiarSesionesCombinadas } from "./routes/firma.js";
+import { getPool } from "./db/pool.js";
+import registrosCombinadosRouter from "./routes/registrosCombinados.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { rateLimiter, firmaRateLimiter } from "./middleware/rateLimiter.js";
 
@@ -37,6 +39,7 @@ app.use("/api/clientes", clientesRouter);
 app.use("/api/mascotas", mascotasRouter);
 app.use("/api/consentimientos", consentimientosRouter);
 app.use("/api/visitas", visitasRouter);
+app.use("/api/registros-combinados", registrosCombinadosRouter);
 app.use("/api/tratamientos", tratamientosRouter);
 app.use("/api/siweb360", siweb360Router);
 
@@ -50,3 +53,18 @@ const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`DermoSpa server escuchando en el puerto ${port}`);
 });
+
+// FR-009: los datos del registro pendiente no sobreviven a la caducidad de la sesión aunque nadie
+// cree otra sesión. El registro del error solo lleva nombre y código (sin datos personales).
+async function limpiarCombinadasCaducadas() {
+  try {
+    await limpiarSesionesCombinadas(await getPool());
+  } catch (err) {
+    console.error("[firma] no se pudo limpiar sesiones combinadas caducadas", {
+      name: err?.name,
+      code: err?.code,
+    });
+  }
+}
+limpiarCombinadasCaducadas();
+setInterval(limpiarCombinadasCaducadas, 5 * 60 * 1000).unref();

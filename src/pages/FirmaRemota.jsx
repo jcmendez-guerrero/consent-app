@@ -10,6 +10,7 @@ import {
   CLAUSULAS_INGRESO,
   CLAUSULA_IMAGENES,
   CLAUSULA_COMUNICACIONES,
+  CLAUSULA_FIRMA_UNICA,
   LEGAL_VERSION,
   hashesConsentimiento,
   hashTexto,
@@ -38,6 +39,7 @@ export default function FirmaRemota() {
   const [decisionRgpd, setDecisionRgpd] = useState(null);
   const [autorizaFotos, setAutorizaFotos] = useState(false);
   const [autorizaComunicaciones, setAutorizaComunicaciones] = useState(false);
+  const [decisionCondiciones, setDecisionCondiciones] = useState(null); // solo ingreso combinado
 
   // Firmas
   const [firmaTutor, setFirmaTutor] = useState(null);
@@ -95,7 +97,22 @@ export default function FirmaRemota() {
       let legalHashes = {};
       let decisiones = {};
 
-      if (sesion.tipo === "consentimiento") {
+      if (sesion.tipo === "ingreso_combinado") {
+        legalHashes = {
+          ...(await hashesConsentimiento({
+            excluyeRgpd: payload.excluyeRgpd,
+            incluyeFirmaUnica: true,
+          })),
+          condiciones: await hashTexto(textoLegalCompleto(CLAUSULAS_INGRESO)),
+        };
+        decisiones = {
+          terminos: decisionTerminos,
+          ...(!payload.excluyeRgpd && { rgpd: decisionRgpd }),
+          fotos: autorizaFotos,
+          comunicaciones: autorizaComunicaciones,
+          condiciones: decisionCondiciones,
+        };
+      } else if (sesion.tipo === "consentimiento") {
         legalHashes = await hashesConsentimiento({
           excluyeRgpd: payload.excluyeRgpd,
         });
@@ -184,9 +201,19 @@ export default function FirmaRemota() {
   const payload = sesion.payload || {};
   const esConsentimiento = sesion.tipo === "consentimiento";
   const esEntrega = sesion.tipo === "entrega";
-  const todasRespondidas = esConsentimiento
-    ? !!decisionTerminos && (payload.excluyeRgpd || !!decisionRgpd)
-    : !!decisionTerminos;
+  const esCombinada = sesion.tipo === "ingreso_combinado";
+  const entrada = payload.entrada || {};
+  const tratamientosPrevios = entrada.tratamientos_previos || [];
+  const totalPresupuestado =
+    (Number(entrada.precio) || 0) +
+    tratamientosPrevios.reduce((s, t) => s + (Number(t.importe) || 0), 0);
+  const todasRespondidas = esCombinada
+    ? !!decisionTerminos &&
+      !!decisionCondiciones &&
+      (payload.excluyeRgpd || !!decisionRgpd)
+    : esConsentimiento
+      ? !!decisionTerminos && (payload.excluyeRgpd || !!decisionRgpd)
+      : !!decisionTerminos;
 
   return (
     <div className="min-h-screen bg-brand-50/40 p-4 sm:p-6 flex flex-col justify-between">
@@ -195,11 +222,13 @@ export default function FirmaRemota() {
         <div className="rounded-2xl border border-brand-200 bg-white p-4 shadow-sm flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold text-brand-800">
-              {esConsentimiento
-                ? "Consentimiento informado · DermoSpa"
-                : esEntrega
-                  ? "Ficha de entrega y salida · DermoSpa"
-                  : "Ficha de ingreso · DermoSpa"}
+              {esCombinada
+                ? "Consentimiento e ingreso: firma única · DermoSpa"
+                : esConsentimiento
+                  ? "Consentimiento informado · DermoSpa"
+                  : esEntrega
+                    ? "Ficha de entrega y salida · DermoSpa"
+                    : "Ficha de ingreso · DermoSpa"}
             </h1>
             <p className="text-xs text-brand-500">
               Tutor: <strong>{payload.cliente?.nombre_apellidos || "—"}</strong>{" "}
@@ -209,7 +238,7 @@ export default function FirmaRemota() {
           <button
             type="button"
             onClick={handleCancelar}
-            className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-600 hover:bg-brand-50"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-600 hover:bg-brand-50"
           >
             Cancelar
           </button>
@@ -220,7 +249,114 @@ export default function FirmaRemota() {
         {/* PASO 1: REVISIÓN DE CONDICIONES Y DECISIONES */}
         {paso === "revision" && (
           <div className="space-y-4">
-            {esConsentimiento ? (
+            {esCombinada ? (
+              <>
+                <div className="rounded-xl border border-brand-200 bg-white p-4 text-sm space-y-1.5">
+                  <div className="font-bold text-base text-brand-800">
+                    Resumen del ingreso
+                  </div>
+                  <p>
+                    <strong>Servicios:</strong>{" "}
+                    {(entrada.servicios || []).join(", ") || "Dermospa"}
+                  </p>
+                  <p>
+                    <strong>Precio base:</strong> {entrada.precio} € ·{" "}
+                    <strong>Duración estimada:</strong>{" "}
+                    {entrada.duracion_estimada_min} min
+                  </p>
+                  {entrada.comportamiento_declarado && (
+                    <p className="text-brand-600 font-semibold">
+                      ✓ El tutor ha comunicado condición o comportamiento
+                      especial.
+                    </p>
+                  )}
+                  {tratamientosPrevios.length > 0 && (
+                    <ul className="space-y-0.5 border-t border-brand-100 pt-1.5">
+                      {tratamientosPrevios.map((t, i) => (
+                        <li key={i}>
+                          <strong>Tratamiento acordado:</strong> {t.descripcion}{" "}
+                          · {Number(t.importe)} €
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="border-t border-brand-100 pt-1.5 font-bold text-brand-800">
+                    Total presupuestado: {totalPresupuestado} €
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-brand-600 uppercase tracking-wide">
+                    1 · Condiciones de prestación del servicio
+                  </span>
+                  <BloqueAceptacion
+                    titulo="Términos y condiciones del servicio (Cláusulas 1 a 5)"
+                    resumen={RESUMEN_TERMINOS}
+                    clausulas={clausulasTerminos()}
+                    valor={decisionTerminos}
+                    onChange={setDecisionTerminos}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <span className="text-xs font-bold text-brand-600 uppercase tracking-wide">
+                    2 · Protección de datos personales (RGPD) y avisos
+                  </span>
+                  {!payload.excluyeRgpd && (
+                    <BloqueAceptacion
+                      titulo="Protección de datos (RGPD / LOPDGDD)"
+                      resumen={RESUMEN_RGPD}
+                      clausulas={[
+                        CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd"),
+                      ]}
+                      valor={decisionRgpd}
+                      onChange={setDecisionRgpd}
+                    />
+                  )}
+                  <BloqueAceptacion
+                    titulo={CLAUSULA_COMUNICACIONES.titulo}
+                    resumen="Consentimiento opcional para recibir avisos y comunicaciones por WhatsApp o email."
+                    clausulas={[CLAUSULA_COMUNICACIONES]}
+                    valor={autorizaComunicaciones}
+                    onChange={setAutorizaComunicaciones}
+                    opcional={true}
+                  />
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  <span className="text-xs font-bold text-brand-600 uppercase tracking-wide">
+                    3 · Fotografías y redes sociales (opcional)
+                  </span>
+                  <BloqueAceptacion
+                    titulo={CLAUSULA_IMAGENES.titulo}
+                    resumen={RESUMEN_IMAGENES}
+                    clausulas={[CLAUSULA_IMAGENES]}
+                    valor={autorizaFotos}
+                    onChange={setAutorizaFotos}
+                    opcional={true}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <span className="text-xs font-bold text-brand-600 uppercase tracking-wide">
+                    4 · Condiciones de ingreso y firma única
+                  </span>
+                  <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4 text-sm text-brand-700">
+                    <div className="font-bold text-brand-800">
+                      {CLAUSULA_FIRMA_UNICA.titulo}
+                    </div>
+                    <p className="mt-1">{CLAUSULA_FIRMA_UNICA.texto}</p>
+                  </div>
+                  <BloqueAceptacion
+                    titulo="Condiciones de ingreso"
+                    resumen={RESUMEN_CONDICIONES_INGRESO}
+                    clausulas={CLAUSULAS_INGRESO}
+                    valor={decisionCondiciones}
+                    onChange={setDecisionCondiciones}
+                  />
+                </div>
+              </>
+            ) : esConsentimiento ? (
               <>
                 <div className="space-y-1">
                   <span className="text-xs font-bold text-brand-600 uppercase tracking-wide">

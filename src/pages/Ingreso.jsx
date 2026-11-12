@@ -1,23 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDirty } from "../contexts/DirtyContext";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import {
   useDB,
   useDBStatus,
   consentimientoVigente,
   guardarVisita,
   consumirSesionFirma,
+  cancelarSesionFirma,
+  registrarCombinado,
 } from "../lib/store";
 import {
   SERVICIOS,
   CLAUSULAS_INGRESO,
+  CLAUSULAS_CONSENTIMIENTO,
+  CLAUSULA_IMAGENES,
+  CLAUSULA_COMUNICACIONES,
   RESUMEN_CONDICIONES_INGRESO,
   LEGAL_VERSION,
   textoLegalCompleto,
   hashTexto,
+  hashesConsentimiento,
 } from "../lib/legal";
 import { hoyISO, horaAhora } from "../lib/utils";
-import { pdfVisita } from "../lib/pdf";
+import { pdfVisita, pdfConsentimiento, pdfRegistroCombinado } from "../lib/pdf";
 import {
   Card,
   Field,
@@ -32,12 +43,77 @@ import PetSchematic from "../components/PetSchematic";
 import BloqueAceptacion from "../components/BloqueAceptacion";
 import DispositivoFirma from "../components/DispositivoFirma";
 
+const txt = (v) => (typeof v === "string" ? v : "");
+
+// Borrador de consentimiento + ingreso que llega desde /consentimiento por el estado del router.
+// Se normaliza a la forma exacta del contrato; un estado mal formado se ignora (modo normal).
+function leerPendiente(estado) {
+  const p = estado?.consentimientoPendiente;
+  if (!p || typeof p !== "object" || !p.cliente || !p.mascota) return null;
+  const { cliente: c, mascota: m } = p;
+  if (
+    !txt(c.nombre_apellidos).trim() ||
+    !txt(c.dni_nie).trim() ||
+    !txt(m.nombre).trim()
+  ) {
+    return null;
+  }
+  return {
+    cliente: {
+      nombre_apellidos: c.nombre_apellidos,
+      dni_nie: c.dni_nie,
+      telefono: txt(c.telefono),
+      email: txt(c.email),
+    },
+    mascota: {
+      nombre: m.nombre,
+      especie: m.especie || "perro",
+      raza: txt(m.raza),
+      edad: m.edad ?? "",
+      peso_aprox_kg: m.peso_aprox_kg ?? "",
+      microchip: txt(m.microchip),
+      observaciones_generales: txt(m.observaciones_generales),
+    },
+    mascotaId: typeof p.mascotaId === "string" ? p.mascotaId : null,
+    condicionesPreexistentes: Array.isArray(p.condicionesPreexistentes)
+      ? p.condicionesPreexistentes
+      : [],
+    condicionesOtras: txt(p.condicionesOtras) || null,
+    excluyeRgpd: !!p.excluyeRgpd,
+  };
+}
+
+const MENSAJES_RESULTADO = {
+  solo_consentimiento:
+    "Ingreso no registrado: el tutor no aceptó las condiciones de ingreso. El consentimiento sí ha quedado registrado y vigente para la mascota.",
+  consentimiento_rechazado:
+    "El tutor ha rechazado los términos del consentimiento. Se ha registrado el rechazo y la mascota no ha sido admitida.",
+};
+
 export default function Ingreso() {
   const db = useDB();
   const { isLoading: cargandoDB, loadError: errorDB } = useDBStatus();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { setDirty } = useDirty();
+  const location = useLocation();
+
+  const pendiente = useMemo(
+    () => leerPendiente(location.state),
+    [location.state],
+  );
+  const selPendiente = useMemo(
+    () =>
+      pendiente && {
+        mascota: {
+          ...pendiente.mascota,
+          ...(pendiente.mascotaId && { id: pendiente.mascotaId }),
+        },
+        cliente: pendiente.cliente,
+        consentimiento: null,
+      },
+    [pendiente],
+  );
 
   const preseleccion = useMemo(() => {
     const m = db.mascotas.find((x) => x.id === params.get("mascota"));
@@ -50,19 +126,20 @@ export default function Ingreso() {
   }, [db, params]);
 
   const [selManual, setSelManual] = useState(null);
-  const sel = selManual || preseleccion;
+  const sel = selPendiente || selManual || preseleccion;
 
   const clienteActual = useMemo(() => {
+    if (pendiente) return pendiente.cliente;
     if (!sel?.mascota) return null;
     return (
       db.clientes.find((c) => c.id === sel.mascota.cliente_id) || sel.cliente
     );
-  }, [db, sel]);
+  }, [db, sel, pendiente]);
 
   const consentimientoActual = useMemo(() => {
-    if (!sel?.mascota) return null;
+    if (!sel?.mascota || pendiente) return null;
     return consentimientoVigente(db, sel.mascota.id) || sel.consentimiento;
-  }, [db, sel]);
+  }, [db, sel, pendiente]);
 
   const [servicios, setServicios] = useState(SERVICIOS.slice(0, 1));
   const [tratamiento, setTratamiento] = useState("");
@@ -87,12 +164,39 @@ export default function Ingreso() {
   const [imprimiendo, setImprimiendo] = useState(false);
   const [errorImpresion, setErrorImpresion] = useState("");
 
+  // Consentimiento + ingreso con una firma (feature 008). snapshotCombinado es lo que ve y
+  // firma el tutor; el servidor lo compara con lo que se guarda. reintento conserva el resultado
+  // firmado si el guardado falla, para reintentar sin pedir otra firma mientras la sesión viva.
+  const [snapshotCombinado, setSnapshotCombinado] = useState(null);
+  const [reintento, setReintento] = useState(null);
+  const [resultadoCombinado, setResultadoCombinado] = useState(null);
+  const reintentoRef = useRef(null);
+
+  function guardarReintento(valor) {
+    reintentoRef.current = valor;
+    setReintento(valor);
+  }
+
+  // Al salir de la pantalla con una firma retenida, se anula la sesión para que no quede guardada.
+  useEffect(
+    () => () => {
+      const r = reintentoRef.current;
+      if (r) cancelarSesionFirma(r.sesionId).catch(() => {});
+    },
+    [],
+  );
+
   const visitaAbierta =
     sel?.mascota &&
     db.visitas.find(
       (v) => v.mascota_id === sel.mascota.id && v.estado === "ingresada",
     );
   const hayRechazo = respuestaCondiciones === "rechaza";
+  const mostrarFormulario =
+    sel &&
+    (consentimientoActual || pendiente) &&
+    !visitaAbierta &&
+    !resultadoCombinado;
 
   const totalTratamientos = tratamientosPrevios.reduce(
     (sum, t) => sum + (Number(t.importe) || 0),
@@ -113,7 +217,7 @@ export default function Ingreso() {
     confirmPapel;
 
   const puedeFirmarDigital =
-    consentimientoActual &&
+    (consentimientoActual || pendiente) &&
     servicios.length > 0 &&
     !visitaAbierta &&
     duracionOk &&
@@ -315,6 +419,283 @@ export default function Ingreso() {
     }
   }
 
+  // ---- Consentimiento + ingreso con una sola firma ----
+
+  const clausulasConsentimiento = pendiente?.excluyeRgpd
+    ? CLAUSULAS_CONSENTIMIENTO.filter((c) => c.id !== "rgpd")
+    : CLAUSULAS_CONSENTIMIENTO;
+
+  function armarSnapshot() {
+    return {
+      cliente: pendiente.cliente,
+      mascota: pendiente.mascota,
+      mascota_id: pendiente.mascotaId,
+      condicionesPreexistentes: pendiente.condicionesPreexistentes,
+      condicionesOtras: pendiente.condicionesOtras,
+      excluyeRgpd: pendiente.excluyeRgpd,
+      entrada: {
+        servicios,
+        tratamiento,
+        precio: Number(precio) || 0,
+        duracion_estimada_min: Number(duracionEstimadaMin),
+        comportamiento_declarado: comportamientoDeclarado,
+        tratamientos_previos: tratamientosPrevios,
+        hallazgos_ingreso: hallazgos,
+        notas_ingreso: notas,
+        hora_ingreso: horaIngreso,
+        fecha: hoyISO(),
+      },
+    };
+  }
+
+  function abrirFirmaCombinada() {
+    setError("");
+    setSnapshotCombinado(armarSnapshot());
+    setMostrarModalFirma(true);
+  }
+
+  async function imprimirCombinado() {
+    if (!pendiente || imprimiendo) return;
+    setImprimiendo(true);
+    setErrorImpresion("");
+    try {
+      const { entrada } = armarSnapshot();
+      await pdfRegistroCombinado({
+        cliente: pendiente.cliente,
+        mascota: pendiente.mascota,
+        entrada,
+        clausulasConsentimiento,
+        clausulasIngreso: CLAUSULAS_INGRESO,
+        excluyeRgpd: pendiente.excluyeRgpd,
+        condicionesPreexistentes: pendiente.condicionesPreexistentes,
+        condicionesOtras: pendiente.condicionesOtras,
+      });
+      setDirty(false);
+      navigate("/consentimiento/confirmar", {
+        state: {
+          cliente: pendiente.cliente,
+          mascota: {
+            ...pendiente.mascota,
+            ...(pendiente.mascotaId && { id: pendiente.mascotaId }),
+          },
+          condicionesPreexistentes: pendiente.condicionesPreexistentes,
+          condicionesOtras: pendiente.condicionesOtras || "",
+          excluyeRgpd: pendiente.excluyeRgpd,
+          ingresoPendiente: entrada,
+        },
+      });
+    } catch (e) {
+      setErrorImpresion("No se pudo generar el PDF: " + (e.message || e));
+    } finally {
+      setImprimiendo(false);
+    }
+  }
+
+  function volverACorregirDatos() {
+    setDirty(false);
+    navigate("/consentimiento", {
+      state: {
+        cliente: {
+          ...pendiente.cliente,
+          ...(clienteActual?.id && { id: clienteActual.id }),
+        },
+        mascota: {
+          ...pendiente.mascota,
+          ...(pendiente.mascotaId && { id: pendiente.mascotaId }),
+        },
+        condicionesPreexistentes: pendiente.condicionesPreexistentes,
+        condicionesOtras: pendiente.condicionesOtras || "",
+      },
+    });
+  }
+
+  // Genera los PDF de la firma digital (cada registro con las mismas dos firmas) y resuelve la pantalla.
+  async function cerrarCombinado(r, resultado, snap) {
+    const d = resultado.decisiones;
+    const textoAceptado = textoLegalCompleto([
+      ...(snap.excluyeRgpd
+        ? CLAUSULAS_CONSENTIMIENTO.filter((c) => c.id !== "rgpd")
+        : CLAUSULAS_CONSENTIMIENTO),
+      CLAUSULA_IMAGENES,
+      CLAUSULA_COMUNICACIONES,
+    ]);
+    const respuestas = Object.fromEntries(
+      ["servicios", "veracidad", "exoneracion", "emergencias", "vigencia"].map(
+        (k) => [k, d.terminos],
+      ),
+    );
+    if (!snap.excluyeRgpd) respuestas.rgpd = d.rgpd;
+    const cliente = { ...snap.cliente, id: r.cliente_id };
+    const mascota = {
+      ...snap.mascota,
+      id: r.mascota_id,
+      cliente_id: r.cliente_id,
+    };
+
+    let avisoPdf = null;
+    try {
+      await pdfConsentimiento({
+        cliente,
+        mascota,
+        consentimiento: {
+          id: r.consentimiento_id,
+          fecha: new Date().toISOString(),
+          firma_tipo: "digital",
+          firma: resultado.firma_tutor,
+          firma_tienda: resultado.firma_tienda,
+          clausulas_respuestas: respuestas,
+          estado: d.terminos === "acepta" ? "aceptado" : "rechazado",
+          condiciones_preexistentes: snap.condicionesPreexistentes,
+          condiciones_preexistentes_otras: snap.condicionesOtras,
+          autoriza_fotos: !!d.fotos,
+          autoriza_comunicaciones: !!d.comunicaciones,
+          legal_version: resultado.legal_version,
+          legal_hash: await hashTexto(textoAceptado),
+          formato_aceptacion: "bloques",
+          legal_hashes: resultado.legal_hashes,
+        },
+        clausulas: snap.excluyeRgpd
+          ? CLAUSULAS_CONSENTIMIENTO.filter((c) => c.id !== "rgpd")
+          : CLAUSULAS_CONSENTIMIENTO,
+        clausulaImagenes: CLAUSULA_IMAGENES,
+        clausulaComunicaciones: CLAUSULA_COMUNICACIONES,
+      });
+      if (r.resultado === "admitido") {
+        const e = snap.entrada;
+        await pdfVisita({
+          cliente,
+          mascota,
+          visita: {
+            id: r.visita_id,
+            mascota_id: r.mascota_id,
+            fecha: e.fecha,
+            estado: "ingresada",
+            servicios: e.servicios,
+            tratamiento: e.tratamiento,
+            precio: e.precio,
+            duracion_estimada_min: e.duracion_estimada_min,
+            comportamiento_declarado: e.comportamiento_declarado,
+            tratamientos_previos: e.tratamientos_previos,
+            cargos: e.tratamientos_previos.map((t) => ({
+              tipo: "tratamiento",
+              descripcion: t.descripcion,
+              importe: t.importe,
+              origen: t.origen,
+              respuesta: "acordado_ingreso",
+            })),
+            hallazgos_ingreso: e.hallazgos_ingreso,
+            hallazgos_entrega: [],
+            notas_ingreso: e.notas_ingreso,
+            hora_ingreso: e.hora_ingreso,
+            clausulas_respuesta_condiciones: d.condiciones,
+            firma_ingreso: { tipo: "digital", data: resultado.firma_tutor },
+            firma_tienda_ingreso: resultado.firma_tienda,
+            autoriza_fotos_redes: !!d.fotos,
+            condiciones_version: resultado.legal_version,
+            condiciones_hash: resultado.legal_hashes.condiciones,
+            condiciones_con_recargos: true,
+          },
+          clausulasIngreso: CLAUSULAS_INGRESO,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      avisoPdf =
+        "El registro se guardó, pero no se pudo generar el PDF: " +
+        (e.message || e);
+    }
+
+    setDirty(false);
+    if (r.resultado === "admitido" && !avisoPdf) {
+      navigate("/");
+    } else {
+      setResultadoCombinado({ codigo: r.resultado, avisoPdf });
+    }
+  }
+
+  async function enviarCombinado(resultado, sesionId) {
+    const snap = snapshotCombinado;
+    if (!pendiente || !snap) return;
+    setGuardando(true);
+    setError("");
+    try {
+      const hashes = await hashesConsentimiento({
+        excluyeRgpd: snap.excluyeRgpd,
+        incluyeFirmaUnica: true,
+      });
+      const condicionesHash = await hashTexto(
+        textoLegalCompleto(CLAUSULAS_INGRESO),
+      );
+      const claves = [
+        "terminos",
+        "imagenes",
+        "comunicaciones",
+        "firma_unica",
+        ...(snap.excluyeRgpd ? [] : ["rgpd"]),
+      ];
+      if (
+        resultado.legal_version !== LEGAL_VERSION ||
+        resultado.legal_hashes?.condiciones !== condicionesHash ||
+        claves.some((k) => resultado.legal_hashes?.[k] !== hashes[k])
+      ) {
+        guardarReintento(null);
+        cancelarSesionFirma(sesionId).catch(() => {});
+        setError(
+          "La tablet tiene una versión desactualizada del texto legal. Por favor, actualiza la página en la tablet e inténtalo de nuevo.",
+        );
+        return;
+      }
+
+      const textoAceptado = textoLegalCompleto([
+        ...clausulasConsentimiento,
+        CLAUSULA_IMAGENES,
+        CLAUSULA_COMUNICACIONES,
+      ]);
+      const r = await registrarCombinado({
+        modo: "digital",
+        firma_sesion_id: sesionId,
+        cliente: snap.cliente,
+        mascota: snap.mascota,
+        mascota_id: snap.mascota_id,
+        consentimiento: {
+          condiciones_preexistentes: snap.condicionesPreexistentes,
+          condiciones_preexistentes_otras: snap.condicionesOtras,
+          legal_hash: await hashTexto(textoAceptado),
+        },
+        entrada: snap.entrada,
+        decisiones: resultado.decisiones,
+        legal_version: resultado.legal_version,
+        legal_hashes: resultado.legal_hashes,
+        firma_tutor: resultado.firma_tutor,
+        firma_tienda: resultado.firma_tienda,
+      });
+      guardarReintento(null);
+      await cerrarCombinado(r, resultado, snap);
+    } catch (e) {
+      console.error(e);
+      // Reintentable: la firma sigue guardada en el servidor hasta que caduque la sesión.
+      const reintentable =
+        !e.status || e.status >= 500 || e.codigo === "visita_abierta";
+      if (reintentable) {
+        guardarReintento({ resultado, sesionId });
+        setError(
+          `No se pudo guardar el registro: ${e.message}. La firma del tutor se conserva unos minutos: pulsa Reintentar.`,
+        );
+      } else {
+        guardarReintento(null);
+        cancelarSesionFirma(sesionId).catch(() => {});
+        setError(e.message);
+      }
+    } finally {
+      setGuardando(false);
+      setMostrarModalFirma(false);
+    }
+  }
+
+  async function handleFirmaCombinadaCompletada(resultado, sesionId) {
+    await enviarCombinado(resultado, sesionId);
+  }
+
   async function handleFirmaDigitalCompletada(resultado, sesionId) {
     if (!puedeFirmarDigital) return;
     setGuardando(true);
@@ -414,8 +795,9 @@ export default function Ingreso() {
           Ficha de ingreso de la mascota
         </h1>
         <p className="text-sm text-brand-500">
-          Documento por visita. Requiere consentimiento informado previo en
-          vigor.
+          {pendiente
+            ? "Consentimiento pendiente: se firmará junto con el ingreso, con una sola firma."
+            : "Documento por visita. Requiere consentimiento informado previo en vigor."}
         </p>
       </div>
 
@@ -437,12 +819,35 @@ export default function Ingreso() {
       )}
 
       <Card title="Mascota">
-        <MascotaPicker
-          seleccionada={sel}
-          onChange={handleSelChange}
-          placeholder="Buscar mascota por nombre, tutor, teléfono o microchip…"
-        />
-        {sel && !consentimientoActual && !cargandoDB && (
+        {pendiente ? (
+          <div className="space-y-3">
+            <p className="text-sm text-brand-800">
+              <strong>{pendiente.mascota.nombre}</strong> ·{" "}
+              {pendiente.mascota.especie} — tutor:{" "}
+              <strong>{pendiente.cliente.nombre_apellidos}</strong>
+            </p>
+            <Aviso tipo="info">
+              Consentimiento pendiente: se firmará junto con el ingreso. Hasta
+              que el tutor firme no se guarda nada (ni cliente, ni mascota, ni
+              consentimiento, ni visita).
+            </Aviso>
+            <button
+              type="button"
+              onClick={volverACorregirDatos}
+              disabled={mostrarModalFirma || guardando}
+              className="text-sm font-bold text-brand-600 hover:underline disabled:opacity-50"
+            >
+              ← Corregir datos del tutor o de la mascota
+            </button>
+          </div>
+        ) : (
+          <MascotaPicker
+            seleccionada={sel}
+            onChange={handleSelChange}
+            placeholder="Buscar mascota por nombre, tutor, teléfono o microchip…"
+          />
+        )}
+        {sel && !pendiente && !consentimientoActual && !cargandoDB && (
           <div className="mt-4">
             <Aviso tipo="error">
               Esta mascota no tiene un consentimiento informado válido o está
@@ -470,7 +875,44 @@ export default function Ingreso() {
         )}
       </Card>
 
-      {sel && consentimientoActual && !visitaAbierta && (
+      {resultadoCombinado && (
+        <Card title="Resultado del registro">
+          {resultadoCombinado.codigo === "admitido" ? (
+            <Aviso tipo="info">
+              Consentimiento e ingreso registrados correctamente.
+            </Aviso>
+          ) : (
+            <Aviso
+              tipo={
+                resultadoCombinado.codigo === "solo_consentimiento"
+                  ? "warning"
+                  : "error"
+              }
+            >
+              {MENSAJES_RESULTADO[resultadoCombinado.codigo]}
+            </Aviso>
+          )}
+          {resultadoCombinado.avisoPdf && (
+            <div className="mt-3">
+              <Aviso tipo="error">{resultadoCombinado.avisoPdf}</Aviso>
+            </div>
+          )}
+          <div className="mt-4">
+            <Link
+              to={
+                resultadoCombinado.codigo === "consentimiento_rechazado"
+                  ? "/clientes"
+                  : "/"
+              }
+              className="inline-block rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-brand-700"
+            >
+              Continuar →
+            </Link>
+          </div>
+        </Card>
+      )}
+
+      {mostrarFormulario && (
         <>
           {avisoRechazo && (
             <Aviso tipo="error">
@@ -685,120 +1127,204 @@ export default function Ingreso() {
             </div>
           </Card>
 
-          <Card title="Imprimir borrador de la ficha">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={imprimirBorrador}
-                disabled={imprimiendo}
-                className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
-              >
-                Imprimir ficha
-              </button>
-            </div>
-            {errorImpresion && (
-              <div className="mt-3">
-                <Aviso tipo="error">{errorImpresion}</Aviso>
+          {!pendiente && (
+            <Card title="Imprimir borrador de la ficha">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={imprimirBorrador}
+                  disabled={imprimiendo}
+                  className="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+                >
+                  Imprimir ficha
+                </button>
               </div>
-            )}
-          </Card>
+              {errorImpresion && (
+                <div className="mt-3">
+                  <Aviso tipo="error">{errorImpresion}</Aviso>
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card
-            title="Condiciones de ingreso"
-            subtitle="Se muestran al tutor y quedan reflejadas en el PDF de la visita."
+            title={
+              pendiente
+                ? "Condiciones de ingreso y firma única"
+                : "Condiciones de ingreso"
+            }
+            subtitle={
+              pendiente
+                ? "El tutor decide cada bloque y firma una sola vez; la firma vale para el consentimiento y para la ficha de ingreso."
+                : "Se muestran al tutor y quedan reflejadas en el PDF de la visita."
+            }
           >
-            <div className="space-y-4">
-              <BloqueAceptacion
-                titulo="Condiciones de ingreso"
-                resumen={RESUMEN_CONDICIONES_INGRESO}
-                clausulas={CLAUSULAS_INGRESO}
-                valor={respuestaCondiciones}
-                onChange={handleRespuestaCondicionesChange}
-              />
-            </div>
-
-            <div className="mt-4">
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
-                <input
-                  type="checkbox"
-                  checked={confirmPapel}
-                  onChange={handleConfirmPapelChange}
-                  className="h-6 w-6 accent-[#016581]"
+            {pendiente ? (
+              <>
+                <BloqueAceptacion
+                  titulo="Condiciones de ingreso"
+                  resumen={RESUMEN_CONDICIONES_INGRESO}
+                  clausulas={CLAUSULAS_INGRESO}
+                  readOnly={true}
                 />
-                Confirmo que el tutor y un representante de Mundo Mascotix
-                firmarán la ficha impresa de forma manual.
-              </label>
-            </div>
 
-            {error && (
-              <div className="mt-3">
-                <Aviso tipo="error">{error}</Aviso>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <PrimaryButton
-                onClick={() => setMostrarModalFirma(true)}
-                disabled={!puedeFirmarDigital}
-              >
-                📱 Firmar en móvil o tablet (código QR)
-              </PrimaryButton>
-              <button
-                type="button"
-                onClick={guardar}
-                disabled={!puedeGuardar || guardando}
-                className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
-              >
-                {guardando
-                  ? "Guardando…"
-                  : "Registrar ingreso en papel y generar PDF"}
-              </button>
-              {servicios.length === 0 && (
-                <span className="text-sm text-brand-500">
-                  Selecciona al menos un servicio.
-                </span>
-              )}
-              {!duracionOk && (
-                <span className="text-sm text-brand-500">
-                  Indica una duración estimada válida (&gt; 0).
-                </span>
-              )}
-              {servicios.length > 0 && duracionOk && !respuestaCondiciones && (
-                <span className="text-sm text-brand-500">
-                  Indica si el tutor acepta las condiciones (solo para flujo en
-                  papel).
-                </span>
-              )}
-              {servicios.length > 0 &&
-                duracionOk &&
-                !!respuestaCondiciones &&
-                !confirmPapel && (
-                  <span className="text-sm text-brand-500">
-                    Confirma la firma en papel si usas el formato físico.
-                  </span>
+                {error && (
+                  <div className="mt-3">
+                    <Aviso tipo="error">{error}</Aviso>
+                  </div>
                 )}
-            </div>
+                {errorImpresion && (
+                  <div className="mt-3">
+                    <Aviso tipo="error">{errorImpresion}</Aviso>
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {reintento ? (
+                    <PrimaryButton
+                      onClick={() =>
+                        enviarCombinado(reintento.resultado, reintento.sesionId)
+                      }
+                      disabled={guardando}
+                    >
+                      {guardando ? "Guardando…" : "Reintentar guardado"}
+                    </PrimaryButton>
+                  ) : (
+                    <PrimaryButton
+                      onClick={abrirFirmaCombinada}
+                      disabled={!puedeFirmarDigital}
+                    >
+                      📱 Firmar consentimiento e ingreso (una firma)
+                    </PrimaryButton>
+                  )}
+                  <button
+                    type="button"
+                    onClick={imprimirCombinado}
+                    disabled={!puedeFirmarDigital || imprimiendo || !!reintento}
+                    className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+                  >
+                    {imprimiendo
+                      ? "Generando…"
+                      : "Imprimir documento combinado (papel)"}
+                  </button>
+                  {servicios.length === 0 && (
+                    <span className="text-sm text-brand-500">
+                      Selecciona al menos un servicio.
+                    </span>
+                  )}
+                  {!duracionOk && (
+                    <span className="text-sm text-brand-500">
+                      Indica una duración estimada válida (&gt; 0).
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <BloqueAceptacion
+                    titulo="Condiciones de ingreso"
+                    resumen={RESUMEN_CONDICIONES_INGRESO}
+                    clausulas={CLAUSULAS_INGRESO}
+                    valor={respuestaCondiciones}
+                    onChange={handleRespuestaCondicionesChange}
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 font-semibold text-brand-800">
+                    <input
+                      type="checkbox"
+                      checked={confirmPapel}
+                      onChange={handleConfirmPapelChange}
+                      className="h-6 w-6 accent-[#016581]"
+                    />
+                    Confirmo que el tutor y un representante de Mundo Mascotix
+                    firmarán la ficha impresa de forma manual.
+                  </label>
+                </div>
+
+                {error && (
+                  <div className="mt-3">
+                    <Aviso tipo="error">{error}</Aviso>
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <PrimaryButton
+                    onClick={() => setMostrarModalFirma(true)}
+                    disabled={!puedeFirmarDigital}
+                  >
+                    📱 Firmar en móvil o tablet (código QR)
+                  </PrimaryButton>
+                  <button
+                    type="button"
+                    onClick={guardar}
+                    disabled={!puedeGuardar || guardando}
+                    className="rounded-xl border border-brand-300 bg-white px-5 py-3 text-base font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+                  >
+                    {guardando
+                      ? "Guardando…"
+                      : "Registrar ingreso en papel y generar PDF"}
+                  </button>
+                  {servicios.length === 0 && (
+                    <span className="text-sm text-brand-500">
+                      Selecciona al menos un servicio.
+                    </span>
+                  )}
+                  {!duracionOk && (
+                    <span className="text-sm text-brand-500">
+                      Indica una duración estimada válida (&gt; 0).
+                    </span>
+                  )}
+                  {servicios.length > 0 &&
+                    duracionOk &&
+                    !respuestaCondiciones && (
+                      <span className="text-sm text-brand-500">
+                        Indica si el tutor acepta las condiciones (solo para
+                        flujo en papel).
+                      </span>
+                    )}
+                  {servicios.length > 0 &&
+                    duracionOk &&
+                    !!respuestaCondiciones &&
+                    !confirmPapel && (
+                      <span className="text-sm text-brand-500">
+                        Confirma la firma en papel si usas el formato físico.
+                      </span>
+                    )}
+                </div>
+              </>
+            )}
           </Card>
         </>
       )}
 
       {mostrarModalFirma && (
         <DispositivoFirma
-          tipo="ingreso"
-          payload={{
-            cliente: clienteActual,
-            mascota: sel.mascota,
-            servicios,
-            tratamiento,
-            precio: Number(precio) || 0,
-            duracionEstimadaMin: Number(duracionEstimadaMin),
-            duracion_estimada_min: Number(duracionEstimadaMin),
-            comportamientoDeclarado,
-            tratamientosPrevios,
-            hallazgos,
-            notas,
-          }}
-          onFirmada={handleFirmaDigitalCompletada}
+          tipo={pendiente ? "ingreso_combinado" : "ingreso"}
+          payload={
+            pendiente
+              ? snapshotCombinado
+              : {
+                  cliente: clienteActual,
+                  mascota: sel.mascota,
+                  servicios,
+                  tratamiento,
+                  precio: Number(precio) || 0,
+                  duracionEstimadaMin: Number(duracionEstimadaMin),
+                  duracion_estimada_min: Number(duracionEstimadaMin),
+                  comportamientoDeclarado,
+                  tratamientosPrevios,
+                  hallazgos,
+                  notas,
+                }
+          }
+          onFirmada={
+            pendiente
+              ? handleFirmaCombinadaCompletada
+              : handleFirmaDigitalCompletada
+          }
           onUsarPapel={() => setMostrarModalFirma(false)}
           onCerrar={() => setMostrarModalFirma(false)}
         />

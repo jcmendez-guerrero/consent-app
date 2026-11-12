@@ -3,7 +3,7 @@
 // guarda la versión y el hash SHA-256 del texto aceptado (requisito RGPD de
 // poder demostrar qué texto exacto se aceptó).
 
-export const LEGAL_VERSION = "2026-11-05.1";
+export const LEGAL_VERSION = "2026-11-10.1";
 
 export const URL_RESENA = "https://g.page/r/CXhutFfZILZTEBM/review";
 
@@ -106,6 +106,15 @@ export const CLAUSULA_COMUNICACIONES = {
     "Le informamos que conforme a lo previsto en el RGPD de 27 de abril de 2016 y la LO 3/2018 de 5 de diciembre que DANIELA CECILIA ANTEZANA CUEVAS (MUNDO MASCOTIX), recaba y trata sus datos de carácter personal, aplicando las medidas técnicas y organizativas que garantizan su confidencialidad, con la finalidad de gestionar la relación con los clientes pudiendo remitirle las comunicaciones necesarias por cualquier medio, incluido el correo electrónico, WhatsApp, SMS, etcétera. Usted da su consentimiento y autorización para dicho tratamiento. Conservaremos sus datos de carácter personal únicamente el tiempo imprescindible para gestionar nuestra relación. Podrá ejercitar gratuitamente los derechos de acceso, rectificación, supresión, limitación, portabilidad y oposición dirigiéndose a DANIELA CECILIA ANTEZANA CUEVAS (MUNDO MASCOTIX), con dirección en CALLE CONSTITUCIÓN 19, LOCAL DERECHA o mediante envío al email MUNDOMASCOTIX@GMAIL.COM con referencia RGPD/LOPDGDD.",
 };
 
+// Firma única (spec 008): una sola firma acepta el consentimiento y la ficha de ingreso.
+// Redacción pendiente de revisión por la persona responsable de Mundo Mascotix antes de publicar.
+export const CLAUSULA_FIRMA_UNICA = {
+  id: "firma_unica",
+  titulo: "Una sola firma para el consentimiento y el ingreso",
+  texto:
+    "Mi firma y la firma de la tienda en este documento se aplican tanto al consentimiento informado como a la ficha de ingreso de mi mascota. Cada aceptación (términos del consentimiento, tratamiento de datos, fotografías, comunicaciones y condiciones de ingreso) se ha decidido por separado y queda registrada de forma independiente.",
+};
+
 export const CLAUSULAS_INGRESO = [
   {
     id: "reclamaciones",
@@ -190,7 +199,10 @@ export async function hashTexto(texto) {
     .join("");
 }
 
-export async function hashesConsentimiento({ excluyeRgpd = false } = {}) {
+export async function hashesConsentimiento({
+  excluyeRgpd = false,
+  incluyeFirmaUnica = false,
+} = {}) {
   const rgpdClause = CLAUSULAS_CONSENTIMIENTO.find((c) => c.id === "rgpd");
   const hashes = {
     terminos: await hashTexto(textoLegalCompleto(clausulasTerminos())),
@@ -201,6 +213,11 @@ export async function hashesConsentimiento({ excluyeRgpd = false } = {}) {
   };
   if (!excluyeRgpd && rgpdClause) {
     hashes.rgpd = await hashTexto(textoLegalCompleto([rgpdClause]));
+  }
+  if (incluyeFirmaUnica) {
+    hashes.firma_unica = await hashTexto(
+      textoLegalCompleto([CLAUSULA_FIRMA_UNICA]),
+    );
   }
   return hashes;
 }

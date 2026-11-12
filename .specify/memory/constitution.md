@@ -1,4 +1,22 @@
 <!-- Sync Impact Report
+Version change: 1.0.0 → 1.1.0 (2026-11-10)
+Bump rationale: MINOR — Principle V routing guard materially expanded: states the invariant (no
+  visit without an active consent), adds the combined consent-and-entry exception, and adds
+  server-side enforcement. Motivation: feature 008-combined-consent-ingress.
+Modified principles:
+  - V. Legal & Data Integrity (routing guard bullet reworded; other bullets unchanged)
+Added/removed sections: none
+Templates reviewed:
+  - .specify/templates/plan-template.md ✅ generic Constitution Check gate, no change needed
+  - .specify/templates/spec-template.md ✅ no change needed
+  - .specify/templates/tasks-template.md ✅ no change needed
+Follow-up done: specs/008-combined-consent-ingress plan.md (Constitution Check, Complexity
+  Tracking), research R-12 and tasks T039 now cite v1.1.0 instead of a deviation.
+Known stale text left unchanged (out of scope): Principle II still names the consent-blocking
+  guard as "redirect to sign" (still true for every non-combined entry); Security & Compliance
+  still describes the prototype as localStorage-only.
+
+Previous report (1.0.0):
 Version change: UNVERSIONED → 1.0.0
 Principles added:
   - I. Code Quality (new)
@@ -96,8 +114,10 @@ Legal compliance is a hard constraint, not a feature option:
 - `LEGAL_VERSION` MUST be incremented whenever any text in `src/lib/legal.js` changes.
 - Every consent record MUST store: timestamp (ISO 8601), `LEGAL_VERSION`, and the SHA-256 hash of
   the accepted legal text body.
-- The intake form MUST NOT open for any pet that lacks a current, active consent record; this
-  guard MUST be enforced at the routing level.
+- No visit (Ficha de Ingreso) record MAY exist for a pet that lacks a current, active consent
+  record. The intake form MUST NOT open for such a pet, except in the combined consent-and-entry
+  flow, where the visit MUST be saved only in the same transaction as an accepted consent. The
+  guard MUST be enforced at the routing level for every other entry and on the server for all.
 - ARCO+ rights — JSON export (portability), full data suppression, and consent revocation — MUST
   remain fully functional after every release.
 - `autoriza_fotos_redes` MUST be faithfully propagated to every visit record and MUST NOT silently
@@ -158,4 +178,4 @@ the principle wins unless a formal amendment is ratified.
 no principle has been silently violated by accumulated incremental changes. The review MUST be
 documented as a comment on the relevant PR or in a brief changelog entry.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-04 | **Last Amended**: 2026-07-04
+**Version**: 1.1.0 | **Ratified**: 2026-07-04 | **Last Amended**: 2026-11-10

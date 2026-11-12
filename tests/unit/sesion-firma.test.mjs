@@ -7,6 +7,7 @@ import {
   hashToken,
   calcularExpiracion,
   estaExpirada,
+  firmadaCaducada,
   esTerminal,
   esActiva,
 } from "../../server/lib/signingSession.js";
@@ -47,4 +48,40 @@ test("solo esperando y conectada son activas; firmada no caduca ni es terminal",
   assert.equal(esTerminal(ESTADOS.FIRMADA), false);
   assert.equal(esTerminal(ESTADOS.EXPIRADA), true);
   assert.equal(esTerminal(ESTADOS.CANCELADA), true);
+});
+
+// Retención del ingreso combinado (spec 008): solo la firma guardada de este tipo caduca.
+test("firmadaCaducada: solo una sesión firmada de ingreso combinado pasada su expira_en", () => {
+  const ahora = new Date("2026-11-10T10:00:00Z");
+  const pasada = new Date("2026-11-10T09:59:00Z");
+  const futura = new Date("2026-11-10T10:05:00Z");
+  const sesion = (tipo, estado, expira_en) => ({ tipo, estado, expira_en });
+
+  assert.equal(
+    firmadaCaducada(
+      sesion("ingreso_combinado", ESTADOS.FIRMADA, pasada),
+      ahora,
+    ),
+    true,
+  );
+  assert.equal(
+    firmadaCaducada(
+      sesion("ingreso_combinado", ESTADOS.FIRMADA, futura),
+      ahora,
+    ),
+    false,
+  );
+  for (const tipo of ["ingreso", "consentimiento", "entrega"]) {
+    assert.equal(
+      firmadaCaducada(sesion(tipo, ESTADOS.FIRMADA, pasada), ahora),
+      false,
+    );
+  }
+  assert.equal(
+    firmadaCaducada(
+      sesion("ingreso_combinado", ESTADOS.CONECTADA, pasada),
+      ahora,
+    ),
+    false,
+  );
 });

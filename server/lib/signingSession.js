@@ -33,6 +33,16 @@ export function esActiva(estado) {
   return estado === ESTADOS.ESPERANDO || estado === ESTADOS.CONECTADA;
 }
 
+// Regla de retención del ingreso combinado (spec 008, research R-5): la firma guardada tras un
+// envío solo se conserva durante la ventana de reintento; pasada, la sesión caduca y se borra.
+export function firmadaCaducada(sesion, ahora = new Date()) {
+  return (
+    sesion?.tipo === "ingreso_combinado" &&
+    sesion.estado === ESTADOS.FIRMADA &&
+    estaExpirada(sesion, ahora)
+  );
+}
+
 export function estaExpirada(sesion, ahora = new Date()) {
   if (!sesion || !sesion.expira_en) return true;
   const expira =
