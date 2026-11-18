@@ -8,6 +8,7 @@ import {
   calcularExpiracion,
   estaExpirada,
   firmadaCaducada,
+  esDeOtroUsuario,
   esTerminal,
   esActiva,
 } from "../../server/lib/signingSession.js";
@@ -84,4 +85,19 @@ test("firmadaCaducada: solo una sesión firmada de ingreso combinado pasada su e
     ),
     false,
   );
+});
+
+// Propiedad de la sesión (spec 008, T038): solo la crea y usa el mismo usuario del mostrador.
+test("esDeOtroUsuario: rechaza solo cuando ambas identidades se conocen y difieren", () => {
+  assert.equal(
+    esDeOtroUsuario({ creado_por: "ana@tienda" }, "ana@tienda"),
+    false,
+  );
+  assert.equal(
+    esDeOtroUsuario({ creado_por: "ana@tienda" }, "luis@tienda"),
+    true,
+  );
+  assert.equal(esDeOtroUsuario({ creado_por: "ana@tienda" }, null), false);
+  assert.equal(esDeOtroUsuario({ creado_por: null }, "luis@tienda"), false);
+  assert.equal(esDeOtroUsuario(undefined, "luis@tienda"), false);
 });

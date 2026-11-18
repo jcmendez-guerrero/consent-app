@@ -101,7 +101,8 @@ description: "Task list for 008-combined-consent-ingress"
   directly for a pet with no active consent and confirm `409 sin_consentimiento` with nothing written (quickstart
   scenario 14, server part) (depends on T008, T009, T009a). *API level verified on 2026-11-10 against the non-production
   database (old consent and visit routes still save, `409 sin_consentimiento` without an active consent); the browser
-  pass through `/consentimiento` and `/ingreso` is still open.*
+  pass through `/consentimiento` and `/ingreso` is still open. Also confirm FR-023: a consent and a visit recorded before
+  this feature still open, list and export unchanged.*
 
 **Checkpoint**: The endpoint exists and the old flows are intact. User stories can start.
 
@@ -266,7 +267,11 @@ description: "Task list for 008-combined-consent-ingress"
   `DELETE /sesiones/:id`, which today lets any authenticated user cancel and wipe any session; decide whether to require
   `creado_por`) and `server/index.js` against research R-13: session ownership, replay (a second call answers 409),
   signature size and PNG prefix, no personal data or signatures in logs or error bodies, server-computed privacy
-  requirement. Record the outcome in the PR description before production (constitution Security & Compliance).
+  requirement. Record the outcome in the PR description before production (constitution Security & Compliance). Also
+  confirm FR-020: an unauthenticated request and a request from a different user cannot read, cancel or consume another
+  user's session. *Code part done 2026-11-19: `GET`, `POST /consumir` and `DELETE` of `/api/firma/sesiones/:id` now answer
+  404 (or do nothing, for DELETE) when `creado_por` differs from the current user, via `esDeOtroUsuario` in
+  `server/lib/signingSession.js` with a unit test. The rest of the review is still open.*
 - [ ] T039 Release gate (PR description, wording in `src/lib/legal.js`): record that the person responsible for Mundo Mascotix reviewed and approved the `CLAUSULA_FIRMA_UNICA` wording; note that the PR relies on constitution v1.1.0 (Principle V combined-flow exception).
 
 ---

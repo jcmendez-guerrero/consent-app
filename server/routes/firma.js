@@ -11,6 +11,7 @@ import {
   firmadaCaducada,
   esTerminal,
   esActiva,
+  esDeOtroUsuario,
   EXPIRY_MS,
 } from "../lib/signingSession.js";
 
@@ -110,7 +111,11 @@ router.get("/sesiones/:id", async (req, res, next) => {
       .input("id", sql.NVarChar, req.params.id)
       .query("SELECT * FROM dbo.sesiones_firma WHERE id = @id");
 
-    if (!result.recordset.length) {
+    // 404 y no 403: un id ajeno no debe revelar que existe una sesión.
+    if (
+      !result.recordset.length ||
+      esDeOtroUsuario(result.recordset[0], currentUser(req))
+    ) {
       return res.status(404).json({ error: "Sesión no encontrada" });
     }
 
@@ -173,9 +178,12 @@ router.post("/sesiones/:id/consumir", async (req, res, next) => {
     const result = await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
-      .query("SELECT id FROM dbo.sesiones_firma WHERE id = @id");
+      .query("SELECT id, creado_por FROM dbo.sesiones_firma WHERE id = @id");
 
-    if (!result.recordset.length) {
+    if (
+      !result.recordset.length ||
+      esDeOtroUsuario(result.recordset[0], currentUser(req))
+    ) {
       return res.status(404).json({ error: "Sesión no encontrada" });
     }
 
@@ -201,10 +209,11 @@ router.delete("/sesiones/:id", async (req, res, next) => {
     await pool
       .request()
       .input("id", sql.NVarChar, req.params.id)
+      .input("usuario", sql.NVarChar, currentUser(req))
       .input("estado", sql.NVarChar, ESTADOS.CANCELADA).query(`
         UPDATE dbo.sesiones_firma
         SET estado = @estado, payload = NULL, resultado = NULL, actualizado_en = SYSUTCDATETIME()
-        WHERE id = @id
+        WHERE id = @id AND (creado_por IS NULL OR @usuario IS NULL OR creado_por = @usuario)
       `);
 
     res.status(204).end();

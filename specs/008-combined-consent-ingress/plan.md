@@ -74,7 +74,7 @@ specs/008-combined-consent-ingress/
 │   └── ui-contracts.md                  # flow, screens, components, documents
 ├── checklists/
 │   └── requirements.md
-└── tasks.md             # Task list (T001 … T039)
+└── tasks.md             # Task list (T001 … T049)
 ```
 
 ### Source Code (repository root)
