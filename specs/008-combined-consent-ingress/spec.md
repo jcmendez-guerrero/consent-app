@@ -132,7 +132,9 @@ When staff starts registering a pet, the system offers the path that fits the pe
 - **FR-008**: The consent and the visit from a combined signing MUST be recorded together or not at all: an abandoned, expired, disconnected or failed signing MUST NOT leave either record accepted.
 - **FR-009**: Client and pet data MUST NOT be permanently stored as a result of a combined flow that was never confirmed by a completed signing; any such data held temporarily for the signing MUST be deleted when the session expires or staff cancels.
 - **FR-010**: If the legal text or the entry data seen by the tutor differs from what the workstation holds at the moment of recording, the system MUST reject the signing, record nothing as accepted, and tell staff to refresh and retry.
-- **FR-011**: If the tutor declines the consent terms, the system MUST record the consent as refused, MUST NOT admit the pet, and MUST show staff the reason. If the tutor declines the required privacy statement, the system MUST write nothing (no client, pet, consent or visit) and MUST tell staff the service cannot be provided without it.
+- **FR-011**: If the tutor declines the consent terms, the system MUST record the consent as refused, MUST NOT admit the pet, and MUST show staff the
+  reason; the client and the pet are still registered, because the refusal is recorded against them. If the tutor declines the required privacy
+  statement, the system MUST write nothing (no client, pet, consent or visit) and MUST tell staff the service cannot be provided without it.
 - **FR-012**: If the tutor accepts the consent but declines the intake conditions, the system MUST record the consent as valid, MUST NOT admit the pet, and MUST show staff that the intake conditions were declined.
 - **FR-013**: The entry data (services, price, estimated duration, upfront medical treatments, behaviour disclosure) MUST be locked while the combined document is on the device; to change it, staff MUST cancel the session and send a new one, and the tutor MUST sign the new version before the visit is recorded.
 - **FR-014**: If one of the two records cannot be saved after the tutor signed, the system MUST leave neither accepted, report the failure to staff, and allow a retry reusing the same signature while the signing session remains valid. The held signature MUST be deleted when the session expires (existing inactivity period) or staff cancels, and MUST NOT be kept beyond that without a saved record.
@@ -152,7 +154,10 @@ When staff starts registering a pet, the system offers the path that fits the pe
 **Legal text and documents**
 
 - **FR-021**: Any new or changed legal wording introduced by this feature (for example a statement that one signature covers both documents) MUST increment the legal text version, and the consent and the visit MUST each record the version in force.
-- **FR-022**: After a digital combined signing, the generated documents MUST show, for the consent and for the Ficha de Ingreso, the tutor signature, the store signature, the decisions made, the legal text version and the date and time. After a paper combined signing, the signed printed sheet is the document of record. In both cases each record MUST remain individually retrievable in the system.
+- **FR-022**: After a digital combined signing, the generated documents MUST show, for the consent and for the Ficha de Ingreso, the tutor signature,
+  the store signature, the decisions made, the legal text version and the date and time. After a paper combined signing, the signed printed sheet is the
+  document of record, and staff can attach a scan of it to the consent from the Clientes screen, as for any paper consent. In both cases each record
+  MUST remain individually retrievable in the system.
 - **FR-023**: Consents and visits recorded before this feature MUST remain unchanged and valid.
 - **FR-024**: Actions that the system already performs when a consent is registered (for example synchronizing the client and pet with the external customer-management system) MUST still run exactly once for a consent created through the combined flow.
 
@@ -173,7 +178,7 @@ When staff starts registering a pet, the system offers the path that fits the pe
 ### Measurable Outcomes
 
 - **SC-001**: For a pet with no valid consent, the tutor signs exactly once and goes through exactly one review-and-sign session, down from two signatures and two sessions today (verified on 100% of combined runs).
-- **SC-002**: The tutor-facing time from opening the document on the device to a confirmed admitted pet is under 3 minutes, and at least 40% shorter than completing the consent and then the Ficha de Ingreso separately, measured on at least 5 sample runs.
+- **SC-002**: The tutor-facing time from opening the document on the device to a confirmed admitted pet is under 3 minutes, and at least 40% shorter than completing the consent and then the Ficha de Ingreso separately, measured on at least 5 sample runs of each flow, as in quickstart scenario 16.
 - **SC-003**: 100% of combined signings that complete leave both a valid consent and an admitted visit, each carrying the same signature pair and its own legal text version and fingerprint.
 - **SC-004**: 0 occurrences of an accepted consent or an admitted visit created from an abandoned, expired, disconnected or failed signing, across at least 10 interrupted attempts at different points of the flow.
 - **SC-005**: 100% of declined-block outcomes (consent terms, privacy, intake conditions) produce the records and messages defined in User Story 3, verified for each decline case.

@@ -43,6 +43,13 @@ export function firmadaCaducada(sesion, ahora = new Date()) {
   );
 }
 
+// Solo el usuario del mostrador que creó la sesión puede leerla, consumirla o cancelarla. Se
+// rechaza únicamente cuando ambas identidades se conocen y difieren (en local no hay cabecera
+// de Easy Auth), la misma regla que registrosCombinados.js aplica al guardar.
+export function esDeOtroUsuario(sesion, usuario) {
+  return !!(sesion?.creado_por && usuario && sesion.creado_por !== usuario);
+}
+
 export function estaExpirada(sesion, ahora = new Date()) {
   if (!sesion || !sesion.expira_en) return true;
   const expira =
